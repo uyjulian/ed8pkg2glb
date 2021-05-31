@@ -1674,7 +1674,7 @@ def file_is_ed8_pkg(path):
             return False
         for i in range(total_file_entries):
             file_entry_name, file_entry_uncompressed_size, file_entry_compressed_size, file_entry_offset, file_entry_flags = struct.unpack('<64sIIII', f.read(80))
-            cur_offset = file_entry_offset + file_entry_uncompressed_size
+            cur_offset = file_entry_offset + file_entry_compressed_size
             if cur_offset > max_offset:
                 max_offset = cur_offset
 
