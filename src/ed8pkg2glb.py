@@ -1,16 +1,17 @@
+
 import os, gc, sys, io, struct, array
 
 def read_null_ending_string(f):
     import itertools, functools
     toeof = iter(functools.partial(f.read, 1), b'')
-    return sys.intern((b'').join(itertools.takewhile((b'\x00').__ne__, toeof)).decode('ASCII'))
+    return sys.intern(b''.join(itertools.takewhile(b'\x00'.__ne__, toeof)).decode('ASCII'))
 
 
 def read_integer(f, size, unsigned, endian='<'):
-    typemap = {1:'b', 
-     2:'h', 
-     4:'i', 
-     8:'q'}
+    typemap = {1: 'b', 
+     2: 'h', 
+     4: 'i', 
+     8: 'q'}
     inttype = typemap[size]
     if unsigned == True:
         inttype = inttype.upper()
@@ -26,11 +27,10 @@ def imageUntilePS4(buffer, width, height, bpb, pitch=0):
     tileHeight = 8
     out = bytearray(len(buffer))
     usingPitch = False
-    if pitch > 0:
-        if pitch != width:
-            width_bak = width
-            width = pitch
-            usingPitch = True
+    if pitch > 0 and pitch != width:
+        width_bak = width
+        width = pitch
+        usingPitch = True
     if width % tileWidth or height % tileHeight:
         width_show = width
         height_show = height
@@ -59,7 +59,7 @@ def imageUntilePS4(buffer, width, height, bpb, pitch=0):
 
     if usingPitch:
         width_show = width_bak
-    if width_show != width_real or (height_show != height_real):
+    if width_show != width_real or height_show != height_real:
         crop = bytearray(width_show * height_show * bpb)
         for Y in range(height_show):
             OffsetIn = Y * width_real * bpb
@@ -79,11 +79,10 @@ def imageUntileMorton(buffer, width, height, bpb, pitch=0):
     tileHeight = 8
     out = bytearray(len(buffer))
     usingPitch = False
-    if pitch > 0:
-        if pitch != width:
-            width_bak = width
-            width = pitch
-            usingPitch = True
+    if pitch > 0 and pitch != width:
+        width_bak = width
+        width = pitch
+        usingPitch = True
     if width % tileWidth or height % tileHeight:
         width_show = width
         height_show = height
@@ -112,7 +111,7 @@ def imageUntileMorton(buffer, width, height, bpb, pitch=0):
 
     if usingPitch:
         width_show = width_bak
-    if width_show != width_real or (height_show != height_real):
+    if width_show != width_real or height_show != height_real:
         crop = bytearray(width_show * height_show * bpb)
         for Y in range(height_show):
             OffsetIn = Y * width_real * bpb
@@ -146,11 +145,10 @@ def imageUntileVita(buffer, width, height, bpb, pitch=0):
     tileHeight = 8
     out = bytearray(len(buffer))
     usingPitch = False
-    if pitch > 0:
-        if pitch != width:
-            width_bak = width
-            width = pitch
-            usingPitch = True
+    if pitch > 0 and pitch != width:
+        width_bak = width
+        width = pitch
+        usingPitch = True
     if width % tileWidth or height % tileHeight:
         width_show = width
         height_show = height
@@ -178,7 +176,7 @@ def imageUntileVita(buffer, width, height, bpb, pitch=0):
 
     if usingPitch:
         width_show = width_bak
-    if width_show != width_real or (height_show != height_real):
+    if width_show != width_real or height_show != height_real:
         crop = bytearray(width_show * height_show * bpb)
         for Y in range(height_show):
             OffsetIn = Y * width_real * bpb
@@ -194,7 +192,7 @@ def Unswizzle(data, width, height, imgFmt, IsSwizzled, platform_id, pitch=0):
                  ('BC7', 1, 16), ('RGBA8', 0, 4), ('ARGB8', 0, 4), ('L8', 0, 1),
                  ('A8', 0, 1), ('LA88', 0, 2), ('RGBA16F', 0, 8), ('ARGB1555', 0, 2),
                  ('ARGB4444', 0, 2), ('ARGB8_SRGB', 0, 4))
-    TexParams = tuple((tuple((TexParams[j][i] for j in range(len(TexParams)))) for i in range(len(TexParams[0]))))
+    TexParams = tuple(tuple(TexParams[j][i] for j in range(len(TexParams))) for i in range(len(TexParams[0])))
     IsBlockCompressed = TexParams[1][TexParams[0].index(imgFmt)]
     BytesPerBlock = TexParams[2][TexParams[0].index(imgFmt)]
     if IsBlockCompressed:
@@ -203,10 +201,11 @@ def Unswizzle(data, width, height, imgFmt, IsSwizzled, platform_id, pitch=0):
         pitch >>= 2
     if platform_id == GNM_PLATFORM:
         data = imageUntilePS4(data, width, height, BytesPerBlock, pitch)
-    elif platform_id == GXM_PLATFORM:
-        data = imageUntileVita(data, width, height, BytesPerBlock, pitch)
     else:
-        data = imageUntileMorton(data, width, height, BytesPerBlock, pitch)
+        if platform_id == GXM_PLATFORM:
+            data = imageUntileVita(data, width, height, BytesPerBlock, pitch)
+        else:
+            data = imageUntileMorton(data, width, height, BytesPerBlock, pitch)
     return data
 
 
@@ -219,40 +218,41 @@ def GetInfo(val, sh1, sh2):
     return val
 
 
+
 def get_dds_header(fmt, width, height, mipmap_levels, is_cube_map):
-    if fmt == 'LA8':
-        return struct.pack('<4s20I4s10I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 8, height, width, (width * 16 + 7) // 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 65, b'', 16, 255, 255, 255, 65280, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0)
-    if fmt == 'L8':
-        return struct.pack('<4s20I4s10I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 8, height, width, (width * 8 + 7) // 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 64, b'', 8, 255, 255, 255, 0, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0)
-    if fmt == 'ARGB8':
-        return struct.pack('<4s20I4s10I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 8, height, width, (width * 32 + 7) // 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 65, b'', 32, 16711680, 65280, 255, 4278190080, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0)
-    if fmt == 'RGBA8':
-        return struct.pack('<4s20I4s10I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 8, height, width, (width * 32 + 7) // 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 65, b'', 32, 4278190080, 16711680, 65280, 255, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0)
-    if fmt == 'RGB565':
-        return struct.pack('<4s20I4s10I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 8, height, width, (width * 16 + 7) // 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 64, b'', 16, 63488, 2016, 31, 0, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0)
-    if fmt == 'ARGB4444':
-        return struct.pack('<4s20I4s10I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 8, height, width, (width * 16 + 7) // 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 65, b'', 16, 3840, 240, 15, 61440, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0)
-    if fmt == 'BC5':
-        return struct.pack('<4s20I4s10I5I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 524288, height, width, (width + 3) // 4 * 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 4, b'DX10', 0, 0, 0, 0, 0, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0, 83, 3, 0, 1, 0)
-    if fmt == 'BC7':
-        return struct.pack('<4s20I4s10I5I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 524288, height, width, (width + 3) // 4 * 8, 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 4, b'DX10', 0, 0, 0, 0, 0, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0, 98, 3, 0, 1, 0)
-    if fmt == 'DXT1' or (fmt == 'DXT3' or fmt == 'DXT5'):
-        return struct.pack('<4s20I4s10I', b'DDS ', 124, 4103 | (131072 if mipmap_levels is not None else 0) | 524288, height, width, (width + 3) // 4 * (8 if fmt == 'DXT1' else 16), 0, mipmap_levels if mipmap_levels is not None else 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 4, fmt.encode('ASCII'), 0, 0, 0, 0, 0, 8 if (mipmap_levels is not None or is_cube_map) else 0 | (4194304 if mipmap_levels is not None else 0) | 4096, 65024 if is_cube_map else 0, 0, 0, 0)
-    print('Unhandled format ' + str(fmt) + '!')
+    if fmt == "LA8":
+        return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) |     0x8), height, width, (width * 16 + 7) // 8,                               0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, (0 | 0x1 | 0x40),                 b"", 16,     0x00FF,     0x00FF,     0x00FF,     0xFF00, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
+    elif fmt == "L8":
+        return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) |     0x8), height, width, (width *  8 + 7) // 8,                               0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, (0 |       0x40),                 b"",  8,     0x00FF,     0x00FF,     0x00FF,     0x0000, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
+    elif fmt == "ARGB8":
+        return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) |     0x8), height, width, (width * 32 + 7) // 8,                               0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, (0 | 0x1 | 0x40),                 b"", 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
+    elif fmt == "RGBA8":
+        return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) |     0x8), height, width, (width * 32 + 7) // 8,                               0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, (0 | 0x1 | 0x40),                 b"", 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
+    elif fmt == "RGB565":
+        return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) |     0x8), height, width, (width * 16 + 7) // 8,                               0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, (0 |       0x40),                 b"", 16, 0x0000F800, 0x000007E0, 0x0000001F, 0x00000000, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
+    elif fmt == "ARGB4444":
+        return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) |     0x8), height, width, (width * 16 + 7) // 8,                               0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, (0 | 0x1 | 0x40),                 b"", 16, 0x00000F00, 0x000000F0, 0x0000000F, 0x0000F000, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
+    elif fmt == "BC5":
+        return struct.pack("<4s20I4s10I5I", b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) | 0x80000), height, width, ((width + 3) // 4) * (8),                            0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32,              0x4,             b"DX10",  0,          0,          0,          0,          0, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0, 83, 3, 0, 1, 0)
+    elif fmt == "BC7":
+        return struct.pack("<4s20I4s10I5I", b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) | 0x80000), height, width, ((width + 3) // 4) * (8),                            0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32,              0x4,             b"DX10",  0,          0,          0,          0,          0, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0, 98, 3, 0, 1, 0)
+    elif fmt == "DXT1" or fmt == "DXT3" or fmt == "DXT5":
+        return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) | 0x80000), height, width, ((width + 3) // 4) * (8 if (fmt == "DXT1") else 16), 0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32,              0x4, fmt.encode("ASCII"),  0,          0,          0,          0,          0, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
+    else:
+        print("Unhandled format " + str(fmt) + "!")
 
 
 def uncompress_nislzss(src, decompressed_size, compressed_size):
-    des = int.from_bytes(src.read(4), byteorder="little")
+    des = int.from_bytes(src.read(4), byteorder='little')
     if des != decompressed_size:
-        des = des if (des > decompressed_size) else decompressed_size
-    cms = int.from_bytes(src.read(4), byteorder="little")
-    if (cms != compressed_size) and ((compressed_size - cms) != 4):
+        des = des if des > decompressed_size else decompressed_size
+    cms = int.from_bytes(src.read(4), byteorder='little')
+    if cms != compressed_size and compressed_size - cms != 4:
         raise Exception("compression size in header and stream don't match")
-    num3 = int.from_bytes(src.read(4), byteorder="little")
+    num3 = int.from_bytes(src.read(4), byteorder='little')
     fin = src.tell() + cms - 13
     cd = bytearray(des)
     num4 = 0
-
     while src.tell() <= fin:
         b = src.read(1)[0]
         if b == num3:
@@ -263,8 +263,9 @@ def uncompress_nislzss(src, decompressed_size, compressed_size):
                 b3 = src.read(1)[0]
                 if b2 < b3:
                     for _ in range(b3):
-                        cd[num4] = cd[num4 - b2]
+                        cd[num4] = cd[(num4 - b2)]
                         num4 += 1
+
                 else:
                     sliding_window_pos = num4 - b2
                     cd[num4:num4 + b3] = cd[sliding_window_pos:sliding_window_pos + b3]
@@ -278,6 +279,7 @@ def uncompress_nislzss(src, decompressed_size, compressed_size):
 
     return cd
 
+
 def uncompress_lz4(src, decompressed_size, compressed_size):
     dst = bytearray(decompressed_size)
     min_match_len = 4
@@ -285,64 +287,57 @@ def uncompress_lz4(src, decompressed_size, compressed_size):
     fin = src.tell() + compressed_size
 
     def get_length(src, length):
-        if length != 0x0f:
+        """get the length of a lz4 variable length integer."""
+        if length != 15:
             return length
-
-        while True:
+        while 1:
             read_buf = src.read(1)
             if len(read_buf) != 1:
-                raise Exception("EOF at length read")
-            len_part = read_buf[0]
-
+                raise Exception('EOF at length read')
+            len_part = int.from_bytes(read_buf, byteorder='little')
             length += len_part
-
-            if len_part != 0xff:
+            if len_part != 255:
                 break
 
         return length
 
     while src.tell() <= fin:
-        # decode a block
         read_buf = src.read(1)
         if not read_buf:
-            raise Exception("EOF at reading literal-len")
-        token = read_buf[0]
-
-        literal_len = get_length(src, (token >> 4) & 0x0f)
-
-        # copy the literal to the output buffer
+            raise Exception('EOF at reading literal-len')
+        token = int.from_bytes(read_buf, byteorder='little')
+        literal_len = get_length(src, token >> 4 & 15)
         read_buf = src.read(literal_len)
-
         if len(read_buf) != literal_len:
-            raise Exception("not literal data")
+            raise Exception('not literal data')
         dst[num4:num4 + literal_len] = read_buf[:literal_len]
         num4 += literal_len
         read_buf = src.read(2)
         if not read_buf or src.tell() > fin:
-            if token & 0x0f != 0:
-                raise Exception("EOF, but match-len > 0: %u" % (token % 0x0f, ))
+            if token & 15 != 0:
+                raise Exception('EOF, but match-len > 0: %u' % (token % 15,))
             break
-
         if len(read_buf) != 2:
-            raise Exception("premature EOF")
-
-        offset = read_buf[0] | (read_buf[1] << 8)
-
+            raise Exception('premature EOF')
+        offset = int.from_bytes(read_buf, byteorder='little')
         if offset == 0:
             raise Exception("offset can't be 0")
-
-        match_len = get_length(src, (token >> 0) & 0x0f)
+        match_len = get_length(src, token >> 0 & 15)
         match_len += min_match_len
 
-        # append the sliding window of the previous literals
-        if offset < match_len:
-            for _ in range(match_len):
-                dst[num4] = dst[num4-offset]
-                num4 += 1
-        else:
-            sliding_window_pos = num4 - offset
-            dst[num4:num4 + match_len] = dst[sliding_window_pos:sliding_window_pos + match_len]
-            num4 += match_len
+        def append_sliding_window(num4):
+            if offset < match_len:
+                for _ in range(match_len):
+                    dst[num4] = dst[(num4 - offset)]
+                    num4 += 1
+
+            else:
+                sliding_window_pos = num4 - offset
+                dst[num4:num4 + match_len] = dst[sliding_window_pos:sliding_window_pos + match_len]
+                num4 += match_len
+            return num4
+
+        num4 = append_sliding_window(num4)
 
     return dst
 
@@ -358,31 +353,31 @@ def get_type(id, type_strings, class_descriptors):
     total_types = len(type_strings) + 1
     if id < total_types:
         return type_strings[id]
-    id -= total_types
-    return class_descriptors[id].name
+    else:
+        id -= total_types
+        return class_descriptors[id].name
 
 
 def get_class_from_type(id, type_strings):
     total_types = len(type_strings) + 1
     if id < total_types:
         return
-    return id - total_types + 1
+    else:
+        return id - total_types + 1
 
 
 def get_reference_from_class_descriptor_index(cluster_info, class_name, index):
     for x in cluster_info.list_for_class_descriptors.keys():
-        if cluster_info.classes_strings[x] == class_name:
-            if len(cluster_info.list_for_class_descriptors[x]) > index:
-                return cluster_info.list_for_class_descriptors[x][index].split('#', 1)
+        if cluster_info.classes_strings[x] == class_name and len(cluster_info.list_for_class_descriptors[x]) > index:
+            return cluster_info.list_for_class_descriptors[x][index].split('#', 1)
 
 
 def get_reference_from_class_descriptor(cluster_info, class_name, class_dict):
     for x in cluster_info.list_for_class_descriptors.keys():
-        if cluster_info.classes_strings[x] == class_name:
-            if len(cluster_info.list_for_class_descriptors[x]) > index:
-                for i in range(len(cluster_info.list_for_class_descriptors)):
-                    if cluster_info.list_for_class_descriptors[i] is class_dict:
-                        return get_reference_from_class_descriptor_index(cluster_info, class_name, i)
+        if cluster_info.classes_strings[x] == class_name and len(cluster_info.list_for_class_descriptors[x]) > index:
+            for i in range(len(cluster_info.list_for_class_descriptors)):
+                if cluster_info.list_for_class_descriptors[i] is class_dict:
+                    return get_reference_from_class_descriptor_index(cluster_info, class_name, i)
 
 
 def get_class_name(cluster_info, id):
@@ -395,19 +390,21 @@ def get_class_size(cluster_info, id):
 
 def process_data_members(g, cluster_info, id, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count):
     global g_offcount
+
     if id > 0:
-        class_id = id - 1
+        class_id = id-1
         class_descriptor = cluster_info.class_descriptors[class_id]
         for m in range(class_descriptor.class_data_member_count):
-            member_id = class_descriptor.member_offset + m
+            member_id = class_descriptor.member_offset+m
             data_member = cluster_info.data_members[member_id]
             type_id = data_member.type_id
             variable_text = data_member.name
             type_text = get_type(type_id, cluster_info.type_strings, cluster_info.class_descriptors)
             class_type_id = get_class_from_type(type_id, cluster_info.type_strings)
+
             string_variable = ''
             val = None
-            data_offset = member_location + data_member.value_offset
+            data_offset = member_location+data_member.value_offset
             value_offset = data_member.value_offset
             expected_offset = data_member.fixed_array_size
             if expected_offset == 0:
@@ -417,10 +414,10 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
             if data_instances_by_class is not None:
                 if type_text == 'PArray<PUInt32>' or type_text == 'PSharray<PUInt32>':
                     if array_fixup_count > 0:
-                        count = dict_data[variable_text]['m_count']
-                        if count <= 65535:
+                        count = dict_data[variable_text]["m_count"]
+                        if (count <= 0xffff):
                             old_position = g.tell()
-                            g.seek(array_location + cluster_info.array_info[(class_element + cluster_info.array_fixup_offset)].offset)
+                            g.seek(array_location+cluster_info.array_info[class_element + cluster_info.array_fixup_offset].offset)
                             val = array.array('I', g.read(count * 4))
                             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                                 val.byteswap()
@@ -435,10 +432,10 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
                         g.seek(1, io.SEEK_CUR)
                 elif type_text == 'PArray<PInt32>' or type_text == 'PSharray<PInt32>':
                     if array_fixup_count > 0:
-                        count = dict_data[variable_text]['m_count']
-                        if count <= 65535:
+                        count = dict_data[variable_text]["m_count"]
+                        if (count <= 0xffff):
                             old_position = g.tell()
-                            g.seek(array_location + cluster_info.array_info[(class_element + cluster_info.array_fixup_offset)].offset)
+                            g.seek(array_location+cluster_info.array_info[class_element + cluster_info.array_fixup_offset].offset)
                             val = array.array('i', g.read(count * 4))
                             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                                 val.byteswap()
@@ -453,16 +450,20 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
                         g.seek(1, io.SEEK_CUR)
                 elif type_text == 'PArray<float>' or type_text == 'PSharray<float>':
                     if array_fixup_count > 0:
-                        count = dict_data[variable_text]['m_count']
+                        count = dict_data[variable_text]["m_count"]
+
                         if class_element == 0:
                             g_offcount = 0
+
                         old_position = g.tell()
-                        array_info = cluster_info.array_info[(class_element + cluster_info.array_fixup_offset)]
+
+                        array_info = cluster_info.array_info[class_element + cluster_info.array_fixup_offset]
                         if array_info.count > 0:
                             g.seek(array_location + array_info.offset)
                         else:
                             g.seek(array_location + g_offcount)
-                        g_offcount = g_offcount + count * 4
+
+                        g_offcount = g_offcount + (count * 4)
                         val = array.array('f', g.read(count * 4))
                         if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                             val.byteswap()
@@ -473,180 +474,158 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
                         g.seek(4, io.SEEK_CUR)
                     elif expected_size == 5:
                         g.seek(1, io.SEEK_CUR)
-                else:
-                    if type_text == 'PArray<PUInt8>' or type_text == 'PSharray<PUInt8>':
-                        if array_fixup_count > 0:
-                            count = dict_data[variable_text]['m_count']
-                            if count <= 65535:
-                                old_position = g.tell()
-                                g.seek(array_location + cluster_info.array_info[(class_element + cluster_info.array_fixup_offset)].offset)
-                                val = g.read(count)
-                                g.seek(old_position)
-                            else:
-                                val = []
+                elif type_text == 'PArray<PUInt8>' or type_text == 'PSharray<PUInt8>':
+                    if array_fixup_count > 0:
+                        count = dict_data[variable_text]["m_count"]
+                        if (count <= 0xffff):
+                            old_position = g.tell()
+                            g.seek(array_location+cluster_info.array_info[class_element + cluster_info.array_fixup_offset].offset)
+                            val = g.read(count)
+                            g.seek(old_position)
                         else:
-                            val = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
-                        if expected_size == 8:
-                            g.seek(4, io.SEEK_CUR)
-                        elif expected_size == 5:
-                            g.seek(1, io.SEEK_CUR)
+                            val = []
                     else:
-                        if type_text == 'PArray<PUInt8,4>':
-                            val = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
-                            if expected_size == 5:
-                                g.seek(1, io.SEEK_CUR)
-                        else:
-                            if type_text[0:7] == 'PArray<' and type_text[-1:] == '>' and type(dict_data[variable_text]) is dict:
-                                array_count = dict_data[variable_text]['m_count']
-                                current_count = 0
-                                type_value = type_text[7:-1]
-                                is_pointer = False
-                                if type_value not in data_instances_by_class:
-                                    if type_value[0:10] == 'PDataBlock':
-                                        type_value = type_value[0:10]
-                                    if type_value[-2:] == ' *':
-                                        type_value = type_value[:-2]
-                                        is_pointer = True
-                                if array_count == 0:
+                        val = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
+                    if expected_size == 8:
+                        g.seek(4, io.SEEK_CUR)
+                    elif expected_size == 5:
+                        g.seek(1, io.SEEK_CUR)
+                elif type_text == 'PArray<PUInt8,4>':
+                    val = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
+                    if expected_size == 5:
+                        g.seek(1, io.SEEK_CUR)
+                    
+                    
+                    
+                    
+                    
+                    
+                elif (type_text[0:7] == "PArray<") and (type_text[-1:] == ">") and type(dict_data[variable_text]) is dict:
+                    array_count = dict_data[variable_text]["m_count"]
+                    current_count = 0
+                    type_value = type_text[7:-1]
+                    is_pointer = False
+                    if not (type_value in data_instances_by_class):
+                        
+                        if type_value[0:10] == "PDataBlock":
+                            type_value = type_value[0:10]
+                        if type_value[-2:] == " *":
+                            type_value = type_value[:-2]
+                            is_pointer = True
+                    if array_count == 0:
+                        val = []
+                    elif type_value in data_instances_by_class:
+                        for b in range(pointer_fixup_count):
+                            pointer_info = cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset]
+                            if pointer_info.source_object_id == class_element and ((is_pointer == True) or (is_pointer == False and pointer_info.som == value_offset + 4)) and (len(cluster_info.classes_strings) > pointer_info.destination_object.object_list) and (cluster_info.classes_strings[pointer_info.destination_object.object_list] == type_value) and (pointer_info.destination_object.object_list in data_instances_by_class):
+                                data_instances_by_class_this = data_instances_by_class[pointer_info.destination_object.object_list]
+                                if is_pointer == True:
+                                    if current_count == 0:
+                                        val = [None] * array_count
+                                    offset_calculation = pointer_info.destination_object.object_id
+                                    if len(data_instances_by_class_this) > offset_calculation:
+                                        val[pointer_info.array_index] = data_instances_by_class_this[offset_calculation]
+                                    current_count += 1
+                                else:
                                     val = []
-                            else:
-                                pass
-                            if type_value in data_instances_by_class:
-                                for b in range(pointer_fixup_count):
-                                    pointer_info = cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)]
-                                    if pointer_info.source_object_id == class_element:
-                                        if not is_pointer == True:
-                                            if is_pointer == False:
-                                                if pointer_info.som == value_offset + 4:
-                                                    pass
-                                        if len(cluster_info.classes_strings) > pointer_info.destination_object.object_list:
-                                            if cluster_info.classes_strings[pointer_info.destination_object.object_list] == type_value:
-                                                if pointer_info.destination_object.object_list in data_instances_by_class:
-                                                    data_instances_by_class_this = data_instances_by_class[pointer_info.destination_object.object_list]
-                                    if is_pointer == True:
-                                        if current_count == 0:
-                                            val = [
-                                             None] * array_count
-                                        else:
-                                            offset_calculation = pointer_info.destination_object.object_id
-                                            if len(data_instances_by_class_this) > offset_calculation:
-                                                val[pointer_info.array_index] = data_instances_by_class_this[offset_calculation]
-                                            current_count += 1
-                                    else:
-                                        val = []
-                                        for i in range(pointer_info.array_index):
-                                            val.append(data_instances_by_class_this[(pointer_info.destination_object.object_id + i)])
-
-                                        if b == m:
-                                            break
-
-                            else:
-                                for b in range(pointer_fixup_count):
-                                    pointer_info = cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)]
-                                    user_fix_id = pointer_info.user_fixup_id
-                                    if pointer_info.source_object_id == class_element:
-                                        if pointer_info.som == value_offset + 4:
-                                            if not pointer_info.is_class_data_member():
-                                                if user_fix_id is not None:
-                                                    if user_fix_id < len(cluster_info.user_fixes):
-                                                        if type(cluster_info.user_fixes[user_fix_id].data) is str:
-                                                            if current_count == 0:
-                                                                val = [
-                                                                 None] * array_count
-                                                            else:
-                                                                val[pointer_info.array_index] = cluster_info.user_fixes[user_fix_id].data
-                                                                current_count += 1
-
-                        if not type_value == 'PShaderParameterDefinition' or val is not None:
-                            shader_object_dict = {}
-                            for b in range(pointer_fixup_count):
-                                pointer_info = cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)]
-                                if not pointer_info.is_class_data_member():
-                                    for x in range(len(val)):
-                                        value_this = val[x]
-                                        pointer_info_offset_needed = pointer_info.som
-                                        if value_this['m_parameterType'] == 71:
-                                            pointer_info_offset_needed -= 8
-                                            if value_this['m_bufferLoc']['m_offset'] == pointer_info_offset_needed:
-                                                if len(cluster_info.classes_strings) > pointer_info.destination_object.object_list and pointer_info.destination_object.object_list in data_instances_by_class:
-                                                    shader_object_dict[value_this['m_name']] = data_instances_by_class[pointer_info.destination_object.object_list][cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)].destination_object.object_id]
-                                                else:
-                                                    if not value_this['m_parameterType'] == 66:
-                                                        if value_this['m_parameterType'] == 68:
-                                                            pass
-                                                    if value_this['m_bufferLoc']['m_size'] == 24:
-                                                        pointer_info_offset_needed -= 16
-                                                    else:
-                                                        pointer_info_offset_needed -= 12
-                                                    if value_this['m_bufferLoc']['m_offset'] == pointer_info_offset_needed:
-                                                        user_fix_id = pointer_info.user_fixup_id
-                                                        if user_fix_id is not None:
-                                                            if user_fix_id < len(cluster_info.user_fixes):
-                                                                if 'PAssetReferenceImport' in data_instances_by_class:
-                                                                    if type(cluster_info.user_fixes[user_fix_id].data) is int:
-                                                                        if cluster_info.user_fixes[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport']):
-                                                                            shader_object_dict[value_this['m_name']] = data_instances_by_class['PAssetReferenceImport'][cluster_info.user_fixes[user_fix_id].data]
-
-                            dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'] = shader_object_dict
-                    if class_name[0:9] == 'PSharray<' and class_name[-1:] == '>' and variable_text == 'm_u':
-                        array_count = dict_data['m_count']
-                        current_count = 0
-                        val = [None] * array_count
+                                    for i in range(pointer_info.array_index):
+                                        val.append(data_instances_by_class_this[pointer_info.destination_object.object_id + i])
+                                    if (b == m):
+                                        break
+                    else:
                         for b in range(pointer_fixup_count):
-                            if current_count >= array_count:
-                                break
-                            else:
-                                pointer_info = cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)]
-                            if pointer_info.source_object_id == class_element:
-                                if pointer_info.som == offset_from_parent + 4:
-                                    if pointer_info.destination_object.object_list in data_instances_by_class:
-                                        offset_calculation = pointer_info.destination_object.object_id
-                                        data_instances_by_class_this = data_instances_by_class[pointer_info.destination_object.object_list]
-                                        if len(data_instances_by_class_this) > offset_calculation:
-                                            val[pointer_info.array_index] = data_instances_by_class_this[offset_calculation]
-                                        else:
-                                            current_count += 1
-
-                    elif type_text in data_instances_by_class:
-                        for b in range(pointer_fixup_count):
-                            pointer_info = cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)]
-                            if pointer_info.source_object_id == class_element:
-                                if pointer_info.som == member_id:
-                                    if pointer_info.is_class_data_member():
-                                        user_fix_id = pointer_info.user_fixup_id
-                                        object_id = pointer_info.destination_object.object_id
-                                        data_instances_by_class_this = data_instances_by_class[pointer_info.destination_object.object_list]
-                                        if len(data_instances_by_class_this) > object_id:
-                                            val = data_instances_by_class_this[object_id]
-                                            break
-
-                    elif type_text in cluster_info.import_classes_strings:
-                        for b in range(pointer_fixup_count):
-                            pointer_info = cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)]
+                            pointer_info = cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset]
                             user_fix_id = pointer_info.user_fixup_id
-                            if pointer_info.source_object_id == class_element:
-                                if pointer_info.som == member_id:
-                                    if pointer_info.is_class_data_member():
-                                        if user_fix_id is not None:
-                                            if user_fix_id < len(cluster_info.user_fixes):
-                                                if 'PAssetReferenceImport' in data_instances_by_class:
-                                                    if type(cluster_info.user_fixes[user_fix_id].data) is int:
-                                                        if cluster_info.user_fixes[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport']):
-                                                            val = data_instances_by_class['PAssetReferenceImport'][cluster_info.user_fixes[user_fix_id].data]
-                                                            break
+                            if pointer_info.source_object_id == class_element and pointer_info.som == value_offset + 4 and not pointer_info.is_class_data_member() and user_fix_id is not None and (user_fix_id < len(cluster_info.user_fixes)) and (type(cluster_info.user_fixes[user_fix_id].data) is str):
+                                if current_count == 0:
+                                    val = [None] * array_count
+                                val[pointer_info.array_index] = cluster_info.user_fixes[user_fix_id].data
+                                current_count += 1
+                    if type_value == 'PShaderParameterDefinition' and val is not None:
+                        shader_object_dict = {}
+                        for b in range(pointer_fixup_count):
+                            pointer_info = cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset]
+                            if not pointer_info.is_class_data_member():
+                                for x in range(len(val)):
+                                    value_this = val[x]
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    pointer_info_offset_needed = pointer_info.som
+                                    if value_this["m_parameterType"] == 71: 
+                                        pointer_info_offset_needed -= 8
+                                        if value_this["m_bufferLoc"]["m_offset"] == pointer_info_offset_needed:
+                                            if (len(cluster_info.classes_strings) > pointer_info.destination_object.object_list) and (pointer_info.destination_object.object_list in data_instances_by_class):
+                                                shader_object_dict[value_this["m_name"]] = data_instances_by_class[pointer_info.destination_object.object_list][cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset].destination_object.object_id]
+                                    elif value_this["m_parameterType"] == 66 or value_this["m_parameterType"] == 68: 
+                                        if value_this["m_bufferLoc"]["m_size"] == 24:
+                                            pointer_info_offset_needed -= 16
+                                        else:
+                                            pointer_info_offset_needed -= 12
+                                        if value_this["m_bufferLoc"]["m_offset"] == pointer_info_offset_needed:
+                                            user_fix_id = pointer_info.user_fixup_id
+                                            if user_fix_id is not None and (user_fix_id < len(cluster_info.user_fixes)) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_info.user_fixes[user_fix_id].data) is int) and (cluster_info.user_fixes[user_fix_id].data < len(data_instances_by_class["PAssetReferenceImport"])):
+                                                shader_object_dict[value_this["m_name"]] = data_instances_by_class["PAssetReferenceImport"][cluster_info.user_fixes[user_fix_id].data]
+                        dict_data["mu_tweakableShaderParameterDefinitionsObjectReferences"] = shader_object_dict
 
-                    elif class_type_id is not None:
-                        if not type(dict_data[variable_text]) is dict or cluster_info.class_descriptors[(class_type_id - 1)].get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size) == expected_size:
-                            if data_member.fixed_array_size > 0:
-                                val = dict_data[variable_text]
-                                structsize = cluster_info.class_descriptors[(class_type_id - 1)].get_size_in_bytes()
-                                for i in range(data_member.fixed_array_size):
-                                    val2 = val[i]
-                                    process_data_members(g, cluster_info, class_type_id, data_offset + structsize * i, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val2, cluster_header, data_instances_by_class, offset_from_parent + data_member.value_offset + structsize * i, array_fixup_count, pointer_fixup_count)
-
-                            else:
-                                val = dict_data[variable_text]
-                                process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + data_member.value_offset, array_fixup_count, pointer_fixup_count)
+                elif (((class_name[0:9] == "PSharray<") and (class_name[-1:] == ">"))) and variable_text == "m_u":
+                    array_count = dict_data["m_count"]
+                    current_count = 0
+                    val = [None] * array_count
+                    for b in range(pointer_fixup_count):
+                        if current_count >= array_count:
+                            break
+                        pointer_info = cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset]
+                        if (pointer_info.source_object_id == class_element) and (pointer_info.som == offset_from_parent + 4) and (pointer_info.destination_object.object_list in data_instances_by_class):
+                            offset_calculation = pointer_info.destination_object.object_id
+                            data_instances_by_class_this = data_instances_by_class[pointer_info.destination_object.object_list]
+                            if len(data_instances_by_class_this) > offset_calculation:
+                                val[pointer_info.array_index] = data_instances_by_class_this[offset_calculation]
+                            current_count += 1
+                elif (type_text in data_instances_by_class):
+                    for b in range(pointer_fixup_count):
+                        pointer_info = cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset]
+                        if pointer_info.source_object_id == class_element and pointer_info.som == member_id and pointer_info.is_class_data_member():
+                            user_fix_id = pointer_info.user_fixup_id
+                            object_id = pointer_info.destination_object.object_id
+                            data_instances_by_class_this = data_instances_by_class[pointer_info.destination_object.object_list]
+                            if len(data_instances_by_class_this) > object_id:
+                                val = data_instances_by_class_this[object_id]
+                                break
+                elif (type_text in cluster_info.import_classes_strings):
+                    for b in range(pointer_fixup_count):
+                        pointer_info = cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset]
+                        user_fix_id = pointer_info.user_fixup_id
+                        if pointer_info.source_object_id == class_element and pointer_info.som == member_id and pointer_info.is_class_data_member() and user_fix_id is not None and (user_fix_id < len(cluster_info.user_fixes)) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_info.user_fixes[user_fix_id].data) is int) and (cluster_info.user_fixes[user_fix_id].data < len(data_instances_by_class["PAssetReferenceImport"])):
+                            val = data_instances_by_class["PAssetReferenceImport"][cluster_info.user_fixes[user_fix_id].data]
+                            break
+                elif class_type_id is not None and type(dict_data[variable_text]) is dict and ((cluster_info.class_descriptors[class_type_id-1].get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size)) == expected_size):
+                    if data_member.fixed_array_size > 0:
+                        val = dict_data[variable_text]
+                        structsize = cluster_info.class_descriptors[class_type_id-1].get_size_in_bytes()
+                        for i in range(data_member.fixed_array_size):
+                            val2 = val[i]
+                            process_data_members(g, cluster_info, class_type_id, data_offset + (structsize * i), array_location, class_element, cluster_mesh_info, type_text, should_print_class, val2, cluster_header, data_instances_by_class, offset_from_parent + data_member.value_offset + (structsize * i), array_fixup_count, pointer_fixup_count)
+                    else:
+                        val = dict_data[variable_text]
+                        process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + data_member.value_offset, array_fixup_count, pointer_fixup_count)
             elif type_text == 'PUInt8':
                 if data_member.fixed_array_size != 0:
                     val = array.array('B', g.read(data_member.fixed_array_size * 1))
@@ -709,69 +688,60 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
                     if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                         val.byteswap()
                 else:
-                    val = struct.unpack(('>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<') + 'f', g.read(4))[0]
+                    val = struct.unpack(('>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<') + "f", g.read(4))[0]
             elif type_text == 'bool':
                 if read_integer(g, 1, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<') > 0:
                     val = True
                 else:
                     val = False
+
             elif type_text == 'PChar':
-                val = ''
+                val = ""
                 for b in range(array_fixup_count):
-                    array_info = cluster_info.array_info[(b + cluster_info.array_fixup_offset)]
-                    if array_info.source_object_id == class_element:
+                    array_info = cluster_info.array_info[b + cluster_info.array_fixup_offset]
+                    if (array_info.source_object_id == class_element):
                         old_position = g.tell()
                         g.seek(array_location + array_info.offset)
                         try:
                             val = read_null_ending_string(g)
                         except:
-                            val = ''
-
+                            val = ""
                         g.seek(old_position)
                         break
-
                 if expected_size == 4:
                     g.seek(4, io.SEEK_CUR)
                 elif expected_size == 1:
                     g.seek(1, io.SEEK_CUR)
             elif type_text == 'PString' and class_name == 'PNode':
-                val = ''
+                val = ""
                 for b in range(array_fixup_count):
-                    array_info = cluster_info.array_info[(b + cluster_info.array_fixup_offset)]
-                    if array_info.source_object_id == class_element:
-                        if not array_info.som + 4 == value_offset:
-                            if array_info.som == value_offset:
-                                pass
+                    array_info = cluster_info.array_info[b + cluster_info.array_fixup_offset]
+                    if (array_info.source_object_id == class_element) and ((array_info.som + 4 == value_offset) or (array_info.som == value_offset)):
                         old_position = g.tell()
                         g.seek(array_location + array_info.offset)
                         try:
                             val = read_null_ending_string(g)
                         except:
-                            val = ''
-
+                            val = ""
                         g.seek(old_position)
                         break
-
                 if expected_size == 4:
                     g.seek(4, io.SEEK_CUR)
                 elif expected_size == 1:
                     g.seek(1, io.SEEK_CUR)
             elif type_text == 'PString':
-                val = ''
+                val = ""
                 for b in range(array_fixup_count):
-                    array_info = cluster_info.array_info[(b + cluster_info.array_fixup_offset)]
-                    if array_info.source_object_id == class_element:
-                        if array_info.som == value_offset:
-                            old_position = g.tell()
-                            g.seek(array_location + array_info.offset)
-                            try:
-                                val = read_null_ending_string(g)
-                            except:
-                                val = ''
-
-                            g.seek(old_position)
-                            break
-
+                    array_info = cluster_info.array_info[b + cluster_info.array_fixup_offset]
+                    if (array_info.source_object_id == class_element) and (array_info.som == value_offset):
+                        old_position = g.tell()
+                        g.seek(array_location + array_info.offset)
+                        try:
+                            val = read_null_ending_string(g)
+                        except:
+                            val = ""
+                        g.seek(old_position)
+                        break
                 if expected_size == 4:
                     g.seek(4, io.SEEK_CUR)
                 elif expected_size == 1:
@@ -782,56 +752,55 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
                 val = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
             elif type_text == 'Vector4' and expected_size == 4:
                 val = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
+
             elif type_text == 'PLightType' or type_text == 'PRenderDataType' or type_text == 'PAnimationKeyDataType' or type_text == 'PTextureFormatBase' or type_text == 'PSceneRenderPassType':
                 val = None
                 for b in range(pointer_fixup_count):
-                    pointer_info = cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)]
-                    if pointer_info.source_object_id == class_element:
-                        if pointer_info.som == member_id:
-                            if pointer_info.is_class_data_member():
-                                user_fix_id = pointer_info.user_fixup_id
-                                if user_fix_id is not None and user_fix_id < len(cluster_info.user_fixes):
-                                    val = cluster_info.user_fixes[user_fix_id].data
-                                else:
-                                    val = pointer_info.destination_object.object_list
+                    pointer_info = cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset]
+                    if pointer_info.source_object_id == class_element and pointer_info.som == member_id and pointer_info.is_class_data_member():
+                        user_fix_id = pointer_info.user_fixup_id
+                        if user_fix_id is not None and user_fix_id < len(cluster_info.user_fixes):
+                            val = cluster_info.user_fixes[user_fix_id].data
+                        else:
+                            val = pointer_info.destination_object.object_list
 
             elif type_text == 'PClassDescriptor':
-                pointer_info = cluster_info.pointer_info[(class_element + cluster_info.pointer_fixup_offset)]
+                pointer_info = cluster_info.pointer_info[class_element + cluster_info.pointer_fixup_offset]
                 user_fix_id = pointer_info.user_fixup_id
                 if user_fix_id is not None and user_fix_id < len(cluster_info.user_fixes):
                     val = cluster_info.user_fixes[user_fix_id].data
                 else:
                     val = pointer_info.destination_object.object_list
-            elif class_type_id is not None and (cluster_info.class_descriptors[(class_type_id - 1)].get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size) == expected_size or type_text[0:7]) == 'PArray<' and type_text[-1:] == '>' or type_text[0:9] == 'PSharray<' and type_text[-1:] == '>':
+            elif class_type_id is not None and (((cluster_info.class_descriptors[class_type_id-1].get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size)) == expected_size) or ((type_text[0:7] == "PArray<") and (type_text[-1:] == ">")) or ((((type_text[0:9] == "PSharray<") and (type_text[-1:] == ">"))))):
                 if data_member.fixed_array_size > 0:
                     val = []
-                    structsize = cluster_info.class_descriptors[(class_type_id - 1)].get_size_in_bytes()
+                    structsize = cluster_info.class_descriptors[class_type_id-1].get_size_in_bytes()
                     for i in range(data_member.fixed_array_size):
                         val2 = {}
-                        process_data_members(g, cluster_info, class_type_id, data_offset + structsize * i, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val2, cluster_header, data_instances_by_class, offset_from_parent + data_member.value_offset + structsize * i, array_fixup_count, pointer_fixup_count)
+                        process_data_members(g, cluster_info, class_type_id, data_offset + (structsize * i), array_location, class_element, cluster_mesh_info, type_text, should_print_class, val2, cluster_header, data_instances_by_class, offset_from_parent + data_member.value_offset + (structsize * i), array_fixup_count, pointer_fixup_count)
                         val.append(val2)
-
                 else:
                     val = {}
                     process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + data_member.value_offset, array_fixup_count, pointer_fixup_count)
             else:
                 string_variable = ' : TODO '
-            if not (data_instances_by_class is not None and val is not None):
-                if data_instances_by_class is None:
-                    pass
+
+            if ((data_instances_by_class is not None) and (val is not None)) or (data_instances_by_class is None):
                 dict_data[variable_text] = val
+
                 if data_instances_by_class is None:
-                    current_size = g.tell() - (member_location + data_member.value_offset)
-                    is_inline_structure = class_type_id is not None and cluster_info.class_descriptors[(class_type_id - 1)].get_size_in_bytes() == expected_size
+                    current_size = g.tell()-(member_location+data_member.value_offset)
+
+                    is_inline_structure = (class_type_id is not None) and (cluster_info.class_descriptors[class_type_id-1].get_size_in_bytes() == expected_size)
                     is_pointer = False
                     if pointer_fixup_count > 0:
-                        if cluster_info.pointer_info[(cluster_info.pointer_fixup_offset + class_element)].som == value_offset + 4:
+                        if cluster_info.pointer_info[cluster_info.pointer_fixup_offset+class_element].som == (value_offset+4):
                             is_pointer = True
                     if is_pointer == False:
-                        is_pointer = class_name[0:7] == 'PArray<' and class_name[-1:] == '>'
+                        is_pointer = (class_name[0:7] == "PArray<") and (class_name[-1:] == ">")
                     if is_pointer == False:
                         for b in range(pointer_fixup_count):
-                            if cluster_info.pointer_info[(b + cluster_info.pointer_fixup_offset)].source_object_id == class_element:
+                            if cluster_info.pointer_info[b + cluster_info.pointer_fixup_offset].source_object_id == class_element:
                                 is_pointer = True
 
         process_data_members(g, cluster_info, class_descriptor.super_class_id, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count)
@@ -899,10 +868,11 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
     if data_instances_by_class is None:
         cluster_info.classes_strings.append(class_name)
         data_instances = []
-    elif count_list in data_instances_by_class:
-        data_instances = data_instances_by_class[count_list]
     else:
-        should_handle_class = False
+        if count_list in data_instances_by_class:
+            data_instances = data_instances_by_class[count_list]
+        else:
+            should_handle_class = False
     if should_handle_class:
         for i in range(cluster_instance_list_header.count):
             dict_data = None
@@ -918,9 +888,8 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
                 dict_data['mu_memberClass'] = class_name
             else:
                 reference_from_class_descriptor_index = get_reference_from_class_descriptor_index(cluster_info, class_name, i)
-                if reference_from_class_descriptor_index is not None:
-                    if len(list(reference_from_class_descriptor_index)) > 1:
-                        dict_data['mu_name'] = reference_from_class_descriptor_index[1]
+                if reference_from_class_descriptor_index is not None and len(list(reference_from_class_descriptor_index)) > 1:
+                    dict_data['mu_name'] = reference_from_class_descriptor_index[1]
             member_location += class_size
 
     cluster_info.pointer_array_fixup_offset += cluster_instance_list_header.pointer_array_fixup_count
@@ -928,20 +897,20 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
     cluster_info.array_fixup_offset += cluster_instance_list_header.array_fixup_count
     if data_instances_by_class is not None:
         return
-    if class_name == 'PAssetReference':
-        for v in data_instances:
-            if v['m_assetType'] not in cluster_info.list_for_class_descriptors:
-                cluster_info.list_for_class_descriptors[v['m_assetType']] = []
-            else:
+    else:
+        if class_name == 'PAssetReference':
+            for v in data_instances:
+                if v['m_assetType'] not in cluster_info.list_for_class_descriptors:
+                    cluster_info.list_for_class_descriptors[v['m_assetType']] = []
                 cluster_info.list_for_class_descriptors[v['m_assetType']].append(v['m_id'])
 
-    if class_name == 'PAssetReferenceImport':
-        for v in data_instances:
-            cluster_info.import_classes_strings.append(v['m_targetAssetType'])
+        if class_name == 'PAssetReferenceImport':
+            for v in data_instances:
+                cluster_info.import_classes_strings.append(v['m_targetAssetType'])
 
-    if should_handle_class:
-        return data_instances
-    return
+        if should_handle_class:
+            return data_instances
+        return
 
 
 class ClusterClusterHeader:
@@ -1170,7 +1139,8 @@ class ClusterBaseFixup:
     def get_source(self):
         if self.is_class_data_member():
             return ' m_memberID:' + str(self.som)
-        return ' m_srcOffset:' + str(self.som)
+        else:
+            return ' m_srcOffset:' + str(self.som)
 
     def unpack(self, fixup_buffer, mask):
         if mask & 1 == 0:
@@ -1236,8 +1206,8 @@ class ClusterPointerFixup(ClusterBaseFixup):
             is_user_fixup = user_fixup_id != 0
             if is_user_fixup:
                 self.user_fixup_id = user_fixup_id - 1
-            else:
-                self.user_fixup_id = None
+        else:
+            self.user_fixup_id = None
         if is_user_fixup is not True:
             self.destination_object.object_id = cluster_variable_length_quantity_unpack(fixup_buffer)
             if mask & 32 == 0:
@@ -1327,20 +1297,19 @@ class ClusterFixupUnpacker:
         while object_id < self.object_count:
             if object_id & 7 == 0:
                 current_bit = 1
-            else:
-                bit_mask = fixup_buffer.get_value_at(bit_mask_offset)
-                if bit_mask & current_bit != 0:
-                    fixup_buffer.set_fixup(template_fixup)
-                    if use_unpack_id:
-                        unpack_id(fixup_buffer, object_id, self.unpack_mask)
-                    else:
-                        unpack_with_fixup(fixup_buffer, object_id, self.unpack_mask)
-                    fixup_buffer.next_fixup()
-                if object_id & 7 == 7:
-                    bit_mask_offset += 1
+            bit_mask = fixup_buffer.get_value_at(bit_mask_offset)
+            if bit_mask & current_bit != 0:
+                fixup_buffer.set_fixup(template_fixup)
+                if use_unpack_id:
+                    unpack_id(fixup_buffer, object_id, self.unpack_mask)
                 else:
-                    current_bit = current_bit << 1
-                object_id += 1
+                    unpack_with_fixup(fixup_buffer, object_id, self.unpack_mask)
+                fixup_buffer.next_fixup()
+            if object_id & 7 == 7:
+                bit_mask_offset += 1
+            else:
+                current_bit = current_bit << 1
+            object_id += 1
 
 
 class ClusterProcessInfo:
@@ -1469,61 +1438,56 @@ def decompress(fixup_buffer, fixup_count, object_count, is_pointer):
         unpacker = ClusterFixupUnpacker(mask_for_fixups, object_count)
         if pack_type == 0:
             unpacker.unpack_all(template_fixup, fixup_buffer)
+        elif pack_type == 2:
+            decompressed_with_id_pointer = fixup_buffer.pointer_index
+            patching_count = unpacker.unpack_inclusive(template_fixup, fixup_buffer)
+            save_pointer = fixup_buffer.pointer_index
+            for i in range(patching_count):
+                fixup_buffer.pointer_index = decompressed_with_id_pointer
+                fixup_buffer.get_fixup().unpack_fixup(fixup_buffer, mask_for_fixups)
+                decompressed_with_id_pointer += 1
+
+            fixup_buffer.pointer_index = save_pointer
+        elif pack_type == 3:
+            decompressed_with_id_pointer = fixup_buffer.pointer_index
+            patching_count = unpacker.unpack_exclusive(template_fixup, fixup_buffer)
+            inclusive_count = object_count - patching_count
+            save_pointer = fixup_buffer.pointer_index
+            for i in range(inclusive_count):
+                fixup_buffer.pointer_index = decompressed_with_id_pointer
+                fixup_buffer.get_fixup().unpack_fixup(fixup_buffer, mask_for_fixups)
+                decompressed_with_id_pointer += 1
+
+            fixup_buffer.pointer_index = save_pointer
+        elif pack_type == 4:
+            unpacker.unpack_bitmasked(template_fixup, fixup_buffer, False)
         else:
-            if pack_type == 2:
-                decompressed_with_id_pointer = fixup_buffer.pointer_index
-                patching_count = unpacker.unpack_inclusive(template_fixup, fixup_buffer)
-                save_pointer = fixup_buffer.pointer_index
+            if pack_type == 5:
+                patching_count = cluster_variable_length_quantity_unpack(fixup_buffer)
                 for i in range(patching_count):
-                    fixup_buffer.pointer_index = decompressed_with_id_pointer
-                    fixup_buffer.get_fixup().unpack_fixup(fixup_buffer, mask_for_fixups)
-                    decompressed_with_id_pointer += 1
+                    fixup_buffer.set_fixup(template_fixup)
+                    fixup_buffer.get_fixup().unpack(fixup_buffer, mask_for_fixups)
+                    fixup_buffer.next_fixup()
 
-                fixup_buffer.pointer_index = save_pointer
             else:
-                if pack_type == 3:
-                    decompressed_with_id_pointer = fixup_buffer.pointer_index
-                    patching_count = unpacker.unpack_exclusive(template_fixup, fixup_buffer)
-                    inclusive_count = object_count - patching_count
-                    save_pointer = fixup_buffer.pointer_index
-                    for i in range(inclusive_count):
-                        fixup_buffer.pointer_index = decompressed_with_id_pointer
-                        fixup_buffer.get_fixup().unpack_fixup(fixup_buffer, mask_for_fixups)
-                        decompressed_with_id_pointer += 1
-
-                    fixup_buffer.pointer_index = save_pointer
-                else:
-                    if pack_type == 4:
-                        unpacker.unpack_bitmasked(template_fixup, fixup_buffer, False)
-                    else:
-                        if pack_type == 5:
-                            patching_count = cluster_variable_length_quantity_unpack(fixup_buffer)
-                            for i in range(patching_count):
-                                fixup_buffer.set_fixup(template_fixup)
-                                fixup_buffer.get_fixup().unpack(fixup_buffer, mask_for_fixups)
-                                fixup_buffer.next_fixup()
-
+                if pack_type == 6:
+                    unpacker.unpack_strided(template_fixup, fixup_buffer, False)
+                elif pack_type == 1:
+                    decompressed_group_end_pointer = fixup_buffer.pointer_index + object_count
+                    template_fixup_for_target = template_fixup
+                    while fixup_buffer.pointer_index < decompressed_group_end_pointer:
+                        pack_type_for_groups = fixup_buffer.read()
+                        template_fixup_for_target.unpack_fixup(fixup_buffer, mask_for_fixups)
+                        if pack_type_for_groups == 2:
+                            unpacker.unpack_inclusive(template_fixup_for_target, fixup_buffer)
                         else:
-                            if pack_type == 6:
-                                unpacker.unpack_strided(template_fixup, fixup_buffer, False)
+                            if pack_type_for_groups == 3:
+                                unpacker.unpack_exclusive(template_fixup_for_target, fixup_buffer)
                             else:
-                                if pack_type == 1:
-                                    decompressed_group_end_pointer = fixup_buffer.pointer_index + object_count
-                                    template_fixup_for_target = template_fixup
-                                    while fixup_buffer.pointer_index < decompressed_group_end_pointer:
-                                        pack_type_for_groups = fixup_buffer.read()
-                                        template_fixup_for_target.unpack_fixup(fixup_buffer, mask_for_fixups)
-                                        if pack_type_for_groups == 2:
-                                            unpacker.unpack_inclusive(template_fixup_for_target, fixup_buffer)
-                                        else:
-                                            if pack_type_for_groups == 3:
-                                                unpacker.unpack_exclusive(template_fixup_for_target, fixup_buffer)
-                                            else:
-                                                if pack_type_for_groups == 4:
-                                                    unpacker.unpack_bitmasked(template_fixup_for_target, fixup_buffer, True)
-                                                else:
-                                                    if pack_type_for_groups == 6:
-                                                        unpacker.unpack_strided(template_fixup_for_target, fixup_buffer, True)
+                                if pack_type_for_groups == 4:
+                                    unpacker.unpack_bitmasked(template_fixup_for_target, fixup_buffer, True)
+                                elif pack_type_for_groups == 6:
+                                    unpacker.unpack_strided(template_fixup_for_target, fixup_buffer, True)
 
 
 def decompress_fixups(fixup_buffer, instance_list, is_pointer_array, is_pointer):
@@ -1645,9 +1609,8 @@ def parse_cluster(filename='', reserved_argument=None, storage_media=None):
         if data_instances is not None:
             data_instances_by_class[get_class_name(header_processor, instance_list_header.class_id)] = data_instances
             data_instances_by_class[count_list] = data_instances
-        else:
-            class_location += instance_list_header.size
-            count_list += 1
+        class_location += instance_list_header.size
+        count_list += 1
 
     cluster_mesh_info.data_instances_by_class = data_instances_by_class
     header_processor.reset_offset()
@@ -1668,7 +1631,7 @@ def file_is_ed8_pkg(path):
     if not os.path.isfile(path):
         return False
     max_offset = 0
-    with open(path, 'rb') as f:
+    with open(path, 'rb') as (f):
         f.seek(0, 2)
         length = f.tell()
         f.seek(0, 0)
@@ -1742,7 +1705,7 @@ class TFileMedia(IStorageMedia):
         return os.path.isfile(self.basepath + '/' + name)
 
     def open(self, name, flags='rb', **kwargs):
-        return open((self.basepath + '/' + name), flags, **kwargs)
+        return open(self.basepath + '/' + name, flags, **kwargs)
 
     def get_list_at(self, name, list_callback):
         llist = sorted(os.listdir(self.basepath))
@@ -1791,13 +1754,15 @@ class TED8PkgMedia(IStorageMedia):
             self.f.seek(4, io.SEEK_CUR)
         if file_entry[3] & 4:
             output_data = uncompress_lz4(self.f, file_entry[2], file_entry[1])
-        elif file_entry[3] & 1:
-            output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
         else:
-            output_data = self.f.read(file_entry[2])
+            if file_entry[3] & 1:
+                output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
+            else:
+                output_data = self.f.read(file_entry[2])
         if 'b' in flags:
-            return (io.BytesIO)(output_data, **kwargs)
-        return (io.TextIOWrapper)((io.BytesIO(output_data)), **kwargs)
+            return io.BytesIO(output_data, **kwargs)
+        else:
+            return io.TextIOWrapper(io.BytesIO(output_data), **kwargs)
 
     def get_list_at(self, name, list_callback):
         llist = sorted(self.file_entries.keys())
@@ -1810,10 +1775,9 @@ class BytesIOOnCloseHandler(io.BytesIO):
     handler = None
 
     def close(self, *args, **kwargs):
-        if self.handler is not None:
-            if not self.closed:
-                self.handler(self.getvalue())
-        (super().close)(*args, **kwargs)
+        if self.handler is not None and not self.closed:
+            self.handler(self.getvalue())
+        super().close(*args, **kwargs)
 
     def set_close_handler(self, handler):
         self.handler = handler
@@ -1871,14 +1835,16 @@ class TSpecialOverlayMedia(IStorageMedia):
 
     def open(self, name, flags='rb', **kwargs):
         if 'w' in flags:
-            return (self.storage0.open)(name, flags, **kwargs)
-            return (self.storage1.open)(name, flags, **kwargs)
+            return self.storage0.open(name, flags, **kwargs)
+            if name.endswith('.glb'):
+                return self.storage0.open(name, flags, **kwargs)
+            return self.storage1.open(name, flags, **kwargs)
         if self.storage0.check_existent_storage(name):
-            return (self.storage0.open)(name, flags, **kwargs)
+            return self.storage0.open(name, flags, **kwargs)
         if self.storage1.check_existent_storage(name):
-            return (self.storage1.open)(name, flags, **kwargs)
+            return self.storage1.open(name, flags, **kwargs)
         if self.storage2.check_existent_storage(name):
-            return (self.storage2.open)(name, flags, **kwargs)
+            return self.storage2.open(name, flags, **kwargs)
         raise Exception('File ' + str(name) + ' not found')
 
     def get_list_at(self, name, list_callback):
@@ -1905,20 +1871,20 @@ def get_texture_size(width, height, bpp, is_dxt):
 
 
 def get_mipmap_offset_and_size(mipmap_level, width, height, texture_format, is_cube_map):
-    size_map = {'DXT1':4, 
-     'DXT3':8, 
-     'DXT5':8, 
-     'BC5':8, 
-     'BC7':8, 
-     'RGBA8':32, 
-     'ARGB8':32, 
-     'L8':8, 
-     'A8':8, 
-     'LA88':16, 
-     'RGBA16F':64, 
-     'ARGB1555':16, 
-     'ARGB4444':16, 
-     'ARGB8_SRGB':32}
+    size_map = {'DXT1': 4, 
+     'DXT3': 8, 
+     'DXT5': 8, 
+     'BC5': 8, 
+     'BC7': 8, 
+     'RGBA8': 32, 
+     'ARGB8': 32, 
+     'L8': 8, 
+     'A8': 8, 
+     'LA88': 16, 
+     'RGBA16F': 64, 
+     'ARGB1555': 16, 
+     'ARGB4444': 16, 
+     'ARGB8_SRGB': 32}
     block_map = [
      'DXT1',
      'DXT3',
@@ -1940,7 +1906,8 @@ def get_mipmap_offset_and_size(mipmap_level, width, height, texture_format, is_c
     if is_dxt:
         current_width = current_width + 3 & -4
         current_height = current_height + 3 & -4
-    return (offset, current_width * current_height * bpp // 8, current_width, current_height)
+    return (
+     offset, current_width * current_height * bpp // 8, current_width, current_height)
 
 
 def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map):
@@ -1953,39 +1920,43 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
         image_height = dict_data['m_height']
     if cluster_header.platform_id == GNM_PLATFORM:
         image_data = g.read(cluster_mesh_info.cluster_header['m_sharedVideoMemoryBufferSize'])
-    elif cluster_header.platform_id == GXM_PLATFORM:
-        print('GXM textures are currently not completely supported. Corrupted texture may result')
-        g.seek(64, io.SEEK_CUR)
-        texture_size = 0
-        if 'm_mainTextureBufferSize' in cluster_mesh_info.cluster_header:
-            texture_size = cluster_mesh_info.cluster_header['m_mainTextureBufferSize']
-        elif 'm_textureBufferSize' in cluster_mesh_info.cluster_header:
-            texture_size = cluster_mesh_info.cluster_header['m_textureBufferSize']
-        image_data = g.read(texture_size - 64)
-        block_read = 4
-        if dict_data['m_format'] == 'DXT5':
-            block_read = 8
-        image_data = Unswizzle(image_data, image_width >> 1, image_height >> 2, dict_data['m_format'], True, cluster_header.platform_id, 0)
-    elif cluster_header.platform_id == DX11_PLATFORM:
-        image_data = g.read(cluster_mesh_info.cluster_header['m_maxTextureBufferSize'])
-    elif cluster_header.platform_id == GCM_PLATFORM:
-        image_data = g.read(cluster_mesh_info.cluster_header['m_vramBufferSize'])
+    else:
+        if cluster_header.platform_id == GXM_PLATFORM:
+            print('GXM textures are currently not completely supported. Corrupted texture may result')
+            g.seek(64, io.SEEK_CUR)
+            texture_size = 0
+            if 'm_mainTextureBufferSize' in cluster_mesh_info.cluster_header:
+                texture_size = cluster_mesh_info.cluster_header['m_mainTextureBufferSize']
+            else:
+                if 'm_textureBufferSize' in cluster_mesh_info.cluster_header:
+                    texture_size = cluster_mesh_info.cluster_header['m_textureBufferSize']
+                image_data = g.read(texture_size - 64)
+                block_read = 4
+                if dict_data['m_format'] == 'DXT5':
+                    block_read = 8
+            image_data = Unswizzle(image_data, image_width >> 1, image_height >> 2, dict_data['m_format'], True, cluster_header.platform_id, 0)
+        else:
+            if cluster_header.platform_id == DX11_PLATFORM:
+                image_data = g.read(cluster_mesh_info.cluster_header['m_maxTextureBufferSize'])
+            elif cluster_header.platform_id == GCM_PLATFORM:
+                image_data = g.read(cluster_mesh_info.cluster_header['m_vramBufferSize'])
     pitch = 0
     if cluster_header.platform_id == GNM_PLATFORM:
         temporary_pitch = GetInfo(struct.unpack('<I', dict_data['m_texState'][24:28])[0], 26, 13) + 1
         if image_width != temporary_pitch:
             pitch = temporary_pitch
-    if cluster_header.platform_id == GNM_PLATFORM or cluster_header.platform_id == GXM_PLATFORM:
-        image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], cluster_header.platform_id, True, pitch)
+        if cluster_header.platform_id == GNM_PLATFORM or cluster_header.platform_id == GXM_PLATFORM:
+            image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], cluster_header.platform_id, True, pitch)
     elif cluster_header.platform_id == GCM_PLATFORM:
-        size_map = {'ARGB8':4,  'RGBA8':4, 
-         'ARGB4444':2, 
-         'L8':1, 
-         'LA8':2}
+        size_map = {'ARGB8': 4, 
+         'RGBA8': 4, 
+         'ARGB4444': 2, 
+         'L8': 1, 
+         'LA8': 2}
         if dict_data['m_format'] in size_map:
             image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], True, cluster_header.platform_id, pitch)
     dds_output_path = cluster_mesh_info.filename.split('.', 1)[0] + '.dds'
-    with cluster_mesh_info.storage_media.open(dds_output_path, 'wb') as f:
+    with cluster_mesh_info.storage_media.open(dds_output_path, 'wb') as (f):
         f.write(get_dds_header(dict_data['m_format'], image_width, image_height, None, False))
         f.write(image_data)
 
@@ -2000,14 +1971,13 @@ def load_texture(dict_data, cluster_mesh_info):
             return True
 
     cluster_mesh_info.storage_media.get_list_at('.', list_callback)
-    if len(found_basename) > 0:
+    if True and len(found_basename) > 0:
         parse_cluster(found_basename[0], None, cluster_mesh_info.storage_media)
 
 
 def load_materials_with_actual_name(dict_data, cluster_mesh_info):
-    if type(dict_data['m_effectVariant']) is dict:
-        if 'm_id' in dict_data['m_effectVariant']:
-            dict_data['mu_compiledShaderName'] = dict_data['m_effectVariant']['m_id']
+    if type(dict_data['m_effectVariant']) is dict and 'm_id' in dict_data['m_effectVariant']:
+        dict_data['mu_compiledShaderName'] = dict_data['m_effectVariant']['m_id']
 
 
 def load_shader_parameters(g, dict_data, cluster_header):
@@ -2028,27 +1998,24 @@ def load_shader_parameters(g, dict_data, cluster_header):
             shader_parameters[x['m_name']] = arr
             if x['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
                 shader_parameters[x['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][x['m_name']]['m_id']
+        elif x['m_parameterType'] == 71:
+            arr = array.array('I', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+            if cluster_header.cluster_marker == NOEPY_HEADER_BE:
+                arr.byteswap()
+            shader_parameters[x['m_name']] = arr
+            if x['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
+                shader_parameters[x['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][x['m_name']]
         else:
-            if x['m_parameterType'] == 71:
-                arr = array.array('I', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
-                if cluster_header.cluster_marker == NOEPY_HEADER_BE:
-                    arr.byteswap()
-                else:
-                    shader_parameters[x['m_name']] = arr
-                    if x['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
-                        shader_parameters[x['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][x['m_name']]
+            if parameter_size == 24:
+                shader_parameters[x['m_name']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
             else:
-                if parameter_size == 24:
-                    shader_parameters[x['m_name']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+                if parameter_size % 4 == 0:
+                    arr = array.array('f', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+                    if cluster_header.cluster_marker == NOEPY_HEADER_BE:
+                        arr.byteswap()
+                    shader_parameters[x['m_name']] = arr
                 else:
-                    if parameter_size % 4 == 0:
-                        arr = array.array('f', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
-                        if cluster_header.cluster_marker == NOEPY_HEADER_BE:
-                            arr.byteswap()
-                        else:
-                            shader_parameters[x['m_name']] = arr
-                    else:
-                        shader_parameters[x['m_name']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
+                    shader_parameters[x['m_name']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
 
     dict_data['mu_shaderParameters'] = shader_parameters
 
@@ -2090,168 +2057,169 @@ def invert_matrix_44(m):
     return inv
 
 
-indiceTypeLengthMapping = {8:5125, 
- 12:5123, 
- 16:5121, 
- 20:5123, 
- 24:5121, 
- 28:5125, 
- 32:5122, 
- 36:5121, 
- 40:5123, 
- 44:5121}
-indiceTypeLengthMappingPython = {8:'I', 
- 12:'H', 
- 16:'B', 
- 20:'H', 
- 24:'B', 
- 28:'i', 
- 32:'h', 
- 36:'b', 
- 40:'h', 
- 44:'b'}
-indiceTypeMappingSize = {8:4, 
- 12:2, 
- 16:1, 
- 20:2, 
- 24:1, 
- 28:4, 
- 32:2, 
- 36:1, 
- 40:2, 
- 44:1}
-dataTypeMappingForGltf = {0:5126, 
- 1:5126, 
- 2:5126, 
- 3:5126, 
- 12:5123, 
- 13:5123, 
- 14:5123, 
- 15:5123, 
- 16:5121, 
- 17:5121, 
- 18:5121, 
- 19:5121, 
- 20:5123, 
- 21:5123, 
- 22:5123, 
- 23:5123, 
- 24:5121, 
- 25:5121, 
- 26:5121, 
- 27:5121, 
- 32:5123, 
- 33:5123, 
- 34:5123, 
- 35:5123, 
- 36:5121, 
- 37:5121, 
- 38:5121, 
- 39:5121, 
- 40:5123, 
- 41:5123, 
- 42:5123, 
- 43:5123, 
- 44:5121, 
- 45:5121, 
- 46:5121, 
- 47:5121}
-dataTypeMappingForPython = {0:'f', 
- 1:'f', 
- 2:'f', 
- 3:'f', 
- 8:'I', 
- 9:'I', 
- 10:'I', 
- 11:'I', 
- 12:'H', 
- 13:'H', 
- 14:'H', 
- 15:'H', 
- 16:'B', 
- 17:'B', 
- 18:'B', 
- 19:'B', 
- 20:'H', 
- 21:'H', 
- 22:'H', 
- 23:'H', 
- 24:'B', 
- 25:'B', 
- 26:'B', 
- 27:'B', 
- 28:'i', 
- 29:'i', 
- 30:'i', 
- 31:'i', 
- 32:'h', 
- 33:'h', 
- 34:'h', 
- 35:'h', 
- 36:'b', 
- 37:'b', 
- 38:'b', 
- 39:'b', 
- 40:'h', 
- 41:'h', 
- 42:'h', 
- 43:'h', 
- 44:'b', 
- 45:'b', 
- 46:'b', 
- 47:'b'}
-dataTypeMappingSize = {0:4, 
- 1:4, 
- 2:4, 
- 3:4, 
- 4:2, 
- 5:2, 
- 6:2, 
- 7:2, 
- 8:4, 
- 9:4, 
- 10:4, 
- 11:4, 
- 12:2, 
- 13:2, 
- 14:2, 
- 15:2, 
- 16:1, 
- 17:1, 
- 18:1, 
- 19:1, 
- 20:2, 
- 21:2, 
- 22:2, 
- 23:2, 
- 24:1, 
- 25:1, 
- 26:1, 
- 27:1, 
- 28:4, 
- 29:4, 
- 30:4, 
- 31:4, 
- 32:2, 
- 33:2, 
- 34:2, 
- 35:2, 
- 36:1, 
- 37:1, 
- 38:1, 
- 39:1, 
- 40:2, 
- 41:2, 
- 42:2, 
- 43:2, 
- 44:1, 
- 45:1, 
- 46:1, 
- 47:1}
-dataTypeCountMappingForGltf = {0:'SCALAR', 
- 1:'VEC2', 
- 2:'VEC3', 
- 3:'VEC4'}
+indiceTypeLengthMapping = {8: 5125, 
+ 12: 5123, 
+ 16: 5121, 
+ 20: 5123, 
+ 24: 5121, 
+ 28: 5125, 
+ 32: 5122, 
+ 36: 5121, 
+ 40: 5123, 
+ 44: 5121}
+indiceTypeLengthMappingPython = {8: 'I', 
+ 12: 'H', 
+ 16: 'B', 
+ 20: 'H', 
+ 24: 'B', 
+ 28: 'i', 
+ 32: 'h', 
+ 36: 'b', 
+ 40: 'h', 
+ 44: 'b'}
+indiceTypeMappingSize = {8: 4, 
+ 12: 2, 
+ 16: 1, 
+ 20: 2, 
+ 24: 1, 
+ 28: 4, 
+ 32: 2, 
+ 36: 1, 
+ 40: 2, 
+ 44: 1}
+dataTypeMappingForGltf = {0: 5126, 
+ 1: 5126, 
+ 2: 5126, 
+ 3: 5126, 
+ 12: 5123, 
+ 13: 5123, 
+ 14: 5123, 
+ 15: 5123, 
+ 16: 5121, 
+ 17: 5121, 
+ 18: 5121, 
+ 19: 5121, 
+ 20: 5123, 
+ 21: 5123, 
+ 22: 5123, 
+ 23: 5123, 
+ 24: 5121, 
+ 25: 5121, 
+ 26: 5121, 
+ 27: 5121, 
+ 32: 5123, 
+ 33: 5123, 
+ 34: 5123, 
+ 35: 5123, 
+ 36: 5121, 
+ 37: 5121, 
+ 38: 5121, 
+ 39: 5121, 
+ 40: 5123, 
+ 41: 5123, 
+ 42: 5123, 
+ 43: 5123, 
+ 44: 5121, 
+ 45: 5121, 
+ 46: 5121, 
+ 47: 5121}
+dataTypeMappingForPython = {0: 'f', 
+ 1: 'f', 
+ 2: 'f', 
+ 3: 'f', 
+ 8: 'I', 
+ 9: 'I', 
+ 10: 'I', 
+ 11: 'I', 
+ 12: 'H', 
+ 13: 'H', 
+ 14: 'H', 
+ 15: 'H', 
+ 16: 'B', 
+ 17: 'B', 
+ 18: 'B', 
+ 19: 'B', 
+ 20: 'H', 
+ 21: 'H', 
+ 22: 'H', 
+ 23: 'H', 
+ 24: 'B', 
+ 25: 'B', 
+ 26: 'B', 
+ 27: 'B', 
+ 28: 'i', 
+ 29: 'i', 
+ 30: 'i', 
+ 31: 'i', 
+ 32: 'h', 
+ 33: 'h', 
+ 34: 'h', 
+ 35: 'h', 
+ 36: 'b', 
+ 37: 'b', 
+ 38: 'b', 
+ 39: 'b', 
+ 40: 'h', 
+ 41: 'h', 
+ 42: 'h', 
+ 43: 'h', 
+ 44: 'b', 
+ 45: 'b', 
+ 46: 'b', 
+ 47: 'b'}
+dataTypeMappingSize = {0: 4, 
+ 1: 4, 
+ 2: 4, 
+ 3: 4, 
+ 4: 2, 
+ 5: 2, 
+ 6: 2, 
+ 7: 2, 
+ 8: 4, 
+ 9: 4, 
+ 10: 4, 
+ 11: 4, 
+ 12: 2, 
+ 13: 2, 
+ 14: 2, 
+ 15: 2, 
+ 16: 1, 
+ 17: 1, 
+ 18: 1, 
+ 19: 1, 
+ 20: 2, 
+ 21: 2, 
+ 22: 2, 
+ 23: 2, 
+ 24: 1, 
+ 25: 1, 
+ 26: 1, 
+ 27: 1, 
+ 28: 4, 
+ 29: 4, 
+ 30: 4, 
+ 31: 4, 
+ 32: 2, 
+ 33: 2, 
+ 34: 2, 
+ 35: 2, 
+ 36: 1, 
+ 37: 1, 
+ 38: 1, 
+ 39: 1, 
+ 40: 2, 
+ 41: 2, 
+ 42: 2, 
+ 43: 2, 
+ 44: 1, 
+ 45: 1, 
+ 46: 1, 
+ 47: 1}
+dataTypeCountMappingForGltf = {0: 'SCALAR', 
+ 1: 'VEC2', 
+ 2: 'VEC3', 
+ 3: 'VEC4'}
+
 
 def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
@@ -2311,8 +2279,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
             cachekey = v['mu_indBufferPosition'].to_bytes(4, byteorder='little') + v['mu_indBufferSize'].to_bytes(4, byteorder='little')
             if cachekey not in indvertbuffercache:
                 indvertbuffercache[cachekey] = indvertbuffer[v['mu_indBufferPosition']:v['mu_indBufferPosition'] + v['mu_indBufferSize']].tobytes()
-            else:
-                v['mu_indBuffer'] = indvertbuffercache[cachekey]
+            v['mu_indBuffer'] = indvertbuffercache[cachekey]
 
     vertex_buffer_base_position = 0
     if cluster_header.platform_id == GXM_PLATFORM:
@@ -2335,8 +2302,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
         cachekey = v['mu_vertBufferPosition'].to_bytes(4, byteorder='little') + v['mu_vertBufferSize'].to_bytes(4, byteorder='little')
         if cachekey not in indvertbuffercache:
             indvertbuffercache[cachekey] = indvertbuffer[v['mu_vertBufferPosition']:v['mu_vertBufferPosition'] + v['mu_vertBufferSize']].tobytes()
-        else:
-            v['mu_vertBuffer'] = indvertbuffercache[cachekey]
+        v['mu_vertBuffer'] = indvertbuffercache[cachekey]
 
     if 'PMesh' in cluster_mesh_info.data_instances_by_class:
         data_instances = cluster_mesh_info.data_instances_by_class['PMesh']
@@ -2354,46 +2320,41 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                             for i in range(len(boneSkelBounds)):
                                 boneSkelMap[boneSkelBounds[i]['m_hierarchyMatrixIndex']] = invert_matrix_44(boneSkelMat[i]['m_elements'])
 
-            if len(bonePosePtr) > 0:
-                if 'm_els' not in bonePosePtr:
-                    if type(bonePosePtr[0]) is not int:
-                        skinMat = []
-                        for i in range(len(bonePosePtr)):
-                            skinMat.append(bonePosePtr[i]['m_elements'])
+            if len(bonePosePtr) > 0 and "m_els" not in bonePosePtr and type(bonePosePtr[0]) is not int:
+                skinMat = []
 
-                        for sm in range(len(skinMat)):
-                            pm = bonePoseInd[sm]
-                            pn = 'TERoots'
-                            if pm >= 0:
-                                if len(bonePoseName) > pm:
-                                    pn = bonePoseName[pm]['m_buffer']
-                            bn = 'TERoots'
-                            if sm >= 0:
-                                if len(bonePoseName) > sm:
-                                    bn = bonePoseName[sm]['m_buffer']
-                            cur_matrix = skinMat[sm]
-                            if sm in boneSkelMap:
-                                cur_matrix = boneSkelMap[sm]
-                            else:
-                                jump_count = 0
-                                jump_count_max = len(boneSkelBounds)
-                                cur_parent_index = pm
-                                while cur_parent_index != -1:
-                                    if cur_parent_index in skinMat:
-                                        if jump_count < jump_count_max:
-                                            cur_parent_mat = skinMat[cur_parent_index]
-                                            if cur_parent_index in boneSkelMap:
-                                                cur_parent_mat = boneSkelMap[cur_parent_index]
-                                                cur_matrix = multiply_array_as_4x4_matrix(cur_parent_mat, cur_matrix)
-                                                break
-                                            else:
-                                                cur_matrix = multiply_array_as_4x4_matrix(cur_parent_mat, cur_matrix)
-                                            if cur_parent_index == bonePoseInd[cur_parent_index]:
-                                                break
-                                            else:
-                                                cur_parent_index = bonePoseInd[cur_parent_index]
+                for i in range(len(bonePosePtr)):
+                    skinMat.append(bonePosePtr[i]["m_elements"])
 
-                            cluster_mesh_info.bone_names.append(bn)
+                for sm in range(len(skinMat)):
+                    pm = bonePoseInd[sm]
+                    pn = 'TERoots'
+                    if pm >= 0 and len(bonePoseName) > pm:
+                        pn = bonePoseName[pm]["m_buffer"]
+
+                    bn = 'TERoots'
+                    if sm >= 0 and len(bonePoseName) > sm:
+                        bn = bonePoseName[sm]["m_buffer"]
+
+                    cur_matrix = skinMat[sm]
+                    if sm in boneSkelMap:
+                        cur_matrix = boneSkelMap[sm]
+                    else:
+                        jump_count = 0
+                        jump_count_max = len(boneSkelBounds)
+                        cur_parent_index = pm
+                        while cur_parent_index != -1 and cur_parent_index in skinMat and jump_count < jump_count_max:
+                            cur_parent_mat = skinMat[cur_parent_index]
+                            if cur_parent_index in boneSkelMap:
+                                cur_parent_mat = boneSkelMap[cur_parent_index]
+                                cur_matrix = multiply_array_as_4x4_matrix(cur_parent_mat, cur_matrix)
+                                break
+                            cur_matrix = multiply_array_as_4x4_matrix(cur_parent_mat, cur_matrix)
+                            if cur_parent_index == bonePoseInd[cur_parent_index]:
+                                break
+                            cur_parent_index = bonePoseInd[cur_parent_index]
+
+                    cluster_mesh_info.bone_names.append(bn)
 
             if type(v['m_meshSegments']) is list:
                 for m in v['m_meshSegments']:
@@ -2466,10 +2427,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     if need_embed == False:
         for v in pdatablock_list:
             datatype = v['m_streams'][0]['m_type']
-            if datatype >= 4:
-                if datatype <= 7:
-                    need_embed = True
-                    break
+            if datatype >= 4 and datatype <= 7:
+                need_embed = True
+                break
 
     buffer0 = {}
     buffers.append(buffer0)
@@ -2527,13 +2487,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     if 'PMesh' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PMesh']:
             matrix_list = []
-            if 'm_skeletonMatrices' in v:
-                if type(v['m_skeletonMatrices']) is list:
-                    for vv in v['m_skeletonMatrices']:
-                        matrix_list.append(vv['m_elements'].tobytes())
+            if 'm_skeletonMatrices' in v and type(v['m_skeletonMatrices']) is list:
+                for vv in v['m_skeletonMatrices']:
+                    matrix_list.append(vv['m_elements'].tobytes())
 
             if len(matrix_list) > 0:
-                blobdata = (b'').join(matrix_list)
+                blobdata = b''.join(matrix_list)
                 bufferview = {}
                 bufferview['buffer'] = 0
                 bufferview['byteOffset'] = embedded_giant_buffer_length
@@ -2556,30 +2515,26 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
             for vvv in v['m_vertexData']:
                 for vvvv in vvv['m_streams']:
-                    if vvvv['m_renderDataType'] == 'SkinIndices':
-                        if 'mu_remappedVertBufferSkeleton' in vvv:
-                            blobdata = vvv['mu_remappedVertBufferSkeleton']
-                            bufferview = {}
-                            bufferview['buffer'] = 0
-                            bufferview['byteOffset'] = embedded_giant_buffer_length
-                            bufferview['byteLength'] = len(blobdata)
-                            embedded_giant_buffer.append(blobdata)
-                            embedded_giant_buffer_length += len(blobdata)
-                            padding_length = 4 - len(blobdata) % 4
-                            embedded_giant_buffer.append(b'\x00' * padding_length)
-                            embedded_giant_buffer_length += padding_length
-                            accessor = {}
-                            accessor['bufferView'] = len(bufferviews)
-                            accessor['componentType'] = 5123
-                            accessor['type'] = 'VEC4'
-                            accessor['count'] = vvv['m_elementCount']
-                            vvvv['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
-                            accessors.append(accessor)
-                            bufferviews.append(bufferview)
-                    if not vvvv['m_renderDataType'] == 'Tangent':
-                        if vvvv['m_renderDataType'] == 'SkinnableTangent':
-                            pass
-                    if 'mu_expandedHandednessTangent' in vvv:
+                    if vvvv['m_renderDataType'] == 'SkinIndices' and 'mu_remappedVertBufferSkeleton' in vvv:
+                        blobdata = vvv['mu_remappedVertBufferSkeleton']
+                        bufferview = {}
+                        bufferview['buffer'] = 0
+                        bufferview['byteOffset'] = embedded_giant_buffer_length
+                        bufferview['byteLength'] = len(blobdata)
+                        embedded_giant_buffer.append(blobdata)
+                        embedded_giant_buffer_length += len(blobdata)
+                        padding_length = 4 - len(blobdata) % 4
+                        embedded_giant_buffer.append(b'\x00' * padding_length)
+                        embedded_giant_buffer_length += padding_length
+                        accessor = {}
+                        accessor['bufferView'] = len(bufferviews)
+                        accessor['componentType'] = 5123
+                        accessor['type'] = 'VEC4'
+                        accessor['count'] = vvv['m_elementCount']
+                        vvvv['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
+                        accessors.append(accessor)
+                        bufferviews.append(bufferview)
+                    if (vvvv['m_renderDataType'] == 'Tangent' or vvvv['m_renderDataType'] == 'SkinnableTangent') and 'mu_expandedHandednessTangent' in vvv:
                         blobdata = vvv['mu_expandedHandednessTangent']
                         bufferview = {}
                         bufferview['buffer'] = 0
@@ -2627,14 +2582,14 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
 
                 blobstride = dataTypeCount * dataTypeMappingSize[datatype]
                 blobdata = bytes(deinterleaved_data)
-            elif dataTypeCount * singleelementsize * v['m_elementCount'] != len(blobdata):
-                blobdata = blobdata[v['m_streams'][0]['m_offset']:v['m_streams'][0]['m_offset'] + dataTypeCount * singleelementsize * v['m_elementCount']]
-            if cluster_header.cluster_marker == NOEPY_HEADER_BE:
-                blobdatabyteswap = array.array(dataTypeMappingForPython[datatype], blobdata)
-                blobdatabyteswap.byteswap()
-                blobdata = blobdatabyteswap.tobytes()
-            if datatype >= 4:
-                if datatype <= 7:
+            else:
+                if dataTypeCount * singleelementsize * v['m_elementCount'] != len(blobdata):
+                    blobdata = blobdata[v['m_streams'][0]['m_offset']:v['m_streams'][0]['m_offset'] + dataTypeCount * singleelementsize * v['m_elementCount']]
+                if cluster_header.cluster_marker == NOEPY_HEADER_BE:
+                    blobdatabyteswap = array.array(dataTypeMappingForPython[datatype], blobdata)
+                    blobdatabyteswap.byteswap()
+                    blobdata = blobdatabyteswap.tobytes()
+                if datatype >= 4 and datatype <= 7:
                     blobdatafloatextend = array.array('f')
                     for i in range(dataTypeCount * v['m_elementCount']):
                         blobdatafloatextend.append(struct.unpack('e', blobdata[i * 2:i * 2 + 2])[0])
@@ -2698,12 +2653,13 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             if v['m_keyType'] == 'Translation' or v['m_keyType'] == 'Scale':
                 accessor['type'] = 'VEC3'
                 accessor['count'] = v['m_keyCount']
-            elif v['m_keyType'] == 'Rotation':
-                accessor['type'] = 'VEC4'
-                accessor['count'] = v['m_keyCount']
             else:
-                accessor['type'] = 'SCALAR'
-                accessor['count'] = v['m_keyCount']
+                if v['m_keyType'] == 'Rotation':
+                    accessor['type'] = 'VEC4'
+                    accessor['count'] = v['m_keyCount']
+                else:
+                    accessor['type'] = 'SCALAR'
+                    accessor['count'] = v['m_keyCount']
             v['mu_gltfAccessorIndex'] = len(accessors)
             accessors.append(accessor)
             bufferviews.append(bufferview)
@@ -2713,32 +2669,32 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             tmparray = array.array('f', v['m_value'])
             if v['m_keyType'] == 'Scale' or v['m_keyType'] == 'Translation':
                 tmparray.pop()
+            blobdata = tmparray.tobytes() * 2
+            bufferview = {}
+            bufferview['buffer'] = 0
+            bufferview['byteOffset'] = embedded_giant_buffer_length
+            bufferview['byteLength'] = len(blobdata)
+            embedded_giant_buffer.append(blobdata)
+            embedded_giant_buffer_length += len(blobdata)
+            padding_length = 4 - len(blobdata) % 4
+            embedded_giant_buffer.append(b'\x00' * padding_length)
+            embedded_giant_buffer_length += padding_length
+            accessor = {}
+            accessor['bufferView'] = len(bufferviews)
+            accessor['componentType'] = 5126
+            if v['m_keyType'] == 'Translation' or v['m_keyType'] == 'Scale':
+                accessor['type'] = 'VEC3'
+                accessor['count'] = 2
             else:
-                blobdata = tmparray.tobytes() * 2
-                bufferview = {}
-                bufferview['buffer'] = 0
-                bufferview['byteOffset'] = embedded_giant_buffer_length
-                bufferview['byteLength'] = len(blobdata)
-                embedded_giant_buffer.append(blobdata)
-                embedded_giant_buffer_length += len(blobdata)
-                padding_length = 4 - len(blobdata) % 4
-                embedded_giant_buffer.append(b'\x00' * padding_length)
-                embedded_giant_buffer_length += padding_length
-                accessor = {}
-                accessor['bufferView'] = len(bufferviews)
-                accessor['componentType'] = 5126
-                if v['m_keyType'] == 'Translation' or v['m_keyType'] == 'Scale':
-                    accessor['type'] = 'VEC3'
-                    accessor['count'] = 2
-                elif v['m_keyType'] == 'Rotation':
+                if v['m_keyType'] == 'Rotation':
                     accessor['type'] = 'VEC4'
                     accessor['count'] = 2
                 else:
                     accessor['type'] = 'SCALAR'
                     accessor['count'] = 2
-                v['mu_gltfAccessorIndex'] = len(accessors)
-                accessors.append(accessor)
-                bufferviews.append(bufferview)
+            v['mu_gltfAccessorIndex'] = len(accessors)
+            accessors.append(accessor)
+            bufferviews.append(bufferview)
 
     if 'PAnimationClip' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PAnimationClip']:
@@ -2774,31 +2730,30 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
 
     cluster_mesh_info.gltf_data['images'] = images
     samplers = []
-    filter_map = {0:9728, 
-     1:9729, 
-     2:9984, 
-     3:9985, 
-     4:9986, 
-     5:9987}
-    wrap_map = {0:33071, 
-     1:10497, 
-     2:33071, 
-     3:33071, 
-     4:33648}
+    filter_map = {0: 9728, 
+     1: 9729, 
+     2: 9984, 
+     3: 9985, 
+     4: 9986, 
+     5: 9987}
+    wrap_map = {0: 33071, 
+     1: 10497, 
+     2: 33071, 
+     3: 33071, 
+     4: 33648}
     if 'PSamplerState' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PSamplerState']:
             sampler = {}
             if v['m_magFilter'] in filter_map:
                 sampler['magFilter'] = filter_map[v['m_magFilter']]
-            else:
-                if v['m_minFilter'] in filter_map:
-                    sampler['minFilter'] = filter_map[v['m_minFilter']]
-                if v['m_wrapS'] in wrap_map:
-                    sampler['wrapS'] = wrap_map[v['m_wrapS']]
-                if v['m_wrapT'] in wrap_map:
-                    sampler['wrapT'] = wrap_map[v['m_wrapT']]
-                v['mu_gltfSamplerIndex'] = len(samplers)
-                samplers.append(sampler)
+            if v['m_minFilter'] in filter_map:
+                sampler['minFilter'] = filter_map[v['m_minFilter']]
+            if v['m_wrapS'] in wrap_map:
+                sampler['wrapS'] = wrap_map[v['m_wrapS']]
+            if v['m_wrapT'] in wrap_map:
+                sampler['wrapT'] = wrap_map[v['m_wrapT']]
+            v['mu_gltfSamplerIndex'] = len(samplers)
+            samplers.append(sampler)
 
     cluster_mesh_info.gltf_data['samplers'] = samplers
     textures = []
@@ -2807,74 +2762,60 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             has_key = False
             if type(k) is int:
                 data_instances = cluster_mesh_info.data_instances_by_class[k]
-                if len(data_instances) > 0:
-                    if data_instances[0]['mu_memberClass'] == 'PParameterBuffer':
-                        has_key = True
-            if has_key == True:
-                for parameter_buffer in cluster_mesh_info.data_instances_by_class[k]:
-                    shaderparam = parameter_buffer['mu_shaderParameters']
-                    samplerstate = None
-                    if 'DiffuseMapSamplerS' in shaderparam and type(shaderparam['DiffuseMapSamplerS']) is dict:
-                        samplerstate = shaderparam['DiffuseMapSamplerS']
-                    elif 'DiffuseMapSamplerSampler' in shaderparam:
-                        if type(shaderparam['DiffuseMapSamplerSampler']) is dict:
-                            samplerstate = shaderparam['DiffuseMapSamplerSampler']
-                    if 'DiffuseMapSampler' in parameter_buffer['mu_shaderParameters']:
-                        if type(parameter_buffer['mu_shaderParameters']['DiffuseMapSampler']) is str:
-                            if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
+                if len(data_instances) > 0 and data_instances[0]['mu_memberClass'] == 'PParameterBuffer':
+                    has_key = True
+                if has_key == True:
+                    for parameter_buffer in cluster_mesh_info.data_instances_by_class[k]:
+                        shaderparam = parameter_buffer['mu_shaderParameters']
+                        samplerstate = None
+                        if 'DiffuseMapSamplerS' in shaderparam and type(shaderparam['DiffuseMapSamplerS']) is dict:
+                            samplerstate = shaderparam['DiffuseMapSamplerS']
+                        else:
+                            if 'DiffuseMapSamplerSampler' in shaderparam and type(shaderparam['DiffuseMapSamplerSampler']) is dict:
+                                samplerstate = shaderparam['DiffuseMapSamplerSampler']
+                            if 'DiffuseMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['DiffuseMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
                                 for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                    if vv['m_id'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler']:
-                                        if 'mu_gltfImageIndex' in vv:
-                                            texture = {}
-                                            if samplerstate is not None:
-                                                texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                            else:
-                                                texture['source'] = vv['mu_gltfImageIndex']
-                                                parameter_buffer['mu_gltfTextureDiffuseIndex'] = len(textures)
-                                                textures.append(texture)
-                                            break
+                                    if vv['m_id'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                        texture = {}
+                                        if samplerstate is not None:
+                                            texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
+                                        texture['source'] = vv['mu_gltfImageIndex']
+                                        parameter_buffer['mu_gltfTextureDiffuseIndex'] = len(textures)
+                                        textures.append(texture)
+                                        break
 
-                    samplerstate = None
-                    if 'NormalMapSamplerS' in shaderparam and type(shaderparam['NormalMapSamplerS']) is dict:
-                        samplerstate = shaderparam['NormalMapSamplerS']
-                    elif 'NormalMapSamplerSampler' in shaderparam:
-                        if type(shaderparam['NormalMapSamplerSampler']) is dict:
-                            samplerstate = shaderparam['NormalMapSamplerSampler']
-                    if 'NormalMapSampler' in parameter_buffer['mu_shaderParameters']:
-                        if type(parameter_buffer['mu_shaderParameters']['NormalMapSampler']) is str:
-                            if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
+                        samplerstate = None
+                        if 'NormalMapSamplerS' in shaderparam and type(shaderparam['NormalMapSamplerS']) is dict:
+                            samplerstate = shaderparam['NormalMapSamplerS']
+                        else:
+                            if 'NormalMapSamplerSampler' in shaderparam and type(shaderparam['NormalMapSamplerSampler']) is dict:
+                                samplerstate = shaderparam['NormalMapSamplerSampler']
+                            if 'NormalMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['NormalMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
                                 for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                    if vv['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler']:
-                                        if 'mu_gltfImageIndex' in vv:
-                                            texture = {}
-                                            if samplerstate is not None:
-                                                texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                            else:
-                                                texture['source'] = vv['mu_gltfImageIndex']
-                                                parameter_buffer['mu_gltfTextureNormalIndex'] = len(textures)
-                                                textures.append(texture)
-                                            break
+                                    if vv['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                        texture = {}
+                                        if samplerstate is not None:
+                                            texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
+                                        texture['source'] = vv['mu_gltfImageIndex']
+                                        parameter_buffer['mu_gltfTextureNormalIndex'] = len(textures)
+                                        textures.append(texture)
+                                        break
 
-                    samplerstate = None
-                    if 'SpecularMapSamplerS' in shaderparam and type(shaderparam['SpecularMapSamplerS']) is dict:
-                        samplerstate = shaderparam['SpecularMapSamplerS']
-                    elif 'SpecularMapSamplerSampler' in shaderparam:
-                        if type(shaderparam['SpecularMapSamplerSampler']) is dict:
+                        samplerstate = None
+                        if 'SpecularMapSamplerS' in shaderparam and type(shaderparam['SpecularMapSamplerS']) is dict:
+                            samplerstate = shaderparam['SpecularMapSamplerS']
+                        elif 'SpecularMapSamplerSampler' in shaderparam and type(shaderparam['SpecularMapSamplerSampler']) is dict:
                             samplerstate = shaderparam['SpecularMapSamplerSampler']
-                    if 'SpecularMapSampler' in parameter_buffer['mu_shaderParameters']:
-                        if type(parameter_buffer['mu_shaderParameters']['SpecularMapSampler']) is str:
-                            if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-                                for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                    if vv['m_id'] == parameter_buffer['mu_shaderParameters']['SpecularMapSampler']:
-                                        if 'mu_gltfImageIndex' in vv:
-                                            texture = {}
-                                            if samplerstate is not None:
-                                                texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                            else:
-                                                texture['source'] = vv['mu_gltfImageIndex']
-                                                parameter_buffer['mu_gltfTextureSpecularIndex'] = len(textures)
-                                                textures.append(texture)
-                                            break
+                        if 'SpecularMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['SpecularMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
+                            for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+                                if vv['m_id'] == parameter_buffer['mu_shaderParameters']['SpecularMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                    texture = {}
+                                    if samplerstate is not None:
+                                        texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
+                                    texture['source'] = vv['mu_gltfImageIndex']
+                                    parameter_buffer['mu_gltfTextureSpecularIndex'] = len(textures)
+                                    textures.append(texture)
+                                    break
 
     cluster_mesh_info.gltf_data['textures'] = textures
     materials = []
@@ -2890,13 +2831,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 pbrMetallicRoughness['baseColorTexture'] = textureInfo
                 pbrMetallicRoughness['metallicFactor'] = 0.0
                 material['pbrMetallicRoughness'] = pbrMetallicRoughness
-            else:
-                if 'mu_gltfTextureNormalIndex' in parameter_buffer:
-                    normalTextureInfo = {}
-                    normalTextureInfo['index'] = parameter_buffer['mu_gltfTextureNormalIndex']
-                    material['normalTexture'] = normalTextureInfo
-                v['mu_gltfMaterialIndex'] = len(materials)
-                materials.append(material)
+            if 'mu_gltfTextureNormalIndex' in parameter_buffer:
+                normalTextureInfo = {}
+                normalTextureInfo['index'] = parameter_buffer['mu_gltfTextureNormalIndex']
+                material['normalTexture'] = normalTextureInfo
+            v['mu_gltfMaterialIndex'] = len(materials)
+            materials.append(material)
 
     cluster_mesh_info.gltf_data['materials'] = materials
     meshes = []
@@ -2909,125 +2849,127 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         for tt in range(len(curmesh['m_meshSegments'])):
             primitive = {}
             m = curmesh['m_meshSegments'][tt]
-            if curmesh['m_defaultMaterials']['m_materials']['m_u'] is not None:
-                if len(curmesh['m_defaultMaterials']['m_materials']['m_u']) > m['m_materialIndex']:
-                    mat = curmesh['m_defaultMaterials']['m_materials']['m_u'][m['m_materialIndex']]
-                    if mat is not None:
-                        primitive['material'] = mat['mu_gltfMaterialIndex']
-            segmentcontext = t['m_segmentContext'][tt]
-            attributes = {}
-            colorCount = 0
-            for i in range(len(m['m_vertexData'])):
-                vertexData = m['m_vertexData'][i]
-                streamInfo = vertexData['m_streams'][0]
-                if not streamInfo['m_renderDataType'] == 'Vertex' or streamInfo['m_renderDataType'] == 'SkinnableVertex':
-                    attributes['POSITION'] = vertexData['mu_gltfAccessorIndex']
-                else:
-                    if not streamInfo['m_renderDataType'] == 'Normal' or streamInfo['m_renderDataType'] == 'SkinnableNormal':
+            if curmesh['m_defaultMaterials']['m_materials']['m_u'] is not None and len(curmesh['m_defaultMaterials']['m_materials']['m_u']) > m['m_materialIndex']:
+                mat = curmesh['m_defaultMaterials']['m_materials']['m_u'][m['m_materialIndex']]
+                if mat is not None:
+                    primitive['material'] = mat['mu_gltfMaterialIndex']
+                segmentcontext = t['m_segmentContext'][tt]
+                attributes = {}
+                colorCount = 0
+                for i in range(len(m['m_vertexData'])):
+                    vertexData = m['m_vertexData'][i]
+                    streamInfo = vertexData['m_streams'][0]
+                    if streamInfo['m_renderDataType'] == 'Vertex' or streamInfo['m_renderDataType'] == 'SkinnableVertex':
+                        attributes['POSITION'] = vertexData['mu_gltfAccessorIndex']
+                    elif streamInfo['m_renderDataType'] == 'Normal' or streamInfo['m_renderDataType'] == 'SkinnableNormal':
                         attributes['NORMAL'] = vertexData['mu_gltfAccessorIndex']
                     else:
                         if streamInfo['m_renderDataType'] == 'ST':
                             continue
                         if streamInfo['m_renderDataType'] == 'SkinWeights':
                             attributes['WEIGHTS_0'] = vertexData['mu_gltfAccessorIndex']
-                        else:
-                            if streamInfo['m_renderDataType'] == 'SkinIndices':
-                                if 'mu_gltfAccessorForRemappedSkinIndiciesIndex' in streamInfo:
-                                    attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex']
-                                else:
-                                    attributes['JOINTS_0'] = vertexData['mu_gltfAccessorIndex']
-                        if streamInfo['m_renderDataType'] == 'Color':
-                            attributes['COLOR_' + str(colorCount)] = vertexData['mu_gltfAccessorIndex']
-                            colorCount += 1
-                        else:
-                            if not streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent':
-                                if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
-                                    attributes['TANGENT'] = streamInfo['mu_gltfAccessorForExpandedHandednessTangent']
+                        elif streamInfo['m_renderDataType'] == 'SkinIndices':
+                            if 'mu_gltfAccessorForRemappedSkinIndiciesIndex' in streamInfo:
+                                attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex']
                             else:
-                                if not streamInfo['m_renderDataType'] == 'Binormal':
+                                attributes['JOINTS_0'] = vertexData['mu_gltfAccessorIndex']
+                        else:
+                            if streamInfo['m_renderDataType'] == 'Color':
+                                attributes['COLOR_' + str(colorCount)] = vertexData['mu_gltfAccessorIndex']
+                                colorCount += 1
+                            else:
+                                if streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent':
+                                    if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
+                                        attributes['TANGENT'] = streamInfo['mu_gltfAccessorForExpandedHandednessTangent']
+                                elif not streamInfo['m_renderDataType'] == 'Binormal':
                                     if streamInfo['m_renderDataType'] == 'SkinnableBinormal':
-                                        continue
+                                        pass
                                     else:
                                         print('Unused Stream: ', streamInfo['m_renderDataType'])
 
-            uvDataStreamSet = {}
-            for vertexData in m['m_vertexData']:
-                streamInfo = vertexData['m_streams'][0]
-                if streamInfo['m_renderDataType'] == 'ST':
-                    streamSet = streamInfo['m_streamSet']
-                    uvDataStreamSet[streamSet] = vertexData
+                uvDataStreamSet = {}
+                for vertexData in m['m_vertexData']:
+                    streamInfo = vertexData['m_streams'][0]
+                    if streamInfo['m_renderDataType'] == 'ST':
+                        streamSet = streamInfo['m_streamSet']
+                        uvDataStreamSet[streamSet] = vertexData
 
-            uvDataLowest = None
-            for i in sorted(uvDataStreamSet.keys()):
-                if uvDataStreamSet[i] is not None:
-                    uvDataLowest = uvDataStreamSet[i]
-                    break
-
-            uvDataRemapped = []
-            for i in sorted(uvDataStreamSet.keys()):
-                if uvDataStreamSet[i] is not None:
-                    uvDataRemapped.append(uvDataStreamSet[i])
-
-            if uvDataLowest is not None:
+                uvDataLowest = None
                 for i in sorted(uvDataStreamSet.keys()):
-                    vertexData = uvDataStreamSet[i]
-                    if vertexData is None:
-                        continue
-                    else:
-                        streamInfo = vertexData['m_streams'][0]
-                    if type(segmentcontext['m_streamBindings']) is dict:
-                        for xx in segmentcontext['m_streamBindings']['m_u']:
-                            if xx['m_renderDataType'] == 'ST':
-                                if xx['m_inputSet'] == streamInfo['m_streamSet']:
-                                    uvIndex = None
-                                    if xx['m_nameHash'] == 41524:
-                                        uvIndex = 6
-                                    elif xx['m_nameHash'] == 41523:
-                                        uvIndex = 5
-                                    elif xx['m_nameHash'] == 41522:
-                                        uvIndex = 4
-                                    elif xx['m_nameHash'] == 41521:
-                                        uvIndex = 3
-                                    elif xx['m_nameHash'] == 41520:
-                                        uvIndex = 2
-                                    elif xx['m_nameHash'] == 41519:
-                                        uvIndex = 1
-                                    elif xx['m_nameHash'] == 21117 or xx['m_nameHash'] == 50588 or xx['m_nameHash'] == 41517:
-                                        uvIndex = 0
-                                    else:
-                                        print('Unknown how to handle ' + xx['m_name'])
-                                    if uvIndex is not None:
-                                        while len(uvDataRemapped) <= uvIndex:
-                                            uvDataRemapped.append(None)
+                    if uvDataStreamSet[i] is not None:
+                        uvDataLowest = uvDataStreamSet[i]
+                        break
 
-                                        uvDataRemapped[uvIndex] = vertexData
+                uvDataRemapped = []
+                for i in sorted(uvDataStreamSet.keys()):
+                    if uvDataStreamSet[i] is not None:
+                        uvDataRemapped.append(uvDataStreamSet[i])
 
-            if len(uvDataRemapped) > 0:
-                while uvDataRemapped[(-1)] is None:
-                    uvDataRemapped.pop()
+                if uvDataLowest is not None:
+                    for i in sorted(uvDataStreamSet.keys()):
+                        vertexData = uvDataStreamSet[i]
+                        if vertexData is None:
+                            pass
+                        else:
+                            streamInfo = vertexData['m_streams'][0]
+                            if type(segmentcontext['m_streamBindings']) is dict:
+                                for xx in segmentcontext['m_streamBindings']['m_u']:
+                                    if xx['m_renderDataType'] == 'ST' and xx['m_inputSet'] == streamInfo['m_streamSet']:
+                                        uvIndex = None
+                                        if xx['m_nameHash'] == 41524:
+                                            uvIndex = 6
+                                        else:
+                                            if xx['m_nameHash'] == 41523:
+                                                uvIndex = 5
+                                            else:
+                                                if xx['m_nameHash'] == 41522:
+                                                    uvIndex = 4
+                                                else:
+                                                    if xx['m_nameHash'] == 41521:
+                                                        uvIndex = 3
+                                                    else:
+                                                        if xx['m_nameHash'] == 41520:
+                                                            uvIndex = 2
+                                                        else:
+                                                            if xx['m_nameHash'] == 41519:
+                                                                uvIndex = 1
+                                                            else:
+                                                                if xx['m_nameHash'] == 21117 or xx['m_nameHash'] == 50588 or xx['m_nameHash'] == 41517:
+                                                                    uvIndex = 0
+                                                                else:
+                                                                    print('Unknown how to handle ' + xx['m_name'])
+                                                if uvIndex is not None:
+                                                    while len(uvDataRemapped) <= uvIndex:
+                                                        uvDataRemapped.append(None)
 
-            for i in range(len(uvDataRemapped)):
-                if uvDataRemapped[i] is None:
-                    uvDataRemapped[i] = uvDataLowest
+                                                    uvDataRemapped[uvIndex] = vertexData
 
-            for i in range(len(uvDataRemapped)):
-                attributes['TEXCOORD_' + str(i)] = uvDataRemapped[i]['mu_gltfAccessorIndex']
+                if len(uvDataRemapped) > 0:
+                    while uvDataRemapped[(-1)] is None:
+                        uvDataRemapped.pop()
 
-            primitive['attributes'] = attributes
-            primitive['indices'] = m['mu_gltfAccessorIndex']
-            primitiveTypeForGltf = 0
-            primitiveTypeMappingForGltf = {0:0, 
-             1:1, 
-             2:4, 
-             3:5, 
-             4:6, 
-             5:0}
-            if m['m_primitiveType'] in primitiveTypeMappingForGltf:
-                primitiveTypeForGltf = primitiveTypeMappingForGltf[m['m_primitiveType']]
-            else:
-                print('XXX: unhandled primitive type for GLTF ' + str(m['m_primitiveType']))
-            primitive['mode'] = primitiveTypeForGltf
-            primitives.append(primitive)
+                for i in range(len(uvDataRemapped)):
+                    if uvDataRemapped[i] is None:
+                        uvDataRemapped[i] = uvDataLowest
+
+                for i in range(len(uvDataRemapped)):
+                    attributes['TEXCOORD_' + str(i)] = uvDataRemapped[i]['mu_gltfAccessorIndex']
+
+                primitive['attributes'] = attributes
+                primitive['indices'] = m['mu_gltfAccessorIndex']
+                primitiveTypeForGltf = 0
+                primitiveTypeMappingForGltf = {0: 0, 
+                 1: 1, 
+                 2: 4, 
+                 3: 5, 
+                 4: 6, 
+                 5: 0}
+                if m['m_primitiveType'] in primitiveTypeMappingForGltf:
+                    primitiveTypeForGltf = primitiveTypeMappingForGltf[m['m_primitiveType']]
+                else:
+                    print('XXX: unhandled primitive type for GLTF ' + str(m['m_primitiveType']))
+                primitive['mode'] = primitiveTypeForGltf
+                primitives.append(primitive)
 
         mesh = {}
         mesh['primitives'] = primitives
@@ -3039,31 +2981,30 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     extensions = {}
     lights = []
     if 'PLight' in cluster_mesh_info.data_instances_by_class:
-        light_type_map = {'DirectionalLight':'directional',  'PointLight':'point', 
-         'SpotLight':'spot'}
+        light_type_map = {'DirectionalLight': 'directional', 
+         'PointLight': 'point', 
+         'SpotLight': 'spot'}
         for v in cluster_mesh_info.data_instances_by_class['PLight']:
             if v['m_lightType'] in light_type_map:
                 light = {}
                 name = ''
-                if name == '':
-                    if 'mu_name' in v:
-                        name = v['mu_name']
+                if name == '' and 'mu_name' in v:
+                    name = v['mu_name']
                 if name != '':
                     light['name'] = name
-                else:
-                    color = v['m_color']['m_elements']
-                    light['color'] = [color[0], color[1], color[2]]
-                    light['intensity'] = v['m_intensity']
-                    light['type'] = light_type_map[v['m_lightType']]
-                    if light['type'] == 'spot':
-                        spot = {}
-                        spot['innerConeAngle'] = v['m_innerConeAngle']
-                        spot['outerConeAngle'] = v['m_outerConeAngle']
-                        light['spot'] = spot
-                    if light['type'] == 'point' or (light['type'] == 'spot' and v['m_outerRange'] > 0):
-                        light['range'] = v['m_outerRange']
-                    v['mu_gltfLightIndex'] = len(lights)
-                    lights.append(light)
+                color = v['m_color']['m_elements']
+                light['color'] = [color[0], color[1], color[2]]
+                light['intensity'] = v['m_intensity']
+                light['type'] = light_type_map[v['m_lightType']]
+                if light['type'] == 'spot':
+                    spot = {}
+                    spot['innerConeAngle'] = v['m_innerConeAngle']
+                    spot['outerConeAngle'] = v['m_outerConeAngle']
+                    light['spot'] = spot
+                if light['type'] == 'point' or light['type'] == 'spot' and v['m_outerRange'] > 0:
+                    light['range'] = v['m_outerRange']
+                v['mu_gltfLightIndex'] = len(lights)
+                lights.append(light)
 
     if len(lights) > 0:
         KHR_lights_punctual = {}
@@ -3080,63 +3021,58 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             node_extensions = {}
             node['matrix'] = v['m_localMatrix']['m_elements'].tolist()
             name = v['m_name']
-            if name == '':
-                if 'mu_name' in v:
-                    name = v['mu_name']
+            if name == '' and 'mu_name' in v:
+                name = v['mu_name']
             mesh_node_indices = None
             if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
                 for vv in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
                     if vv['m_localToWorldMatrix'] is v['m_worldMatrix']:
-                        if name == '':
-                            if 'mu_name' in vv:
-                                name = vv['mu_name']
-                        if name == '':
-                            if 'mu_name' in vv['m_mesh']:
-                                name = vv['m_mesh']['mu_name']
+                        if name == '' and 'mu_name' in vv:
+                            name = vv['mu_name']
+                        if name == '' and 'mu_name' in vv['m_mesh']:
+                            name = vv['m_mesh']['mu_name']
                         if 'mu_gltfMeshIndex' in vv:
                             node['mesh'] = vv['mu_gltfMeshIndex']
                             vv['mu_gltfNodeIndex'] = len(nodes)
-                        elif 'mu_gltfMeshSegmentsIndicies' in vv:
-                            mesh_node_indices = vv['mu_gltfMeshSegmentsIndicies']
-                        break
+                        else:
+                            if 'mu_gltfMeshSegmentsIndicies' in vv:
+                                mesh_node_indices = vv['mu_gltfMeshSegmentsIndicies']
+                            break
 
             if 'PLight' in cluster_mesh_info.data_instances_by_class:
                 node_KHR_lights_punctual = {}
                 for vv in cluster_mesh_info.data_instances_by_class['PLight']:
-                    if vv['m_localToWorldMatrix'] is v['m_worldMatrix']:
-                        if 'mu_gltfLightIndex' in vv:
-                            if name == '':
-                                if 'mu_name' in vv:
-                                    name = vv['mu_name']
-                            node_KHR_lights_punctual['light'] = vv['mu_gltfLightIndex']
-                            vv['mu_gltfNodeIndex'] = len(nodes)
-                            break
+                    if vv['m_localToWorldMatrix'] is v['m_worldMatrix'] and 'mu_gltfLightIndex' in vv:
+                        if name == '' and 'mu_name' in vv:
+                            name = vv['mu_name']
+                        node_KHR_lights_punctual['light'] = vv['mu_gltfLightIndex']
+                        vv['mu_gltfNodeIndex'] = len(nodes)
+                        break
 
                 if len(node_KHR_lights_punctual) > 0:
                     node_extensions['KHR_lights_punctual'] = node_KHR_lights_punctual
             if len(node_extensions) > 0:
                 node['extensions'] = node_extensions
-            else:
-                if name != '':
-                    node['name'] = name
-                children = []
-                for i in range(len(cluster_mesh_info.data_instances_by_class['PNode'])):
-                    if cluster_mesh_info.data_instances_by_class['PNode'][i]['m_parent'] is v:
-                        children.append(i)
+            if name != '':
+                node['name'] = name
+            children = []
+            for i in range(len(cluster_mesh_info.data_instances_by_class['PNode'])):
+                if cluster_mesh_info.data_instances_by_class['PNode'][i]['m_parent'] is v:
+                    children.append(i)
 
-                if mesh_node_indices is not None:
-                    for vv in mesh_node_indices:
-                        mesh_segment_node = {}
-                        mesh_segment_node['name'] = meshes[vv]['name'] + '_node'
-                        mesh_segment_node['mesh'] = vv
-                        children.append(len(cluster_mesh_info.data_instances_by_class['PNode']) + len(mesh_segment_nodes))
-                        mesh_segment_nodes.append(mesh_segment_node)
+            if mesh_node_indices is not None:
+                for vv in mesh_node_indices:
+                    mesh_segment_node = {}
+                    mesh_segment_node['name'] = meshes[vv]['name'] + '_node'
+                    mesh_segment_node['mesh'] = vv
+                    children.append(len(cluster_mesh_info.data_instances_by_class['PNode']) + len(mesh_segment_nodes))
+                    mesh_segment_nodes.append(mesh_segment_node)
 
-                if len(children) > 0:
-                    node['children'] = children
-                v['mu_gltfNodeIndex'] = len(nodes)
-                v['mu_gltfNodeName'] = name
-                nodes.append(node)
+            if len(children) > 0:
+                node['children'] = children
+            v['mu_gltfNodeIndex'] = len(nodes)
+            v['mu_gltfNodeName'] = name
+            nodes.append(node)
 
         for v in mesh_segment_nodes:
             nodes.append(v)
@@ -3146,41 +3082,37 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
             mesh = v['m_mesh']
-            if 'mu_gltfAccessorForInverseBindMatrixIndex' in mesh:
-                if 'mu_gltfNodeIndex' in v:
-                    nodes[v['mu_gltfNodeIndex']]['skin'] = len(skins)
-                    skin = {}
-                    skin['skeleton'] = v['mu_gltfNodeIndex']
-                    skin['inverseBindMatrices'] = mesh['mu_gltfAccessorForInverseBindMatrixIndex']
-                    if len(nodes) > 0:
-                        if type(mesh['m_matrixNames']) is list:
-                            if type(mesh['m_matrixParents']) is array.array:
-                                if len(mesh['m_matrixNames']) == len(mesh['m_matrixParents']):
-                                    joints = []
-                                    for vv in mesh['m_skeletonBounds']:
-                                        matrix_name = mesh['m_matrixNames'][vv['m_hierarchyMatrixIndex']]
-                                        joint = None
-                                        for i in range(len(nodes)):
-                                            vvv = nodes[i]
-                                            if vvv['name'] == matrix_name['m_buffer']:
-                                                joint = i
-                                                break
+            if 'mu_gltfAccessorForInverseBindMatrixIndex' in mesh and 'mu_gltfNodeIndex' in v:
+                nodes[v['mu_gltfNodeIndex']]['skin'] = len(skins)
+                skin = {}
+                skin['skeleton'] = v['mu_gltfNodeIndex']
+                skin['inverseBindMatrices'] = mesh['mu_gltfAccessorForInverseBindMatrixIndex']
+                if len(nodes) > 0 and type(mesh['m_matrixNames']) is list and type(mesh['m_matrixParents']) is array.array and len(mesh['m_matrixNames']) == len(mesh['m_matrixParents']):
+                    joints = []
+                    for vv in mesh['m_skeletonBounds']:
+                        matrix_name = mesh['m_matrixNames'][vv['m_hierarchyMatrixIndex']]
+                        joint = None
+                        for i in range(len(nodes)):
+                            vvv = nodes[i]
+                            if vvv['name'] == matrix_name['m_buffer']:
+                                joint = i
+                                break
 
-                                        if joint is not None:
-                                            joints.append(joint)
-                                        else:
-                                            print('XXX: node ' + matrix_name['m_buffer'] + ' not found in hierarchy')
-                                            joints.append(1)
+                        if joint is not None:
+                            joints.append(joint)
+                        else:
+                            print('XXX: node ' + matrix_name['m_buffer'] + ' not found in hierarchy')
+                            joints.append(1)
 
-                                    if len(joints) > 0:
-                                        skin['joints'] = joints
+                    if len(joints) > 0:
+                        skin['joints'] = joints
                     skins.append(skin)
 
     cluster_mesh_info.gltf_data['skins'] = skins
     animations = []
-    targetMap = {'Translation':'translation', 
-     'Rotation':'rotation', 
-     'Scale':'scale'}
+    targetMap = {'Translation': 'translation', 
+     'Rotation': 'rotation', 
+     'Scale': 'scale'}
     if 'PAnimationSet' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PAnimationSet']:
             for vv in v['m_animationClips']['m_u']:
@@ -3189,7 +3121,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 channels = []
                 for vvv in vv['m_channels']:
                     if vvv['m_keyType'] not in targetMap:
-                        continue
+                        pass
                     else:
                         channel = {}
                         channel['sampler'] = len(samplers)
@@ -3214,7 +3146,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
 
                 for vvv in vv['m_constantChannels']:
                     if vvv['m_keyType'] not in targetMap:
-                        continue
+                        pass
                     else:
                         channel = {}
                         channel['sampler'] = len(samplers)
@@ -3259,9 +3191,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     cluster_mesh_info.gltf_data['accessors'] = accessors
     if len(nodes) > 0:
         import json, base64
-        embedded_giant_buffer_joined = (b'').join(embedded_giant_buffer)
+        embedded_giant_buffer_joined = b''.join(embedded_giant_buffer)
         buffer0['byteLength'] = len(embedded_giant_buffer_joined)
-        with cluster_mesh_info.storage_media.open(cluster_mesh_info.filename.split('.', 1)[0] + '.glb', 'wb') as f:
+        with cluster_mesh_info.storage_media.open(cluster_mesh_info.filename.split('.', 1)[0] + '.glb', 'wb') as (f):
             jsondata = json.dumps(cluster_mesh_info.gltf_data).encode('utf-8')
             jsondata += b' ' * (4 - len(jsondata) % 4)
             f.write(struct.pack('<III', 1179937895, 2, 20 + len(jsondata) + 8 + len(embedded_giant_buffer_joined)))
@@ -3276,7 +3208,7 @@ def standalone_main():
     is_cluster = False
     is_pkg = False
     storage_media = None
-    with open(in_name, 'rb') as f:
+    with open(in_name, 'rb') as (f):
         header1 = f.read(4)
         if len(header1) == 4:
             header2 = struct.unpack('<I', header1[:4])[0]
