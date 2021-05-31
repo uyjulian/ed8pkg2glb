@@ -242,17 +242,17 @@ def get_dds_header(fmt, width, height, mipmap_levels, is_cube_map):
 
 
 def uncompress_nislzss(src, decompressed_size, compressed_size):
-    des = int.from_bytes((src.read(4)), byteorder='little')
+    des = int.from_bytes(src.read(4), byteorder="little")
     if des != decompressed_size:
-        des = des if des > decompressed_size else decompressed_size
-    cms = int.from_bytes((src.read(4)), byteorder='little')
-    if cms != compressed_size:
-        if compressed_size - cms != 4:
-            raise Exception("compression size in header and stream don't match")
-    num3 = int.from_bytes((src.read(4)), byteorder='little')
+        des = des if (des > decompressed_size) else decompressed_size
+    cms = int.from_bytes(src.read(4), byteorder="little")
+    if (cms != compressed_size) and ((compressed_size - cms) != 4):
+        raise Exception("compression size in header and stream don't match")
+    num3 = int.from_bytes(src.read(4), byteorder="little")
     fin = src.tell() + cms - 13
     cd = bytearray(des)
     num4 = 0
+
     while src.tell() <= fin:
         b = src.read(1)[0]
         if b == num3:
@@ -263,9 +263,8 @@ def uncompress_nislzss(src, decompressed_size, compressed_size):
                 b3 = src.read(1)[0]
                 if b2 < b3:
                     for _ in range(b3):
-                        cd[num4] = cd[(num4 - b2)]
+                        cd[num4] = cd[num4 - b2]
                         num4 += 1
-
                 else:
                     sliding_window_pos = num4 - b2
                     cd[num4:num4 + b3] = cd[sliding_window_pos:sliding_window_pos + b3]
@@ -279,7 +278,6 @@ def uncompress_nislzss(src, decompressed_size, compressed_size):
 
     return cd
 
-
 def uncompress_lz4(src, decompressed_size, compressed_size):
     dst = bytearray(decompressed_size)
     min_match_len = 4
@@ -287,56 +285,64 @@ def uncompress_lz4(src, decompressed_size, compressed_size):
     fin = src.tell() + compressed_size
 
     def get_length(src, length):
-        if length != 15:
+        if length != 0x0f:
             return length
-        while 1:
+
+        while True:
             read_buf = src.read(1)
             if len(read_buf) != 1:
-                raise Exception('EOF at length read')
-            len_part = int.from_bytes(read_buf, token >> 4 & 15)
+                raise Exception("EOF at length read")
+            len_part = read_buf[0]
+
             length += len_part
-            if len_part != 255:
+
+            if len_part != 0xff:
                 break
 
         return length
 
     while src.tell() <= fin:
+        # decode a block
         read_buf = src.read(1)
         if not read_buf:
-            raise Exception('EOF at reading literal-len')
-        token = int.from_bytes(read_buf, byteorder='little')
-        literal_len = get_length(src, token >> 4 & 15)
+            raise Exception("EOF at reading literal-len")
+        token = read_buf[0]
+
+        literal_len = get_length(src, (token >> 4) & 0x0f)
+
+        # copy the literal to the output buffer
         read_buf = src.read(literal_len)
+
         if len(read_buf) != literal_len:
-            raise Exception('not literal data')
+            raise Exception("not literal data")
         dst[num4:num4 + literal_len] = read_buf[:literal_len]
         num4 += literal_len
         read_buf = src.read(2)
         if not read_buf or src.tell() > fin:
-            if token & 15 != 0:
-                raise Exception('EOF, but match-len > 0: %u' % (token % 15,))
+            if token & 0x0f != 0:
+                raise Exception("EOF, but match-len > 0: %u" % (token % 0x0f, ))
             break
+
+        if len(read_buf) != 2:
+            raise Exception("premature EOF")
+
+        offset = read_buf[0] | (read_buf[1] << 8)
+
+        if offset == 0:
+            raise Exception("offset can't be 0")
+
+        match_len = get_length(src, (token >> 0) & 0x0f)
+        match_len += min_match_len
+
+        # append the sliding window of the previous literals
+        if offset < match_len:
+            for _ in range(match_len):
+                dst[num4] = dst[num4-offset]
+                num4 += 1
         else:
-            if len(read_buf) != 2:
-                raise Exception('premature EOF')
-            offset = int.from_bytes(read_buf, byteorder='little')
-            if offset == 0:
-                raise Exception("offset can't be 0")
-            match_len = get_length(src, token >> 0 & 15)
-            match_len += min_match_len
-
-            def append_sliding_window():
-                if offset < match_len:
-                    for _ in range(match_len):
-                        dst[num4] = dst[(num4 - offset)]
-                        num4 += 1
-
-                else:
-                    sliding_window_pos = num4 - offset
-                    dst[num4:num4 + match_len] = dst[sliding_window_pos:sliding_window_pos + match_len]
-                    num4 += match_len
-
-            append_sliding_window()
+            sliding_window_pos = num4 - offset
+            dst[num4:num4 + match_len] = dst[sliding_window_pos:sliding_window_pos + match_len]
+            num4 += match_len
 
     return dst
 
