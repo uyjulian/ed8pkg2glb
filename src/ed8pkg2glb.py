@@ -1920,33 +1920,30 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
         image_height = dict_data['m_height']
     if cluster_header.platform_id == GNM_PLATFORM:
         image_data = g.read(cluster_mesh_info.cluster_header['m_sharedVideoMemoryBufferSize'])
-    else:
-        if cluster_header.platform_id == GXM_PLATFORM:
-            print('GXM textures are currently not completely supported. Corrupted texture may result')
-            g.seek(64, io.SEEK_CUR)
-            texture_size = 0
-            if 'm_mainTextureBufferSize' in cluster_mesh_info.cluster_header:
-                texture_size = cluster_mesh_info.cluster_header['m_mainTextureBufferSize']
-            else:
-                if 'm_textureBufferSize' in cluster_mesh_info.cluster_header:
-                    texture_size = cluster_mesh_info.cluster_header['m_textureBufferSize']
-                image_data = g.read(texture_size - 64)
-                block_read = 4
-                if dict_data['m_format'] == 'DXT5':
-                    block_read = 8
-            image_data = Unswizzle(image_data, image_width >> 1, image_height >> 2, dict_data['m_format'], True, cluster_header.platform_id, 0)
-        else:
-            if cluster_header.platform_id == DX11_PLATFORM:
-                image_data = g.read(cluster_mesh_info.cluster_header['m_maxTextureBufferSize'])
-            elif cluster_header.platform_id == GCM_PLATFORM:
-                image_data = g.read(cluster_mesh_info.cluster_header['m_vramBufferSize'])
+    elif cluster_header.platform_id == GXM_PLATFORM:
+        print('GXM textures are currently not completely supported. Corrupted texture may result')
+        g.seek(64, io.SEEK_CUR)
+        texture_size = 0
+        if 'm_mainTextureBufferSize' in cluster_mesh_info.cluster_header:
+            texture_size = cluster_mesh_info.cluster_header['m_mainTextureBufferSize']
+        elif 'm_textureBufferSize' in cluster_mesh_info.cluster_header:
+            texture_size = cluster_mesh_info.cluster_header['m_textureBufferSize']
+        image_data = g.read(texture_size - 64)
+        block_read = 4
+        if dict_data['m_format'] == 'DXT5':
+            block_read = 8
+        image_data = Unswizzle(image_data, image_width >> 1, image_height >> 2, dict_data['m_format'], True, cluster_header.platform_id, 0)
+    elif cluster_header.platform_id == DX11_PLATFORM:
+        image_data = g.read(cluster_mesh_info.cluster_header['m_maxTextureBufferSize'])
+    elif cluster_header.platform_id == GCM_PLATFORM:
+        image_data = g.read(cluster_mesh_info.cluster_header['m_vramBufferSize'])
     pitch = 0
     if cluster_header.platform_id == GNM_PLATFORM:
         temporary_pitch = GetInfo(struct.unpack('<I', dict_data['m_texState'][24:28])[0], 26, 13) + 1
         if image_width != temporary_pitch:
             pitch = temporary_pitch
-        if cluster_header.platform_id == GNM_PLATFORM or cluster_header.platform_id == GXM_PLATFORM:
-            image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], cluster_header.platform_id, True, pitch)
+    if cluster_header.platform_id == GNM_PLATFORM or cluster_header.platform_id == GXM_PLATFORM:
+        image_data = Unswizzle(image_data, image_width, image_height, dict_data["m_format"], True, cluster_header.platform_id, pitch)
     elif cluster_header.platform_id == GCM_PLATFORM:
         size_map = {'ARGB8': 4, 
          'RGBA8': 4, 
