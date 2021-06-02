@@ -2784,7 +2784,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         if 'NormalMapSamplerS' in shaderparam and type(shaderparam['NormalMapSamplerS']) is dict:
                             samplerstate = shaderparam['NormalMapSamplerS']
                         elif 'NormalMapSamplerSampler' in shaderparam and type(shaderparam['NormalMapSamplerSampler']) is dict:
-                                samplerstate = shaderparam['NormalMapSamplerSampler']
+                            samplerstate = shaderparam['NormalMapSamplerSampler']
                         if 'NormalMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['NormalMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
                             for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
                                 if vv['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in vv:
