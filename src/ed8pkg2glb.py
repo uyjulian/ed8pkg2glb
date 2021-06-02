@@ -201,11 +201,10 @@ def Unswizzle(data, width, height, imgFmt, IsSwizzled, platform_id, pitch=0):
         pitch >>= 2
     if platform_id == GNM_PLATFORM:
         data = imageUntilePS4(data, width, height, BytesPerBlock, pitch)
+    elif platform_id == GXM_PLATFORM:
+        data = imageUntileVita(data, width, height, BytesPerBlock, pitch)
     else:
-        if platform_id == GXM_PLATFORM:
-            data = imageUntileVita(data, width, height, BytesPerBlock, pitch)
-        else:
-            data = imageUntileMorton(data, width, height, BytesPerBlock, pitch)
+        data = imageUntileMorton(data, width, height, BytesPerBlock, pitch)
     return data
 
 
@@ -1461,33 +1460,29 @@ def decompress(fixup_buffer, fixup_count, object_count, is_pointer):
             fixup_buffer.pointer_index = save_pointer
         elif pack_type == 4:
             unpacker.unpack_bitmasked(template_fixup, fixup_buffer, False)
-        else:
-            if pack_type == 5:
-                patching_count = cluster_variable_length_quantity_unpack(fixup_buffer)
-                for i in range(patching_count):
-                    fixup_buffer.set_fixup(template_fixup)
-                    fixup_buffer.get_fixup().unpack(fixup_buffer, mask_for_fixups)
-                    fixup_buffer.next_fixup()
+        elif pack_type == 5:
+            patching_count = cluster_variable_length_quantity_unpack(fixup_buffer)
+            for i in range(patching_count):
+                fixup_buffer.set_fixup(template_fixup)
+                fixup_buffer.get_fixup().unpack(fixup_buffer, mask_for_fixups)
+                fixup_buffer.next_fixup()
 
-            else:
-                if pack_type == 6:
-                    unpacker.unpack_strided(template_fixup, fixup_buffer, False)
-                elif pack_type == 1:
-                    decompressed_group_end_pointer = fixup_buffer.pointer_index + object_count
-                    template_fixup_for_target = template_fixup
-                    while fixup_buffer.pointer_index < decompressed_group_end_pointer:
-                        pack_type_for_groups = fixup_buffer.read()
-                        template_fixup_for_target.unpack_fixup(fixup_buffer, mask_for_fixups)
-                        if pack_type_for_groups == 2:
-                            unpacker.unpack_inclusive(template_fixup_for_target, fixup_buffer)
-                        else:
-                            if pack_type_for_groups == 3:
-                                unpacker.unpack_exclusive(template_fixup_for_target, fixup_buffer)
-                            else:
-                                if pack_type_for_groups == 4:
-                                    unpacker.unpack_bitmasked(template_fixup_for_target, fixup_buffer, True)
-                                elif pack_type_for_groups == 6:
-                                    unpacker.unpack_strided(template_fixup_for_target, fixup_buffer, True)
+        elif pack_type == 6:
+            unpacker.unpack_strided(template_fixup, fixup_buffer, False)
+        elif pack_type == 1:
+            decompressed_group_end_pointer = fixup_buffer.pointer_index + object_count
+            template_fixup_for_target = template_fixup
+            while fixup_buffer.pointer_index < decompressed_group_end_pointer:
+                pack_type_for_groups = fixup_buffer.read()
+                template_fixup_for_target.unpack_fixup(fixup_buffer, mask_for_fixups)
+                if pack_type_for_groups == 2:
+                    unpacker.unpack_inclusive(template_fixup_for_target, fixup_buffer)
+                elif pack_type_for_groups == 3:
+                    unpacker.unpack_exclusive(template_fixup_for_target, fixup_buffer)
+                elif pack_type_for_groups == 4:
+                    unpacker.unpack_bitmasked(template_fixup_for_target, fixup_buffer, True)
+                elif pack_type_for_groups == 6:
+                    unpacker.unpack_strided(template_fixup_for_target, fixup_buffer, True)
 
 
 def decompress_fixups(fixup_buffer, instance_list, is_pointer_array, is_pointer):
@@ -1754,11 +1749,10 @@ class TED8PkgMedia(IStorageMedia):
             self.f.seek(4, io.SEEK_CUR)
         if file_entry[3] & 4:
             output_data = uncompress_lz4(self.f, file_entry[2], file_entry[1])
+        elif file_entry[3] & 1:
+            output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
         else:
-            if file_entry[3] & 1:
-                output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
-            else:
-                output_data = self.f.read(file_entry[2])
+            output_data = self.f.read(file_entry[2])
         if 'b' in flags:
             return io.BytesIO(output_data, **kwargs)
         else:
@@ -2002,17 +1996,15 @@ def load_shader_parameters(g, dict_data, cluster_header):
             shader_parameters[x['m_name']] = arr
             if x['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
                 shader_parameters[x['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][x['m_name']]
+        elif parameter_size == 24:
+            shader_parameters[x['m_name']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+        elif parameter_size % 4 == 0:
+            arr = array.array('f', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+            if cluster_header.cluster_marker == NOEPY_HEADER_BE:
+                arr.byteswap()
+            shader_parameters[x['m_name']] = arr
         else:
-            if parameter_size == 24:
-                shader_parameters[x['m_name']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
-            else:
-                if parameter_size % 4 == 0:
-                    arr = array.array('f', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
-                    if cluster_header.cluster_marker == NOEPY_HEADER_BE:
-                        arr.byteswap()
-                    shader_parameters[x['m_name']] = arr
-                else:
-                    shader_parameters[x['m_name']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
+            shader_parameters[x['m_name']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
 
     dict_data['mu_shaderParameters'] = shader_parameters
 
@@ -2386,26 +2378,19 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                                 blobdatabyteswap = array.array(dataTypeMappingForPython[datatype], blobdata)
                                 blobdatabyteswap.byteswap()
                                 blobdata = blobdatabyteswap.tobytes()
-                            else:
-                                skinInd = array.array(dataTypeMappingForPython[datatype], blobdata)
-                                if len(boneRemap) > 0:
-                                    remapInd = array.array('H')
-                                    for mb in skinInd:
-                                        remapInd.append(boneRemap[mb])
+                            skinInd = array.array(dataTypeMappingForPython[datatype], blobdata)
+                            if len(boneRemap) > 0:
+                                remapInd = array.array('H')
+                                for mb in skinInd:
+                                    remapInd.append(boneRemap[mb])
 
-                                    vertexData['mu_remappedVertBuffer'] = remapInd.tobytes()
-                                if len(boneRemap2) > 0:
-                                    remapInd2 = array.array('H')
-                                    for mb in skinInd:
-                                        remapInd2.append(boneRemap2[mb])
+                                vertexData['mu_remappedVertBuffer'] = remapInd.tobytes()
+                            if len(boneRemap2) > 0:
+                                remapInd2 = array.array('H')
+                                for mb in skinInd:
+                                    remapInd2.append(boneRemap2[mb])
 
-                                    vertexData['mu_remappedVertBufferSkeleton'] = remapInd2.tobytes()
-                        else:
-                            if not streamInfo['m_renderDataType'] == 'Tangent':
-                                if streamInfo['m_renderDataType'] == 'SkinnableTangent':
-                                    pass
-                            if dataTypeCount == 3:
-                                pass
+                                vertexData['mu_remappedVertBufferSkeleton'] = remapInd2.tobytes()
 
     gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list)
 
@@ -2579,20 +2564,19 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
 
                 blobstride = dataTypeCount * dataTypeMappingSize[datatype]
                 blobdata = bytes(deinterleaved_data)
-            else:
-                if dataTypeCount * singleelementsize * v['m_elementCount'] != len(blobdata):
-                    blobdata = blobdata[v['m_streams'][0]['m_offset']:v['m_streams'][0]['m_offset'] + dataTypeCount * singleelementsize * v['m_elementCount']]
-                if cluster_header.cluster_marker == NOEPY_HEADER_BE:
-                    blobdatabyteswap = array.array(dataTypeMappingForPython[datatype], blobdata)
-                    blobdatabyteswap.byteswap()
-                    blobdata = blobdatabyteswap.tobytes()
-                if datatype >= 4 and datatype <= 7:
-                    blobdatafloatextend = array.array('f')
-                    for i in range(dataTypeCount * v['m_elementCount']):
-                        blobdatafloatextend.append(struct.unpack('e', blobdata[i * 2:i * 2 + 2])[0])
+            elif dataTypeCount * singleelementsize * v['m_elementCount'] != len(blobdata):
+                blobdata = blobdata[v['m_streams'][0]['m_offset']:v['m_streams'][0]['m_offset'] + dataTypeCount * singleelementsize * v['m_elementCount']]
+            if cluster_header.cluster_marker == NOEPY_HEADER_BE:
+                blobdatabyteswap = array.array(dataTypeMappingForPython[datatype], blobdata)
+                blobdatabyteswap.byteswap()
+                blobdata = blobdatabyteswap.tobytes()
+            if datatype >= 4 and datatype <= 7:
+                blobdatafloatextend = array.array('f')
+                for i in range(dataTypeCount * v['m_elementCount']):
+                    blobdatafloatextend.append(struct.unpack('e', blobdata[i * 2:i * 2 + 2])[0])
 
-                    blobdata = blobdatafloatextend.tobytes()
-                    blobstride = dataTypeCount * 4
+                blobdata = blobdatafloatextend.tobytes()
+                blobstride = dataTypeCount * 4
             bufferview = {}
             bufferview['buffer'] = 0
             bufferview['byteOffset'] = embedded_giant_buffer_length
@@ -2650,13 +2634,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             if v['m_keyType'] == 'Translation' or v['m_keyType'] == 'Scale':
                 accessor['type'] = 'VEC3'
                 accessor['count'] = v['m_keyCount']
+            elif v['m_keyType'] == 'Rotation':
+                accessor['type'] = 'VEC4'
+                accessor['count'] = v['m_keyCount']
             else:
-                if v['m_keyType'] == 'Rotation':
-                    accessor['type'] = 'VEC4'
-                    accessor['count'] = v['m_keyCount']
-                else:
-                    accessor['type'] = 'SCALAR'
-                    accessor['count'] = v['m_keyCount']
+                accessor['type'] = 'SCALAR'
+                accessor['count'] = v['m_keyCount']
             v['mu_gltfAccessorIndex'] = len(accessors)
             accessors.append(accessor)
             bufferviews.append(bufferview)
@@ -2682,13 +2665,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             if v['m_keyType'] == 'Translation' or v['m_keyType'] == 'Scale':
                 accessor['type'] = 'VEC3'
                 accessor['count'] = 2
+            elif v['m_keyType'] == 'Rotation':
+                accessor['type'] = 'VEC4'
+                accessor['count'] = 2
             else:
-                if v['m_keyType'] == 'Rotation':
-                    accessor['type'] = 'VEC4'
-                    accessor['count'] = 2
-                else:
-                    accessor['type'] = 'SCALAR'
-                    accessor['count'] = 2
+                accessor['type'] = 'SCALAR'
+                accessor['count'] = 2
             v['mu_gltfAccessorIndex'] = len(accessors)
             accessors.append(accessor)
             bufferviews.append(bufferview)
@@ -2858,29 +2840,25 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         attributes['POSITION'] = vertexData['mu_gltfAccessorIndex']
                     elif streamInfo['m_renderDataType'] == 'Normal' or streamInfo['m_renderDataType'] == 'SkinnableNormal':
                         attributes['NORMAL'] = vertexData['mu_gltfAccessorIndex']
-                    else:
-                        if streamInfo['m_renderDataType'] == 'ST':
-                            continue
-                        if streamInfo['m_renderDataType'] == 'SkinWeights':
-                            attributes['WEIGHTS_0'] = vertexData['mu_gltfAccessorIndex']
-                        elif streamInfo['m_renderDataType'] == 'SkinIndices':
-                            if 'mu_gltfAccessorForRemappedSkinIndiciesIndex' in streamInfo:
-                                attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex']
-                            else:
-                                attributes['JOINTS_0'] = vertexData['mu_gltfAccessorIndex']
+                    elif streamInfo['m_renderDataType'] == 'ST':
+                        pass
+                    elif streamInfo['m_renderDataType'] == 'SkinWeights':
+                        attributes['WEIGHTS_0'] = vertexData['mu_gltfAccessorIndex']
+                    elif streamInfo['m_renderDataType'] == 'SkinIndices':
+                        if 'mu_gltfAccessorForRemappedSkinIndiciesIndex' in streamInfo:
+                            attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex']
                         else:
-                            if streamInfo['m_renderDataType'] == 'Color':
-                                attributes['COLOR_' + str(colorCount)] = vertexData['mu_gltfAccessorIndex']
-                                colorCount += 1
-                            else:
-                                if streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent':
-                                    if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
-                                        attributes['TANGENT'] = streamInfo['mu_gltfAccessorForExpandedHandednessTangent']
-                                elif not streamInfo['m_renderDataType'] == 'Binormal':
-                                    if streamInfo['m_renderDataType'] == 'SkinnableBinormal':
-                                        pass
-                                    else:
-                                        print('Unused Stream: ', streamInfo['m_renderDataType'])
+                            attributes['JOINTS_0'] = vertexData['mu_gltfAccessorIndex']
+                    elif streamInfo['m_renderDataType'] == 'Color':
+                        attributes['COLOR_' + str(colorCount)] = vertexData['mu_gltfAccessorIndex']
+                        colorCount += 1
+                    elif streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent':
+                        if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
+                            attributes['TANGENT'] = streamInfo['mu_gltfAccessorForExpandedHandednessTangent']
+                    elif streamInfo['m_renderDataType'] == 'Binormal' or streamInfo['m_renderDataType'] == 'SkinnableBinormal':
+                        pass
+                    else:
+                        print('Unused Stream: ', streamInfo['m_renderDataType'])
 
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']:
@@ -2913,31 +2891,25 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                                         uvIndex = None
                                         if xx['m_nameHash'] == 41524:
                                             uvIndex = 6
+                                        elif xx['m_nameHash'] == 41523:
+                                            uvIndex = 5
+                                        elif xx['m_nameHash'] == 41522:
+                                            uvIndex = 4
+                                        elif xx['m_nameHash'] == 41521:
+                                            uvIndex = 3
+                                        elif xx['m_nameHash'] == 41520:
+                                            uvIndex = 2
+                                        elif xx['m_nameHash'] == 41519:
+                                            uvIndex = 1
+                                        elif xx['m_nameHash'] == 21117 or xx['m_nameHash'] == 50588 or xx['m_nameHash'] == 41517:
+                                            uvIndex = 0
                                         else:
-                                            if xx['m_nameHash'] == 41523:
-                                                uvIndex = 5
-                                            else:
-                                                if xx['m_nameHash'] == 41522:
-                                                    uvIndex = 4
-                                                else:
-                                                    if xx['m_nameHash'] == 41521:
-                                                        uvIndex = 3
-                                                    else:
-                                                        if xx['m_nameHash'] == 41520:
-                                                            uvIndex = 2
-                                                        else:
-                                                            if xx['m_nameHash'] == 41519:
-                                                                uvIndex = 1
-                                                            else:
-                                                                if xx['m_nameHash'] == 21117 or xx['m_nameHash'] == 50588 or xx['m_nameHash'] == 41517:
-                                                                    uvIndex = 0
-                                                                else:
-                                                                    print('Unknown how to handle ' + xx['m_name'])
-                                                if uvIndex is not None:
-                                                    while len(uvDataRemapped) <= uvIndex:
-                                                        uvDataRemapped.append(None)
+                                            print('Unknown how to handle ' + xx['m_name'])
+                                        if uvIndex is not None:
+                                            while len(uvDataRemapped) <= uvIndex:
+                                                uvDataRemapped.append(None)
 
-                                                    uvDataRemapped[uvIndex] = vertexData
+                                            uvDataRemapped[uvIndex] = vertexData
 
                 if len(uvDataRemapped) > 0:
                     while uvDataRemapped[(-1)] is None:
@@ -3029,10 +3001,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         if 'mu_gltfMeshIndex' in vv:
                             node['mesh'] = vv['mu_gltfMeshIndex']
                             vv['mu_gltfNodeIndex'] = len(nodes)
-                        else:
-                            if 'mu_gltfMeshSegmentsIndicies' in vv:
-                                mesh_node_indices = vv['mu_gltfMeshSegmentsIndicies']
-                            break
+                        elif 'mu_gltfMeshSegmentsIndicies' in vv:
+                            mesh_node_indices = vv['mu_gltfMeshSegmentsIndicies']
+                        break
 
             if 'PLight' in cluster_mesh_info.data_instances_by_class:
                 node_KHR_lights_punctual = {}
