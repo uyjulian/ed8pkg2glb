@@ -2767,36 +2767,34 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         samplerstate = None
                         if 'DiffuseMapSamplerS' in shaderparam and type(shaderparam['DiffuseMapSamplerS']) is dict:
                             samplerstate = shaderparam['DiffuseMapSamplerS']
-                        else:
-                            if 'DiffuseMapSamplerSampler' in shaderparam and type(shaderparam['DiffuseMapSamplerSampler']) is dict:
-                                samplerstate = shaderparam['DiffuseMapSamplerSampler']
-                            if 'DiffuseMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['DiffuseMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-                                for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                    if vv['m_id'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in vv:
-                                        texture = {}
-                                        if samplerstate is not None:
-                                            texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                        texture['source'] = vv['mu_gltfImageIndex']
-                                        parameter_buffer['mu_gltfTextureDiffuseIndex'] = len(textures)
-                                        textures.append(texture)
-                                        break
+                        elif 'DiffuseMapSamplerSampler' in shaderparam and type(shaderparam['DiffuseMapSamplerSampler']) is dict:
+                            samplerstate = shaderparam['DiffuseMapSamplerSampler']
+                        if 'DiffuseMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['DiffuseMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
+                            for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+                                if vv['m_id'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                    texture = {}
+                                    if samplerstate is not None:
+                                        texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
+                                    texture['source'] = vv['mu_gltfImageIndex']
+                                    parameter_buffer['mu_gltfTextureDiffuseIndex'] = len(textures)
+                                    textures.append(texture)
+                                    break
 
                         samplerstate = None
                         if 'NormalMapSamplerS' in shaderparam and type(shaderparam['NormalMapSamplerS']) is dict:
                             samplerstate = shaderparam['NormalMapSamplerS']
-                        else:
-                            if 'NormalMapSamplerSampler' in shaderparam and type(shaderparam['NormalMapSamplerSampler']) is dict:
+                        elif 'NormalMapSamplerSampler' in shaderparam and type(shaderparam['NormalMapSamplerSampler']) is dict:
                                 samplerstate = shaderparam['NormalMapSamplerSampler']
-                            if 'NormalMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['NormalMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-                                for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                    if vv['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in vv:
-                                        texture = {}
-                                        if samplerstate is not None:
-                                            texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                        texture['source'] = vv['mu_gltfImageIndex']
-                                        parameter_buffer['mu_gltfTextureNormalIndex'] = len(textures)
-                                        textures.append(texture)
-                                        break
+                        if 'NormalMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['NormalMapSampler']) is str and 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
+                            for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+                                if vv['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                    texture = {}
+                                    if samplerstate is not None:
+                                        texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
+                                    texture['source'] = vv['mu_gltfImageIndex']
+                                    parameter_buffer['mu_gltfTextureNormalIndex'] = len(textures)
+                                    textures.append(texture)
+                                    break
 
                         samplerstate = None
                         if 'SpecularMapSamplerS' in shaderparam and type(shaderparam['SpecularMapSamplerS']) is dict:
