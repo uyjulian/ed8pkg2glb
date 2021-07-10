@@ -3190,6 +3190,12 @@ def standalone_main():
                 items.append(item)
 
         storage_media.get_list_at('.', list_callback)
+        if len(items) == 0:
+            def list_callback2(item):
+                if item[-10:-6] == '.dds':
+                    items.append(item)
+
+            storage_media.get_list_at('.', list_callback2)
         for item in items:
             parse_cluster(item, None, storage_media)
 
