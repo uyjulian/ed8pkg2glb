@@ -1,6 +1,11 @@
 
 import os, gc, sys, io, struct, array
 
+try:
+    import zstandard
+except:
+    pass
+
 def read_null_ending_string(f):
     import itertools, functools
     toeof = iter(functools.partial(f.read, 1), b'')
@@ -340,6 +345,10 @@ def uncompress_lz4(src, decompressed_size, compressed_size):
 
     return dst
 
+def uncompress_zstd(src, decompressed_size, compressed_size):
+    dctx = zstandard.ZstdDecompressor()
+    uncompressed = dctx.decompress(src.read(compressed_size), max_output_size=decompressed_size)
+    return uncompressed
 
 NOEPY_HEADER_BE = 1381582928
 NOEPY_HEADER_LE = 1346918738
@@ -1751,6 +1760,11 @@ class TED8PkgMedia(IStorageMedia):
             output_data = uncompress_lz4(self.f, file_entry[2], file_entry[1])
         elif file_entry[3] & 1:
             output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
+        elif file_entry[3] & 8:
+            if "zstandard" in sys.modules:
+                output_data = uncompress_zstd(self.f, file_entry[2], file_entry[1])
+            else:
+                print(("File %s could not be extracted because zstandard module is not installed") % (""))
         else:
             output_data = self.f.read(file_entry[2])
         if 'b' in flags:
