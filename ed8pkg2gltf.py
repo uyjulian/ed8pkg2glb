@@ -17,7 +17,6 @@ def read_null_ending_string(f):
     toeof = iter(functools.partial(f.read, 1), b'')
     return sys.intern(b''.join(itertools.takewhile(b'\x00'.__ne__, toeof)).decode('ASCII'))
 
-
 def read_integer(f, size, unsigned, endian='<'):
     typemap = {1: 'b', 
      2: 'h', 
@@ -27,7 +26,6 @@ def read_integer(f, size, unsigned, endian='<'):
     if unsigned == True:
         inttype = inttype.upper()
     return struct.unpack(endian + inttype, f.read(size))[0]
-
 
 def imageUntilePS4(buffer, width, height, bpb, pitch=0):
     Tile = (0, 1, 8, 9, 2, 3, 10, 11, 16, 17, 24, 25, 18, 19, 26, 27, 4, 5, 12, 13,
@@ -80,7 +78,6 @@ def imageUntilePS4(buffer, width, height, bpb, pitch=0):
         out = crop
     return out
 
-
 def imageUntileMorton(buffer, width, height, bpb, pitch=0):
     Tile = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
             21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
@@ -132,7 +129,6 @@ def imageUntileMorton(buffer, width, height, bpb, pitch=0):
         out = crop
     return out
 
-
 def Compact1By1(x):
     x &= 1431655765
     x = (x ^ x >> 1) & 858993459
@@ -141,14 +137,11 @@ def Compact1By1(x):
     x = (x ^ x >> 8) & 65535
     return x
 
-
 def DecodeMorton2X(code):
     return Compact1By1(code >> 0)
 
-
 def DecodeMorton2Y(code):
     return Compact1By1(code >> 1)
-
 
 def imageUntileVita(buffer, width, height, bpb, pitch=0):
     import math
@@ -197,7 +190,6 @@ def imageUntileVita(buffer, width, height, bpb, pitch=0):
         out = crop
     return out
 
-
 def Unswizzle(data, width, height, imgFmt, IsSwizzled, platform_id, pitch=0):
     TexParams = (('DXT1', 1, 8), ('DXT3', 1, 16), ('DXT5', 1, 16), ('BC5', 1, 16),
                  ('BC7', 1, 16), ('RGBA8', 0, 4), ('ARGB8', 0, 4), ('L8', 0, 1),
@@ -218,7 +210,6 @@ def Unswizzle(data, width, height, imgFmt, IsSwizzled, platform_id, pitch=0):
         data = imageUntileMorton(data, width, height, BytesPerBlock, pitch)
     return data
 
-
 def GetInfo(val, sh1, sh2):
     val &= 4294967295
     val <<= 31 - sh1
@@ -226,8 +217,6 @@ def GetInfo(val, sh1, sh2):
     val >>= 31 - sh1 + sh2
     val &= 4294967295
     return val
-
-
 
 def get_dds_header(fmt, width, height, mipmap_levels, is_cube_map):
     if fmt == "LA8":
@@ -250,7 +239,6 @@ def get_dds_header(fmt, width, height, mipmap_levels, is_cube_map):
         return struct.pack("<4s20I4s10I",   b"DDS\x20", 124, (0x1 | 0x2 | 0x4 | 0x1000 | (0x20000 if mipmap_levels is not None else 0) | 0x80000), height, width, ((width + 3) // 4) * (8 if (fmt == "DXT1") else 16), 0, (mipmap_levels if mipmap_levels is not None else 0), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32,              0x4, fmt.encode("ASCII"),  0,          0,          0,          0,          0, (0x8 if mipmap_levels is not None or is_cube_map else 0) | (0x400000 if mipmap_levels is not None else 0) | 0x1000, (0x200 | 0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000) if is_cube_map else (0), 0, 0, 0)
     else:
         print("Unhandled format " + str(fmt) + "!")
-
 
 def uncompress_nislzss(src, decompressed_size, compressed_size):
     des = int.from_bytes(src.read(4), byteorder='little')
@@ -288,7 +276,6 @@ def uncompress_nislzss(src, decompressed_size, compressed_size):
             num4 += 1
 
     return cd
-
 
 def uncompress_lz4(src, decompressed_size, compressed_size):
     dst = bytearray(decompressed_size)
@@ -371,7 +358,6 @@ def get_type(id, type_strings, class_descriptors):
         id -= total_types
         return class_descriptors[id].name
 
-
 def get_class_from_type(id, type_strings):
     total_types = len(type_strings) + 1
     if id < total_types:
@@ -379,12 +365,10 @@ def get_class_from_type(id, type_strings):
     else:
         return id - total_types + 1
 
-
 def get_reference_from_class_descriptor_index(cluster_info, class_name, index):
     for x in cluster_info.list_for_class_descriptors.keys():
         if cluster_info.classes_strings[x] == class_name and len(cluster_info.list_for_class_descriptors[x]) > index:
             return cluster_info.list_for_class_descriptors[x][index].split('#', 1)
-
 
 def get_reference_from_class_descriptor(cluster_info, class_name, class_dict):
     for x in cluster_info.list_for_class_descriptors.keys():
@@ -393,14 +377,11 @@ def get_reference_from_class_descriptor(cluster_info, class_name, class_dict):
                 if cluster_info.list_for_class_descriptors[i] is class_dict:
                     return get_reference_from_class_descriptor_index(cluster_info, class_name, i)
 
-
 def get_class_name(cluster_info, id):
     return cluster_info.class_descriptors[(id - 1)].name
 
-
 def get_class_size(cluster_info, id):
     return cluster_info.class_descriptors[(id - 1)].get_size_in_bytes()
-
 
 def process_data_members(g, cluster_info, id, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count):
     global g_offcount
@@ -509,11 +490,6 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
                     if expected_size == 5:
                         g.seek(1, io.SEEK_CUR)
                     
-                    
-                    
-                    
-                    
-                    
                 elif (type_text[0:7] == "PArray<") and (type_text[-1:] == ">") and type(dict_data[variable_text]) is dict:
                     array_count = dict_data[variable_text]["m_count"]
                     current_count = 0
@@ -562,25 +538,6 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
                             if not pointer_info.is_class_data_member():
                                 for x in range(len(val)):
                                     value_this = val[x]
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
                                     
                                     pointer_info_offset_needed = pointer_info.som
                                     if value_this["m_parameterType"] == 71: 
@@ -819,7 +776,6 @@ def process_data_members(g, cluster_info, id, member_location, array_location, c
 
         process_data_members(g, cluster_info, class_descriptor.super_class_id, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count)
 
-
 def process_cluster_instance_list_header(cluster_instance_list_header, g, count_list, cluster_info, cluster_mesh_info, cluster_header, filename, data_instances_by_class):
     classes_to_handle = [
      'PAnimationChannel',
@@ -926,7 +882,6 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
             return data_instances
         return
 
-
 class ClusterClusterHeader:
     cluster_marker = 0
     size = 0
@@ -965,7 +920,6 @@ class ClusterClusterHeader:
         self.header_class_instance_count = read_integer(g, 4, False, '>' if self.cluster_marker == NOEPY_HEADER_BE else '<')
         self.header_class_child_count = read_integer(g, 4, False, '>' if self.cluster_marker == NOEPY_HEADER_BE else '<')
 
-
 class ClusterPackedNamespace:
     header = 0
     size = 0
@@ -985,7 +939,6 @@ class ClusterPackedNamespace:
         self.string_table_size = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.default_buffer_count = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.default_buffer_size = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
-
 
 class ClusterPackedDataMember:
     name_offset = 0
@@ -1010,7 +963,6 @@ class ClusterPackedDataMember:
 
     def get_details(self):
         return ' byteSize:' + str(self.size_in_bytes) + ' offset:' + str(self.value_offset) + ' flags:' + str(self.flags) + ' fixedSize:' + str(self.fixed_array_size)
-
 
 class ClusterPackedClassDescriptor:
     super_class_id = 0
@@ -1049,7 +1001,6 @@ class ClusterPackedClassDescriptor:
     def get_alignment(self):
         return 1 << ((self.size_in_bytes_and_alignment & 4026531840) >> 28)
 
-
 class ClusterInstanceListHeader:
     class_id = 0
     count = 0
@@ -1072,7 +1023,6 @@ class ClusterInstanceListHeader:
         self.pointer_fixup_count = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.pointer_array_fixup_count = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
 
-
 class ClusterHeaderClassChildArray:
     type_id = 0
     offset = 0
@@ -1085,7 +1035,6 @@ class ClusterHeaderClassChildArray:
         self.flags = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.count = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
 
-
 class ClusterUserFixup:
     type_id = 0
     size = 0
@@ -1095,7 +1044,6 @@ class ClusterUserFixup:
         self.type_id = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.size = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.offset = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
-
 
 class ClusterUserFixupResult:
     user_fixup_target_offset = None
@@ -1124,7 +1072,6 @@ class ClusterUserFixupResult:
             self.data = read_null_ending_string(g)
         g.seek(old_position)
 
-
 class ClusterObjectID:
     object_id = 0
     object_list = 0
@@ -1132,7 +1079,6 @@ class ClusterObjectID:
     def __init__(self):
         self.object_id = 0
         self.object_list = 0
-
 
 class ClusterBaseFixup:
     source_offset_or_member = 0
@@ -1165,7 +1111,6 @@ class ClusterBaseFixup:
     def set_source_object_id(self, fixup_buffer, sourceObjectID):
         self.source_object_id = sourceObjectID
 
-
 class ClusterArrayFixup(ClusterBaseFixup):
     offset = 0
     count = 0
@@ -1188,7 +1133,6 @@ class ClusterArrayFixup(ClusterBaseFixup):
     def unpack(self, fixup_buffer, mask):
         super(ClusterArrayFixup, self).unpack(fixup_buffer, mask)
         self.unpack_fixup(fixup_buffer, mask)
-
 
 class ClusterPointerFixup(ClusterBaseFixup):
     destination_object = None
@@ -1234,7 +1178,6 @@ class ClusterPointerFixup(ClusterBaseFixup):
     def unpack(self, fixup_buffer, mask):
         super(ClusterPointerFixup, self).unpack(fixup_buffer, mask)
         self.unpack_fixup(fixup_buffer, mask)
-
 
 class ClusterFixupUnpacker:
     unpack_mask = 0
@@ -1325,7 +1268,6 @@ class ClusterFixupUnpacker:
                 current_bit = current_bit << 1
             object_id += 1
 
-
 class ClusterProcessInfo:
     pointer_array_fixup_offset = 0
     pointer_fixup_offset = 0
@@ -1357,7 +1299,6 @@ class ClusterProcessInfo:
         self.pointer_array_fixup_offset = 0
         self.pointer_fixup_offset = 0
         self.array_fixup_offset = 0
-
 
 class FixUpBuffer:
     pointer_index = 0
@@ -1401,21 +1342,17 @@ class FixUpBuffer:
     def next_fixup(self):
         self.pointer_index += 1
 
-
 def unpack_with_fixup(fixup_buffer, ID, mask):
     fixup_buffer.get_fixup().set_source_object_id(fixup_buffer, ID)
     fixup_buffer.get_fixup().unpack_fixup(fixup_buffer, mask)
 
-
 def unpack_id(fixup_buffer, ID, mask):
     fixup_buffer.get_fixup().set_source_object_id(fixup_buffer, ID)
-
 
 def initialize_fixup_as_template(template_fixup, fixup_buffer, mask):
     if mask & 32 != 0:
         template_fixup.destination_object.object_list = cluster_variable_length_quantity_unpack(fixup_buffer)
     return template_fixup
-
 
 def cluster_variable_length_quantity_unpack(fixup_buffer):
     by_pass = True
@@ -1429,7 +1366,6 @@ def cluster_variable_length_quantity_unpack(fixup_buffer):
         shift += 7
 
     return result
-
 
 def decompress(fixup_buffer, fixup_count, object_count, is_pointer):
     pointer_end = fixup_buffer.pointer_index + fixup_count
@@ -1499,7 +1435,6 @@ def decompress(fixup_buffer, fixup_count, object_count, is_pointer):
                 elif pack_type_for_groups == 6:
                     unpacker.unpack_strided(template_fixup_for_target, fixup_buffer, True)
 
-
 def decompress_fixups(fixup_buffer, instance_list, is_pointer_array, is_pointer):
     for i in range(len(instance_list)):
         fixup_count = 0
@@ -1512,7 +1447,6 @@ def decompress_fixups(fixup_buffer, instance_list, is_pointer_array, is_pointer)
         decompress(fixup_buffer, fixup_count, instance_list[i].count, is_pointer)
 
     return fixup_buffer.decompressed
-
 
 def parse_cluster(filename='', reserved_argument=None, storage_media=None):
     global g_classMemberCount
@@ -1635,7 +1569,6 @@ def parse_cluster(filename='', reserved_argument=None, storage_media=None):
     render_mesh(g, cluster_mesh_info, header_processor, cluster_header)
     return cluster_mesh_info
 
-
 def file_is_ed8_pkg(path):
     path = os.path.realpath(path)
     if not os.path.isfile(path):
@@ -1661,7 +1594,6 @@ def file_is_ed8_pkg(path):
             return False
     return True
 
-
 class MeshInfo:
     cluster_header = {}
     data_instances_by_class = {}
@@ -1680,7 +1612,6 @@ class MeshInfo:
         self.vram_model_data_offset = 0
         self.bone_names = []
 
-
 class IStorageMedia:
 
     def __init__(self):
@@ -1697,7 +1628,6 @@ class IStorageMedia:
 
     def get_list_at(self, name, list_callback):
         raise Exception('This member needs to be overrided')
-
 
 class TFileMedia(IStorageMedia):
     basepath = None
@@ -1722,7 +1652,6 @@ class TFileMedia(IStorageMedia):
         for item in llist:
             if list_callback(item):
                 break
-
 
 class TED8PkgMedia(IStorageMedia):
     path = None
@@ -1784,7 +1713,6 @@ class TED8PkgMedia(IStorageMedia):
             if list_callback(item):
                 break
 
-
 class BytesIOOnCloseHandler(io.BytesIO):
     handler = None
 
@@ -1795,7 +1723,6 @@ class BytesIOOnCloseHandler(io.BytesIO):
 
     def set_close_handler(self, handler):
         self.handler = handler
-
 
 class TSpecialMemoryMedia(IStorageMedia):
     file_entries = None
@@ -1829,7 +1756,6 @@ class TSpecialMemoryMedia(IStorageMedia):
         for item in llist:
             if list_callback(item):
                 break
-
 
 class TSpecialOverlayMedia(IStorageMedia):
     storage0 = None
@@ -1874,7 +1800,6 @@ class TSpecialOverlayMedia(IStorageMedia):
             if list_callback(item):
                 break
 
-
 def get_texture_size(width, height, bpp, is_dxt):
     current_width = width
     current_height = height
@@ -1882,7 +1807,6 @@ def get_texture_size(width, height, bpp, is_dxt):
         current_width = current_width + 3 & -4
         current_height = current_height + 3 & -4
     return current_width * current_height * bpp // 8
-
 
 def get_mipmap_offset_and_size(mipmap_level, width, height, texture_format, is_cube_map):
     size_map = {'DXT1': 4, 
@@ -1922,7 +1846,6 @@ def get_mipmap_offset_and_size(mipmap_level, width, height, texture_format, is_c
         current_height = current_height + 3 & -4
     return (
      offset, current_width * current_height * bpp // 8, current_width, current_height)
-
 
 def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map):
     g.seek(cluster_mesh_info.vram_model_data_offset)
@@ -1971,7 +1894,6 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
         f.write(get_dds_header(dict_data['m_format'], image_width, image_height, None, False))
         f.write(image_data)
 
-
 def load_texture(dict_data, cluster_mesh_info):
     dds_basename = os.path.basename(dict_data['m_id'])
     found_basename = []
@@ -1985,11 +1907,9 @@ def load_texture(dict_data, cluster_mesh_info):
     if True and len(found_basename) > 0:
         parse_cluster(found_basename[0], None, cluster_mesh_info.storage_media)
 
-
 def load_materials_with_actual_name(dict_data, cluster_mesh_info):
     if type(dict_data['m_effectVariant']) is dict and 'm_id' in dict_data['m_effectVariant']:
         dict_data['mu_compiledShaderName'] = dict_data['m_effectVariant']['m_id']
-
 
 def load_shader_parameters(g, dict_data, cluster_header):
     if 'mu_shaderParameters' in dict_data:
@@ -2028,7 +1948,6 @@ def load_shader_parameters(g, dict_data, cluster_header):
 
     dict_data['mu_shaderParameters'] = shader_parameters
 
-
 def multiply_array_as_4x4_matrix(arra, arrb):
     newarr = array.array('f', arra)
     for i in range(4):
@@ -2036,7 +1955,6 @@ def multiply_array_as_4x4_matrix(arra, arrb):
             newarr[i * 4 + j] = 0 + arrb[(i * 4 + 0)] * arra[(j + 0)] + arrb[(i * 4 + 1)] * arra[(j + 4)] + arrb[(i * 4 + 2)] * arra[(j + 8)] + arrb[(i * 4 + 3)] * arra[(j + 12)]
 
     return newarr
-
 
 def invert_matrix_44(m):
     inv = array.array('f', m)
@@ -2064,7 +1982,6 @@ def invert_matrix_44(m):
         inv[i] *= det
 
     return inv
-
 
 indiceTypeLengthMapping = {8: 5125, 
  12: 5123, 
@@ -2228,7 +2145,6 @@ dataTypeCountMappingForGltf = {0: 'SCALAR',
  1: 'VEC2', 
  2: 'VEC3', 
  3: 'VEC4'}
-
 
 def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
@@ -2415,7 +2331,6 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                                 vertexData['mu_remappedVertBufferSkeleton'] = remapInd2.tobytes()
 
     gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list)
-
 
 def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list):
     asset = {}
@@ -3258,7 +3173,6 @@ def process_pkg(pkg_name):
 
     else:
         raise Exception('Passed in file is not compatible file')
-
 
 if __name__ == '__main__':
     # Set current directory
