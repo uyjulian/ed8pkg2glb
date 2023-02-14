@@ -5,7 +5,7 @@
 #
 # GitHub eArmada8/ed8pkg2gltf
 
-import os, gc, sys, io, struct, array
+import os, gc, sys, io, struct, array, glob
 
 try:
     import zstandard
@@ -3227,20 +3227,19 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         with open(cluster_mesh_info.filename.split('.', 1)[0] + '.bin', 'wb') as f:
             f.write(embedded_giant_buffer_joined)        
 
-def standalone_main():
-    in_name = sys.argv[1]
+def process_pkg(pkg_name):
     is_cluster = False
     is_pkg = False
     storage_media = None
-    with open(in_name, 'rb') as (f):
+    with open(pkg_name, 'rb') as (f):
         header1 = f.read(4)
         if len(header1) == 4:
             header2 = struct.unpack('<I', header1[:4])[0]
             is_cluster = header2 == NOEPY_HEADER_BE or header2 == NOEPY_HEADER_LE
     if not is_cluster:
-        is_pkg = file_is_ed8_pkg(in_name)
+        is_pkg = file_is_ed8_pkg(pkg_name)
     if is_pkg:
-        storage_media = TSpecialOverlayMedia(os.path.realpath(in_name))
+        storage_media = TSpecialOverlayMedia(os.path.realpath(pkg_name))
         items = []
 
         def list_callback(item):
@@ -3262,4 +3261,19 @@ def standalone_main():
 
 
 if __name__ == '__main__':
-    standalone_main()
+    # Set current directory
+    os.chdir(os.path.abspath(os.path.dirname(__file__)))
+
+    # If argument given, attempt to export from file in argument
+    if len(sys.argv) > 1:
+        import argparse
+        parser = argparse.ArgumentParser()
+        #parser.add_argument('-o', '--overwrite', help="Overwrite existing files", action="store_true")
+        parser.add_argument('pkg_filename', help="Name of pkg file to export from (required).")
+        args = parser.parse_args()
+        if os.path.exists(args.pkg_filename) and args.pkg_filename[-4:].lower() == '.pkg':
+            process_pkg(args.pkg_filename)
+    else:
+        pkg_files = glob.glob('*.pkg')
+        for i in range(len(pkg_files)):
+            process_pkg(pkg_files[i])
