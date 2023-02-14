@@ -13,7 +13,9 @@ I am very thankful for uyjulian and the Kiseki modding discord for their brillia
 
 # Usage
 
-Type: ```python3 ed8pkg2gltf.py <name_of_pkg.pkg>``` into the command line.
+Double-click the script and it will convert every pkg file it finds in the current directory.
+
+Alternatively, type: ```python3 ed8pkg2gltf.py <name_of_pkg.pkg>``` into the command line to processing only a single pkg file.
 
 Everything below this line is from uyjulian's original README:
 
