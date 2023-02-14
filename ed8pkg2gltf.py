@@ -1889,7 +1889,9 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
          'LA8': 2}
         if dict_data['m_format'] in size_map:
             image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], True, cluster_header.platform_id, pitch)
-    dds_output_path = cluster_mesh_info.filename.split('.', 1)[0] + '.dds'
+    if not os.path.exists('textures/'):
+        os.mkdir('textures/')
+    dds_output_path = 'textures/' + cluster_mesh_info.filename.split('.', 1)[0] + '.dds'
     with cluster_mesh_info.storage_media.open(dds_output_path, 'wb') as (f):
         f.write(get_dds_header(dict_data['m_format'], image_width, image_height, None, False))
         f.write(image_data)
@@ -2643,7 +2645,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             if v['m_targetAssetType'] == 'PTexture2D':
                 image = {}
                 image_name = os.path.basename(v['m_id'])
-                image['uri'] = image_name
+                image['uri'] = 'textures/' + image_name
                 v['mu_gltfImageIndex'] = len(images)
                 images.append(image)
 
