@@ -1,16 +1,25 @@
-# ed8pkg2glb
+# ed8pkg2gltf
 
-Converts model data and texture data contained in ED8 `.pkg` files to GLTF binary format.
+Converts model data and texture data contained in ED8 `.pkg` files to GLTF format.  This is forked from uyjulian's tool, which is [here](https://github.com/uyjulian/ed8pkg2glb).  This fork is exclusively for preserving the original mesh segmentation so that access to the bone palettes is preserved.  If you want to get a working model, I recommend the using original tool (again, [here](https://github.com/uyjulian/ed8pkg2glb)).
+
+## Credits:
+Obviously this is written by Julian Uy (github.com/uyjulian), and I have only made modifications.
+
+I am very thankful for uyjulian and the Kiseki modding discord for their brilliant work and for sharing that work so freely.
+
+## Requirements:
+1. Python 3 is required for use of this script.  It is free from the Microsoft Store, for Windows users.  For Linux users, please consult your distro.
+2. The zstandard module for python is needed if you want to access Hajimari CLE assets.  Install by typing "python3 -m pip install zstandard" in the command line / shell.  (The os, gc, sys, io, struct, and array modules are also required, but these are all already included in most basic python installations.)
 
 # Usage
 
-First, download and extract the [Win32 version](https://github.com/uyjulian/ed8pkg2glb/releases/latest/download/ed8pkg2glb-win32.zip).  
-Afterwards, drag and drop a single `.pkg` file onto the executable `ed8pkg2glb.exe`.  
-`.glb` and `.dds` files will be output in the same directory as `.pkg`.  
+Type: ```python3 ed8pkg2gltf.py <name_of_pkg.pkg>``` into the command line.
+
+Everything below this line is from uyjulian's original README:
 
 # Output file information
 
-The `.glb` file can be imported in [Blender](https://www.blender.org/).  
+The `.gltf` file can be imported in [Blender](https://www.blender.org/).  
 Compatibility with other applications is not guaranteed due to the output file not completely adhering to the GLTF specification.  
 Due to the fact that the game uses shaders for blending multiple UV layers, the output result may not look exactly as in the game.  
 
