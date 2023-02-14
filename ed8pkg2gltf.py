@@ -1,3 +1,9 @@
+# ED8 PKG to GLTF, forked from uyjulian/ed8pkg2glb.  Probably broken, do not use if you are
+# trying to get a packaged model, please use uyjulian's original release.  This is rewritten
+# to keep the meshes segmented, for access to their original bone palettes.  There is no other
+# reason for my fork to exist.  HUGE thank you to uyjulian for writing the original program!
+#
+# GitHub eArmada8/ed8pkg2gltf
 
 import os, gc, sys, io, struct, array
 
@@ -2367,6 +2373,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                         if 'm_els' not in bonePosePtr:
                             if len(m['m_skinBones']) > 0:
                                 if type(m['m_skinBones'][0]) is not int:
+                                    m['m_gltfSkinBoneMap'] = [x['m_skeletonMatrixIndex'] for x in m['m_skinBones']]
                                     for sb in m['m_skinBones']:
                                         boneRemap.append(sb['m_hierarchyMatrixIndex'])
                                         boneRemap2.append(sb['m_skeletonMatrixIndex'])
@@ -2393,6 +2400,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                                 blobdatabyteswap.byteswap()
                                 blobdata = blobdatabyteswap.tobytes()
                             skinInd = array.array(dataTypeMappingForPython[datatype], blobdata)
+                            vertexData['mu_originalVertBufferSkeleton'] = skinInd.tobytes()
                             if len(boneRemap) > 0:
                                 remapInd = array.array('H')
                                 for mb in skinInd:
@@ -2480,56 +2488,59 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             bufferviews.append(bufferview)
             accessors.append(accessor)
 
-    if 'PMesh' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PMesh']:
-            matrix_list = []
-            if 'm_skeletonMatrices' in v and type(v['m_skeletonMatrices']) is list:
-                for vv in v['m_skeletonMatrices']:
-                    matrix_list.append(vv['m_elements'].tobytes())
+    #if 'PMesh' in cluster_mesh_info.data_instances_by_class:
+        #for v in cluster_mesh_info.data_instances_by_class['PMesh']:
+            #matrix_list = []
+            #if 'm_skeletonMatrices' in v and type(v['m_skeletonMatrices']) is list:
+                #for vv in v['m_skeletonMatrices']:
+                    #matrix_list.append(vv['m_elements'].tobytes())
 
-            if len(matrix_list) > 0:
-                blobdata = b''.join(matrix_list)
-                bufferview = {}
-                bufferview['buffer'] = 0
-                bufferview['byteOffset'] = embedded_giant_buffer_length
-                bufferview['byteLength'] = len(blobdata)
-                embedded_giant_buffer.append(blobdata)
-                embedded_giant_buffer_length += len(blobdata)
-                padding_length = 4 - len(blobdata) % 4
-                embedded_giant_buffer.append(b'\x00' * padding_length)
-                embedded_giant_buffer_length += padding_length
-                accessor = {}
-                accessor['bufferView'] = len(bufferviews)
-                accessor['componentType'] = 5126
-                accessor['type'] = 'MAT4'
-                accessor['count'] = len(matrix_list)
-                v['mu_gltfAccessorForInverseBindMatrixIndex'] = len(accessors)
-                accessors.append(accessor)
-                bufferviews.append(bufferview)
+            #if len(matrix_list) > 0:
+                #blobdata = b''.join(matrix_list)
+                #bufferview = {}
+                #bufferview['buffer'] = 0
+                #bufferview['byteOffset'] = embedded_giant_buffer_length
+                #bufferview['byteLength'] = len(blobdata)
+                #embedded_giant_buffer.append(blobdata)
+                #embedded_giant_buffer_length += len(blobdata)
+                #padding_length = 4 - len(blobdata) % 4
+                #embedded_giant_buffer.append(b'\x00' * padding_length)
+                #embedded_giant_buffer_length += padding_length
+                #accessor = {}
+                #accessor['bufferView'] = len(bufferviews)
+                #accessor['componentType'] = 5126
+                #accessor['type'] = 'MAT4'
+                #accessor['count'] = len(matrix_list)
+                #v['mu_gltfAccessorForInverseBindMatrixIndex'] = len(accessors)
+                #accessors.append(accessor)
+                #bufferviews.append(bufferview)
 
     if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
             for vvv in v['m_vertexData']:
                 for vvvv in vvv['m_streams']:
-                    if vvvv['m_renderDataType'] == 'SkinIndices' and 'mu_remappedVertBufferSkeleton' in vvv:
-                        blobdata = vvv['mu_remappedVertBufferSkeleton']
-                        bufferview = {}
-                        bufferview['buffer'] = 0
-                        bufferview['byteOffset'] = embedded_giant_buffer_length
-                        bufferview['byteLength'] = len(blobdata)
-                        embedded_giant_buffer.append(blobdata)
-                        embedded_giant_buffer_length += len(blobdata)
-                        padding_length = 4 - len(blobdata) % 4
-                        embedded_giant_buffer.append(b'\x00' * padding_length)
-                        embedded_giant_buffer_length += padding_length
-                        accessor = {}
-                        accessor['bufferView'] = len(bufferviews)
-                        accessor['componentType'] = 5123
-                        accessor['type'] = 'VEC4'
-                        accessor['count'] = vvv['m_elementCount']
-                        vvvv['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
-                        accessors.append(accessor)
-                        bufferviews.append(bufferview)
+                    #if vvvv['m_renderDataType'] == 'SkinIndices' and 'mu_remappedVertBufferSkeleton' in vvv:
+                        #blobdata = vvv['mu_remappedVertBufferSkeleton']
+                    ##if vvvv['m_renderDataType'] == 'SkinIndices' and 'mu_originalVertBufferSkeleton' in vvv:
+                        ##blobdata = vvv['mu_originalVertBufferSkeleton']
+                        #bufferview = {}
+                        #bufferview['buffer'] = 0
+                        #bufferview['byteOffset'] = embedded_giant_buffer_length
+                        #bufferview['byteLength'] = len(blobdata)
+                        #embedded_giant_buffer.append(blobdata)
+                        #embedded_giant_buffer_length += len(blobdata)
+                        #padding_length = 4 - len(blobdata) % 4
+                        #embedded_giant_buffer.append(b'\x00' * padding_length)
+                        #embedded_giant_buffer_length += padding_length
+                        #accessor = {}
+                        #accessor['bufferView'] = len(bufferviews)
+                        #accessor['componentType'] = 5123
+                        #accessor['type'] = 'VEC4'
+                        #accessor['count'] = vvv['m_elementCount']
+                        #vvvv['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
+                        ##vvvv['mu_gltfAccessorForOriginalSkinIndiciesIndex'] = len(accessors)
+                        #accessors.append(accessor)
+                        #bufferviews.append(bufferview)
                     if (vvvv['m_renderDataType'] == 'Tangent' or vvvv['m_renderDataType'] == 'SkinnableTangent') and 'mu_expandedHandednessTangent' in vvv:
                         blobdata = vvv['mu_expandedHandednessTangent']
                         bufferview = {}
@@ -2836,7 +2847,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         mesh_instances = cluster_mesh_info.data_instances_by_class['PMeshInstance']
     for t in mesh_instances:
         curmesh = t['m_mesh']
-        primitives = []
+        t['mu_gltfMeshSegmentsIndicies'] = []
         for tt in range(len(curmesh['m_meshSegments'])):
             primitive = {}
             m = curmesh['m_meshSegments'][tt]
@@ -2950,13 +2961,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 else:
                     print('XXX: unhandled primitive type for GLTF ' + str(m['m_primitiveType']))
                 primitive['mode'] = primitiveTypeForGltf
-                primitives.append(primitive)
-
-        mesh = {}
-        mesh['primitives'] = primitives
-        mesh['name'] = curmesh['mu_name']
-        t['mu_gltfMeshIndex'] = len(meshes)
-        meshes.append(mesh)
+                mesh = {}
+                mesh['primitives'] = [primitive]
+                mesh['name'] = "{0}_{1}".format(curmesh['mu_name'],tt)
+                #t['mu_gltfMeshIndex'] = len(meshes)
+                t['mu_gltfMeshSegmentsIndicies'].append(len(meshes))
+                meshes.append(mesh)
 
     cluster_mesh_info.gltf_data['meshes'] = meshes
     extensions = {}
@@ -3062,6 +3072,43 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
             mesh = v['m_mesh']
+            joint_list = [mesh['m_skeletonBounds'][i]['m_hierarchyMatrixIndex'] for i in range(len(mesh['m_skeletonBounds']))]
+            joint_list_to_node = {}
+            matrices = {}
+            for j in range(len(joint_list)):
+                joint_list_to_node[joint_list[j]] = [i for i in range(len(nodes)) if nodes[i]['name'] == mesh['m_matrixNames'][joint_list[j]]['m_buffer']][0]
+                matrices[joint_list[j]] = mesh['m_skeletonMatrices'][j]['m_elements']
+            if len(mesh_segment_nodes) > 0:
+                mesh_nodes = {}
+                for i in range(len(mesh_segment_nodes)):
+                    mesh_nodes[mesh_segment_nodes[i]['mesh']] = [j for j in range(len(nodes)) if nodes[j]['name'] == mesh_segment_nodes[i]['name']][0]
+                for i in range(len(mesh['m_meshSegments'])):
+                    if 'm_gltfSkinBoneMap' in mesh['m_meshSegments'][i] and len(mesh_nodes) > 0:
+                        matrix_list = [matrices[joint_list[x]].tobytes() for x in mesh['m_meshSegments'][i]['m_gltfSkinBoneMap']]
+                        if len(matrix_list) > 0:
+                            blobdata = b''.join(matrix_list)
+                            bufferview = {}
+                            bufferview['buffer'] = 0
+                            bufferview['byteOffset'] = embedded_giant_buffer_length
+                            bufferview['byteLength'] = len(blobdata)
+                            embedded_giant_buffer.append(blobdata)
+                            embedded_giant_buffer_length += len(blobdata)
+                            padding_length = 4 - len(blobdata) % 4
+                            embedded_giant_buffer.append(b'\x00' * padding_length)
+                            embedded_giant_buffer_length += padding_length
+                            accessor = {}
+                            accessor['bufferView'] = len(bufferviews)
+                            accessor['componentType'] = 5126
+                            accessor['type'] = 'MAT4'
+                            accessor['count'] = len(matrix_list)
+                            mesh['m_meshSegments'][i]['mu_gltfAccessorForInverseBindMatrixIndex'] = len(accessors)
+                            accessors.append(accessor)
+                            bufferviews.append(bufferview)
+                            skin = {"inverseBindMatrices": mesh['m_meshSegments'][i]['mu_gltfAccessorForInverseBindMatrixIndex'],\
+                                "joints": [joint_list_to_node[joint_list[x]] for x in mesh['m_meshSegments'][i]['m_gltfSkinBoneMap']]}
+                            nodes[mesh_nodes[i]]['skin'] = len(skins)
+                            skins.append(skin)
+            
             if 'mu_gltfAccessorForInverseBindMatrixIndex' in mesh and 'mu_gltfNodeIndex' in v:
                 nodes[v['mu_gltfNodeIndex']]['skin'] = len(skins)
                 skin = {}
@@ -3173,15 +3220,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         import json, base64
         embedded_giant_buffer_joined = b''.join(embedded_giant_buffer)
         buffer0['byteLength'] = len(embedded_giant_buffer_joined)
-        with cluster_mesh_info.storage_media.open(cluster_mesh_info.filename.split('.', 1)[0] + '.glb', 'wb') as (f):
-            jsondata = json.dumps(cluster_mesh_info.gltf_data).encode('utf-8')
-            jsondata += b' ' * (4 - len(jsondata) % 4)
-            f.write(struct.pack('<III', 1179937895, 2, 20 + len(jsondata) + 8 + len(embedded_giant_buffer_joined)))
-            f.write(struct.pack('<II', len(jsondata), 1313821514))
+        with cluster_mesh_info.storage_media.open(cluster_mesh_info.filename.split('.', 1)[0] + '.gltf', 'wb') as (f):
+            buffer0["uri"] = cluster_mesh_info.filename.split('.', 1)[0] + '.bin'
+            jsondata = json.dumps(cluster_mesh_info.gltf_data, indent=4).encode("utf-8")
             f.write(jsondata)
-            f.write(struct.pack('<II', len(embedded_giant_buffer_joined), 5130562))
-            f.write(embedded_giant_buffer_joined)
-
+        with open(cluster_mesh_info.filename.split('.', 1)[0] + '.bin', 'wb') as f:
+            f.write(embedded_giant_buffer_joined)        
 
 def standalone_main():
     in_name = sys.argv[1]
