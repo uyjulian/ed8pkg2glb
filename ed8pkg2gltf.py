@@ -2149,6 +2149,7 @@ dataTypeCountMappingForGltf = {0: 'SCALAR',
  3: 'VEC4'}
 
 def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
+    print("Processing {0}...".format(cluster_mesh_info.filename))
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PTexture2D']:
             create_texture(g, v, cluster_mesh_info, cluster_header, False)
@@ -3148,6 +3149,7 @@ def process_pkg(pkg_name):
     is_cluster = False
     is_pkg = False
     storage_media = None
+    print("Processing {0}...".format(pkg_name))
     with open(pkg_name, 'rb') as (f):
         header1 = f.read(4)
         if len(header1) == 4:
@@ -3171,6 +3173,7 @@ def process_pkg(pkg_name):
 
             storage_media.get_list_at('.', list_callback2)
         for item in items:
+            print("Parsing {0}...".format(item))
             parse_cluster(item, None, storage_media)
 
     else:
@@ -3184,7 +3187,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         import argparse
         parser = argparse.ArgumentParser()
-        #parser.add_argument('-o', '--overwrite', help="Overwrite existing files", action="store_true")
         parser.add_argument('pkg_filename', help="Name of pkg file to export from (required).")
         args = parser.parse_args()
         if os.path.exists(args.pkg_filename) and args.pkg_filename[-4:].lower() == '.pkg':
