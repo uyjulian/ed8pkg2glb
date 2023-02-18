@@ -6,6 +6,7 @@
 # GitHub eArmada8/ed8pkg2gltf
 
 import os, gc, sys, io, struct, array, glob
+from lib_fmtibvb import *
 
 try:
     import zstandard
@@ -1904,7 +1905,6 @@ def load_texture(dict_data, cluster_mesh_info):
         if item[:-6] == dds_basename:
             found_basename.append(item)
             return True
-
     cluster_mesh_info.storage_media.get_list_at('.', list_callback)
     if True and len(found_basename) > 0:
         parse_cluster(found_basename[0], None, cluster_mesh_info.storage_media)
@@ -2336,6 +2336,9 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
     gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list)
 
 def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list):
+    import json
+    if not os.path.exists("meshes"):
+        os.mkdir("meshes")
     asset = {}
     asset['generator'] = 'ed8pkg2glb'
     asset['version'] = '2.0'
@@ -2366,7 +2369,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     accessors = []
     embedded_giant_buffer = []
     embedded_giant_buffer_length = 0
+    fmts = []
     if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
+        index_count = 0
         for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
             accessor = {}
             accessor['bufferView'] = len(bufferviews)
@@ -2403,6 +2408,10 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 bufferview['buffer'] = 1
                 bufferview['byteOffset'] = cluster_mesh_info.vram_model_data_offset + v['mu_indBufferPosition']
                 bufferview['byteLength'] = v['mu_indBufferSize']
+            with open("meshes/{0:02d}.ib".format(index_count), 'wb') as ff:
+                ff.write(v['mu_indBuffer'])
+            fmts.append({'stride': '0', 'topology': 'trianglelist', 'format': "DXGI_FORMAT_R16_UINT", 'elements': []})
+            index_count += 1
             bufferviews.append(bufferview)
             accessors.append(accessor)
 
@@ -2761,6 +2770,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     cluster_mesh_info.gltf_data['materials'] = materials
     meshes = []
     mesh_instances = []
+    RGBAD = ['R','G','B','A','D']
+    bytesize = {5120:'8', 5121: '8', 5122: '16', 5123: '16', 5125: '32', 5126: '32'}
+    elementtype = {5120: 'SINT', 5121: 'UINT', 5122: 'SINT', 5123: 'UINT', 5125: 'UINT', 5126: 'FLOAT'}
+    numelements = {'SCALAR':1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
+    semantics = {'SkinnableVertex': 'POSITION', 'SkinnableNormal': 'NORMAL', 'ST': 'TEXCOORD', 'SkinnableTangent': 'TANGENT',\
+        'SkinnableBinormal': 'BINORMAL', 'SkinWeights': 'BLENDWEIGHTS', 'SkinIndices': 'BLENDINDICES'}
     if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
         mesh_instances = cluster_mesh_info.data_instances_by_class['PMeshInstance']
     for t in mesh_instances:
@@ -2768,6 +2783,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         t['mu_gltfMeshSegmentsIndicies'] = []
         for tt in range(len(curmesh['m_meshSegments'])):
             primitive = {}
+            elements = []
+            vb = []
             m = curmesh['m_meshSegments'][tt]
             if curmesh['m_defaultMaterials']['m_materials']['m_u'] is not None and len(curmesh['m_defaultMaterials']['m_materials']['m_u']) > m['m_materialIndex']:
                 mat = curmesh['m_defaultMaterials']['m_materials']['m_u'][m['m_materialIndex']]
@@ -2776,9 +2793,32 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 segmentcontext = t['m_segmentContext'][tt]
                 attributes = {}
                 colorCount = 0
+                uvTangentBinormalCount = {'ST':0,'SkinnableTangent':0,'SkinnableBinormal':0}
+                AlignedByteOffset = 0
                 for i in range(len(m['m_vertexData'])):
                     vertexData = m['m_vertexData'][i]
+                    componentType = accessors[vertexData['mu_gltfAccessorIndex']]['componentType']
+                    accType = accessors[vertexData['mu_gltfAccessorIndex']]['type']
+                    stride = numelements[accType] * (int(bytesize[componentType]) // 8)
+                    dxgi_format = "".join([RGBAD[i]+bytesize[componentType] for i in range(numelements[accType])])\
+                        + '_' + elementtype[componentType]
                     streamInfo = vertexData['m_streams'][0]
+                    if streamInfo['m_renderDataType'] in ['ST', 'SkinnableTangent', 'SkinnableBinormal']:
+                        semantic_index = uvTangentBinormalCount[streamInfo['m_renderDataType']]
+                        uvTangentBinormalCount[streamInfo['m_renderDataType']] += 1
+                    else:
+                        semantic_index = 0
+                    element = {'id': str(i), 'SemanticName': semantics[streamInfo['m_renderDataType']],\
+                        'SemanticIndex': str(semantic_index), 'Format': dxgi_format, 'InputSlot': '0',\
+                        'AlignedByteOffset': str(AlignedByteOffset),\
+                        'InputSlotClass': 'per-vertex', 'InstanceDataStepRate': '0'}
+                    with io.BytesIO(vertexData['mu_vertBuffer']) as vertBuffer:
+                        vb.append({'SemanticName': semantics[streamInfo['m_renderDataType']],\
+                            'SemanticIndex': str(semantic_index),\
+                            'Buffer': [unpack_dxgi_vector(vertBuffer, stride, dxgi_format, e = '<')\
+                                for x in range(accessors[vertexData['mu_gltfAccessorIndex']]['count'])]})
+                    elements.append(element)
+                    AlignedByteOffset += stride
                     if streamInfo['m_renderDataType'] == 'Vertex' or streamInfo['m_renderDataType'] == 'SkinnableVertex':
                         attributes['POSITION'] = vertexData['mu_gltfAccessorIndex']
                     elif streamInfo['m_renderDataType'] == 'Normal' or streamInfo['m_renderDataType'] == 'SkinnableNormal':
@@ -2802,7 +2842,13 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         pass
                     else:
                         print('Unused Stream: ', streamInfo['m_renderDataType'])
-
+                if len(m['m_vertexData']) > 0:
+                    fmts[len(t['mu_gltfMeshSegmentsIndicies'])]['elements'] = elements
+                    fmts[len(t['mu_gltfMeshSegmentsIndicies'])]['stride'] = str(AlignedByteOffset)
+                    write_fmt(fmts[len(t['mu_gltfMeshSegmentsIndicies'])],\
+                        "meshes/{0:02d}.fmt".format(len(t['mu_gltfMeshSegmentsIndicies'])))
+                    write_vb(vb, "meshes/{0:02d}.vb".format(len(t['mu_gltfMeshSegmentsIndicies'])),\
+                        fmts[len(t['mu_gltfMeshSegmentsIndicies'])])
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']:
                     streamInfo = vertexData['m_streams'][0]
@@ -3002,6 +3048,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     mesh_nodes[mesh_segment_nodes[i]['mesh']] = [j for j in range(len(nodes)) if nodes[j]['name'] == mesh_segment_nodes[i]['name']][0]
                 for i in range(len(mesh['m_meshSegments'])):
                     if 'm_gltfSkinBoneMap' in mesh['m_meshSegments'][i] and len(mesh_nodes) > 0:
+                        submesh_joint_list = [joint_list_to_node[joint_list[x]] for x in mesh['m_meshSegments'][i]['m_gltfSkinBoneMap']]
+                        vgmap_list = {name:index for (name,index) in [(nodes[submesh_joint_list[j]]['name'],j) for j in range(len(submesh_joint_list))]}
                         matrix_list = [matrices[joint_list[x]].tobytes() for x in mesh['m_meshSegments'][i]['m_gltfSkinBoneMap']]
                         if len(matrix_list) > 0:
                             blobdata = b''.join(matrix_list)
@@ -3023,8 +3071,10 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             accessors.append(accessor)
                             bufferviews.append(bufferview)
                             skin = {"inverseBindMatrices": mesh['m_meshSegments'][i]['mu_gltfAccessorForInverseBindMatrixIndex'],\
-                                "joints": [joint_list_to_node[joint_list[x]] for x in mesh['m_meshSegments'][i]['m_gltfSkinBoneMap']]}
+                                "joints": submesh_joint_list}
                             nodes[mesh_nodes[i]]['skin'] = len(skins)
+                            with open("meshes/{0:02d}.vgmap".format(i), 'wb') as f:
+                                f.write(json.dumps(vgmap_list, indent=4).encode("utf-8"))
                             skins.append(skin)
             
             if 'mu_gltfAccessorForInverseBindMatrixIndex' in mesh and 'mu_gltfNodeIndex' in v:
@@ -3172,6 +3222,7 @@ def process_pkg(pkg_name):
                     items.append(item)
 
             storage_media.get_list_at('.', list_callback2)
+
         for item in items:
             print("Parsing {0}...".format(item))
             parse_cluster(item, None, storage_media)
