@@ -2840,10 +2840,10 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 if len(m['m_vertexData']) > 0:
                     fmt['elements'] = elements
                     fmt['stride'] = str(AlignedByteOffset)
-                    write_fmt(fmt, "meshes/{0}_{1:02d}.fmt".format(curmesh['mu_name'], tt))
-                    with open("meshes/{0}_{1:02d}.ib".format(curmesh['mu_name'], tt), 'wb') as ff:
+                    write_fmt(fmt, "meshes/{0}_{1:02d}.fmt".format(t['mu_name'], tt))
+                    with open("meshes/{0}_{1:02d}.ib".format(t['mu_name'], tt), 'wb') as ff:
                         ff.write(curmesh['m_meshSegments'][tt]['mu_indBuffer'])
-                    write_vb(vb, "meshes/{0}_{1:02d}.vb".format(curmesh['mu_name'], tt), fmt)
+                    write_vb(vb, "meshes/{0}_{1:02d}.vb".format(t['mu_name'], tt), fmt)
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']:
                     streamInfo = vertexData['m_streams'][0]
@@ -2922,7 +2922,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 primitive['mode'] = primitiveTypeForGltf
                 mesh = {}
                 mesh['primitives'] = [primitive]
-                mesh['name'] = "{0}_{1}".format(curmesh['mu_name'],tt)
+                mesh['name'] = "{0}_{1}".format(t['mu_name'],tt)
                 #t['mu_gltfMeshIndex'] = len(meshes)
                 t['mu_gltfMeshSegmentsIndicies'].append(len(meshes))
                 meshes.append(mesh)
@@ -3023,6 +3023,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             v['mu_gltfNodeName'] = name
             nodes.append(node)
 
+        with open("heirarchy.json".format(i), 'wb') as f:
+            f.write(json.dumps(nodes, indent=4).encode("utf-8"))
+
         for v in mesh_segment_nodes:
             nodes.append(v)
 
@@ -3068,7 +3071,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             skin = {"inverseBindMatrices": mesh['m_meshSegments'][i]['mu_gltfAccessorForInverseBindMatrixIndex'],\
                                 "joints": submesh_joint_list}
                             nodes[mesh_nodes[i]]['skin'] = len(skins)
-                            with open("meshes/{0}_{1:02d}.vgmap".format(mesh['mu_name'], i), 'wb') as f:
+                            with open("meshes/{0}_{1:02d}.vgmap".format(v['mu_name'], i), 'wb') as f:
                                 f.write(json.dumps(vgmap_list, indent=4).encode("utf-8"))
                             skins.append(skin)
             
