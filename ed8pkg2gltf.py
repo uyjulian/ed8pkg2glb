@@ -2881,7 +2881,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 primitive['mode'] = primitiveTypeForGltf
                 mesh = {}
                 mesh['primitives'] = [primitive]
-                mesh['name'] = "{0}_{1}".format(curmesh['mu_name'],tt)
+                mesh['name'] = "{0}_{1}".format(t['mu_name'],tt)
                 #t['mu_gltfMeshIndex'] = len(meshes)
                 t['mu_gltfMeshSegmentsIndicies'].append(len(meshes))
                 meshes.append(mesh)
