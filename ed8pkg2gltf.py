@@ -2369,9 +2369,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     accessors = []
     embedded_giant_buffer = []
     embedded_giant_buffer_length = 0
-    fmts = []
     if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
-        index_count = 0
         for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
             accessor = {}
             accessor['bufferView'] = len(bufferviews)
@@ -2408,10 +2406,6 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 bufferview['buffer'] = 1
                 bufferview['byteOffset'] = cluster_mesh_info.vram_model_data_offset + v['mu_indBufferPosition']
                 bufferview['byteLength'] = v['mu_indBufferSize']
-            with open("meshes/{0:02d}.ib".format(index_count), 'wb') as ff:
-                ff.write(v['mu_indBuffer'])
-            fmts.append({'stride': '0', 'topology': 'trianglelist', 'format': "DXGI_FORMAT_R16_UINT", 'elements': []})
-            index_count += 1
             bufferviews.append(bufferview)
             accessors.append(accessor)
 
@@ -2783,6 +2777,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         t['mu_gltfMeshSegmentsIndicies'] = []
         for tt in range(len(curmesh['m_meshSegments'])):
             primitive = {}
+            fmt = {'stride': '0', 'topology': 'trianglelist', 'format': "DXGI_FORMAT_R16_UINT", 'elements': []}
             elements = []
             vb = []
             m = curmesh['m_meshSegments'][tt]
@@ -2843,12 +2838,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     else:
                         print('Unused Stream: ', streamInfo['m_renderDataType'])
                 if len(m['m_vertexData']) > 0:
-                    fmts[len(t['mu_gltfMeshSegmentsIndicies'])]['elements'] = elements
-                    fmts[len(t['mu_gltfMeshSegmentsIndicies'])]['stride'] = str(AlignedByteOffset)
-                    write_fmt(fmts[len(t['mu_gltfMeshSegmentsIndicies'])],\
-                        "meshes/{0:02d}.fmt".format(len(t['mu_gltfMeshSegmentsIndicies'])))
-                    write_vb(vb, "meshes/{0:02d}.vb".format(len(t['mu_gltfMeshSegmentsIndicies'])),\
-                        fmts[len(t['mu_gltfMeshSegmentsIndicies'])])
+                    fmt['elements'] = elements
+                    fmt['stride'] = str(AlignedByteOffset)
+                    write_fmt(fmt, "meshes/{0}_{1:02d}.fmt".format(curmesh['mu_name'], tt))
+                    with open("meshes/{0}_{1:02d}.ib".format(curmesh['mu_name'], tt), 'wb') as ff:
+                        ff.write(curmesh['m_meshSegments'][tt]['mu_indBuffer'])
+                    write_vb(vb, "meshes/{0}_{1:02d}.vb".format(curmesh['mu_name'], tt), fmt)
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']:
                     streamInfo = vertexData['m_streams'][0]
@@ -3073,7 +3068,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             skin = {"inverseBindMatrices": mesh['m_meshSegments'][i]['mu_gltfAccessorForInverseBindMatrixIndex'],\
                                 "joints": submesh_joint_list}
                             nodes[mesh_nodes[i]]['skin'] = len(skins)
-                            with open("meshes/{0:02d}.vgmap".format(i), 'wb') as f:
+                            with open("meshes/{0}_{1:02d}.vgmap".format(mesh['mu_name'], i), 'wb') as f:
                                 f.write(json.dumps(vgmap_list, indent=4).encode("utf-8"))
                             skins.append(skin)
             
