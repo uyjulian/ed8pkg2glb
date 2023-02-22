@@ -2335,10 +2335,14 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
 
     gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list)
 
+shader_material_switches = {}
+
 def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list):
+    global shader_material_switches
     import json
     if not os.path.exists("meshes"):
         os.mkdir("meshes")
+    metadata_json = {'name': cluster_mesh_info.filename.split('.', 1)[0]}
     asset = {}
     asset['generator'] = 'ed8pkg2glb'
     asset['version'] = '2.0'
@@ -2652,6 +2656,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 image['uri'] = 'textures/' + image_name
                 v['mu_gltfImageIndex'] = len(images)
                 images.append(image)
+        metadata_json['images'] = images
 
     cluster_mesh_info.gltf_data['images'] = images
     samplers = []
@@ -2742,6 +2747,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
 
     cluster_mesh_info.gltf_data['textures'] = textures
     materials = []
+    materials_struct = []
     if 'PMaterial' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PMaterial']:
             material = {}
@@ -2760,6 +2766,19 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 material['normalTexture'] = normalTextureInfo
             v['mu_gltfMaterialIndex'] = len(materials)
             materials.append(material)
+            if 'dae' in cluster_mesh_info.filename:
+                material = {"Material": v['mu_materialname'], "m_effectVariant": v['m_parameterBuffer']["m_effectVariant"],\
+                    "mu_shaderParameters": {key:list(value) if isinstance(value, array.array) else value for (key,value) in v['m_parameterBuffer']['mu_shaderParameters'].items()}}
+                shader_name = material["m_effectVariant"]["m_id"].replace("shaders/","")
+                if shader_name in shader_material_switches.keys():
+                    material["m_effectVariant"]["material_swiches"] = shader_material_switches[shader_name]
+                materials_struct.append(material)
+        if len(materials_struct) > 0:
+            metadata_json['materials'] = materials_struct
+
+    if 'PMaterialSwitch' in cluster_mesh_info.data_instances_by_class:
+        shader_material_switches[cluster_mesh_info.filename.split('.phyre')[0]] =\
+            {x["m_name"]:"0" if x["m_value"] == "" else x["m_value"] for x in cluster_mesh_info.data_instances_by_class['PMaterialSwitch']}
 
     cluster_mesh_info.gltf_data['materials'] = materials
     meshes = []
@@ -2844,6 +2863,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     with open("meshes/{0}_{1:02d}.ib".format(t['mu_name'], tt), 'wb') as ff:
                         ff.write(curmesh['m_meshSegments'][tt]['mu_indBuffer'])
                     write_vb(vb, "meshes/{0}_{1:02d}.vb".format(t['mu_name'], tt), fmt)
+                    with open("meshes/{0}_{1:02d}.material".format(t['mu_name'], tt), "wb") as ff:
+                        ff.write(json.dumps({'material': mat['mu_materialname']}, indent=4).encode("utf-8"))
+
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']:
                     streamInfo = vertexData['m_streams'][0]
@@ -3023,8 +3045,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             v['mu_gltfNodeName'] = name
             nodes.append(node)
 
-        with open("heirarchy.json".format(i), 'wb') as f:
-            f.write(json.dumps(nodes, indent=4).encode("utf-8"))
+        import copy
+        metadata_json['heirarchy'] = copy.deepcopy(nodes)
 
         for v in mesh_segment_nodes:
             nodes.append(v)
@@ -3192,6 +3214,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             f.write(jsondata)
         with open(cluster_mesh_info.filename.split('.', 1)[0] + '.bin', 'wb') as f:
             f.write(embedded_giant_buffer_joined)        
+        with open("metadata.json".format(i), 'wb') as f:
+            f.write(json.dumps(metadata_json, indent=4).encode("utf-8"))
 
 def process_pkg(pkg_name):
     is_cluster = False
