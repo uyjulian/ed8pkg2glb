@@ -87,7 +87,7 @@ def add_materials(collada, materials):
                 setparam = ET.SubElement(instance_effect, 'setparam')
                 setparam.set("ref", material['Material'] + parameter)
                 values = ET.SubElement(setparam, 'float{0}'.format({1:'', 2:2, 3:3, 4:4, 5:5}[len(material['mu_shaderParameters'][parameter])]))
-                values.text = " ".join([str(x) for x in material['mu_shaderParameters'][parameter]])
+                values.text = " ".join(["{0:g}".format(x) for x in material['mu_shaderParameters'][parameter]])
                 #Effect
                 newparam = ET.SubElement(profile_HLSL, 'newparam')
                 newparam.set('sid', material['Material'] + parameter)
@@ -95,10 +95,24 @@ def add_materials(collada, materials):
                 annotate.set('name', 'UIName')
                 string = ET.SubElement(annotate, 'string')
                 string.text = parameter
+                if len(material['mu_shaderParameters'][parameter]) == 1:
+                    annotate = ET.SubElement(newparam, 'annotate')
+                    annotate.set('name', 'UIMin')
+                    string = ET.SubElement(annotate, 'float')
+                    string.text = '0'
+                    annotate = ET.SubElement(newparam, 'annotate')
+                    annotate.set('name', 'UIMax')
+                    string = ET.SubElement(annotate, 'float')
+                    string.text = '1'
+                else:
+                    annotate = ET.SubElement(newparam, 'annotate')
+                    annotate.set('name', 'UIType')
+                    string = ET.SubElement(annotate, 'string')
+                    string.text = 'Color'
                 semantic = ET.SubElement(newparam, 'semantic')
                 semantic.text = parameter
                 values = ET.SubElement(newparam, 'float{0}'.format({1:'', 2:2, 3:3, 4:4, 5:5}[len(material['mu_shaderParameters'][parameter])]))
-                values.text = " ".join([str(x) for x in material['mu_shaderParameters'][parameter]])
+                values.text = " ".join(["{0:g}".format(x) for x in material['mu_shaderParameters'][parameter]])
             #Not sure if any of these are important, they aren't in my example files, they might be for the effects section
             if isinstance(material['mu_shaderParameters'][parameter],dict):
                 #None in Material
@@ -118,7 +132,7 @@ def add_materials(collada, materials):
                 func = ET.SubElement(samplerDX, 'func')
                 func.text = 'NEVER' # Again, who knows?
                 max_anisotropy = ET.SubElement(samplerDX, 'max_anisotropy')
-                max_anisotropy.text = str(material['mu_shaderParameters'][parameter]['m_maxAnisotropy'])
+                max_anisotropy.text = "{0:g}".format(material['mu_shaderParameters'][parameter]['m_maxAnisotropy'])
                 lod_min_distance = ET.SubElement(samplerDX, 'lod_min_distance')
                 lod_min_distance.text = '-3402823466385289'
                 lod_max_distance = ET.SubElement(samplerDX, 'lod_max_distance')
@@ -252,6 +266,15 @@ def add_bone_info(skeleton):
         skeleton[i]['inv_matrix'] = numpy.linalg.inv(skeleton[i]['abs_matrix'])
     return(skeleton)
 
+def get_joint_list(vgmaps, skeleton):
+    i = 0
+    joint_list = {}
+    for bone in skeleton:
+        if bone['name'] in vgmaps:
+            joint_list[bone['name']] = i
+            i += 1
+    return(joint_list)
+
 def get_bone_dict(skeleton):
     bone_dict = {}
     for i in range(len(skeleton)):
@@ -287,70 +310,19 @@ def add_skeleton(collada, skeleton, model_name):
     return(collada)
 
 # Add geometries and skin them.  Needs a base node tree to build links to.
-def add_geometries_and_controllers(collada, submeshes, skeleton, materials):
+def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, materials):
     library_geometries = collada.find('library_geometries')
     library_controllers = collada.find('library_controllers')
     bone_dict = get_bone_dict(skeleton)
     for submesh in submeshes:
         semantics_list = [x['SemanticName'] for x in submesh["vb"]]
-        if 'BLENDWEIGHTS' in semantics_list:
-            controller = ET.SubElement(library_controllers, 'controller')
-            controller.set('id', submesh['name'] + '-skin')
-            controller.set('name', 'skinCluster_' + submesh['name']) #Maya does skinCluster1, skinCluster2... dunno if this matters
-            skin = ET.SubElement(controller, 'skin')
-            skin.set('source', '#' + submesh['name'])
-            bind_shape_matrix = ET.SubElement(skin, 'bind_shape_matrix')
-            bind_shape_matrix.text = '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1'
-            vgmap_source = ET.SubElement(skin, 'source')
-            vgmap_source.set('id', submesh['name'] + '-skin-joints')
-            vgmap_name_array = ET.SubElement(vgmap_source, 'Name_array')
-            vgmap_name_array.set('id', submesh['name'] + '-skin-joints-array')
-            vgmap_name_array.set('count', str(len(submesh['vgmap'])))
-            vgmap_name_array.text = " ".join(submesh['vgmap'].keys())
-            for bone in submesh['vgmap'].keys():
-                bone_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == bone][0]
-                bone_node.set('type', 'JOINT')
-            technique_common = ET.SubElement(vgmap_source, 'technique_common')
-            accessor = ET.SubElement(technique_common, 'accessor')
-            accessor.set('source', '#' + submesh['name'] + '-skin-joints-array')
-            accessor.set('count', str(len(submesh['vgmap'])))
-            accessor.set('stride', '1')
-            param = ET.SubElement(accessor, 'param')
-            param.set('name', 'JOINT')
-            param.set('type', 'Name')
-            inv_bind_mtx_source = ET.SubElement(skin, 'source')
-            inv_bind_mtx_source.set('id', submesh['name'] + '-skin-bind_poses')
-            inv_bind_mtx_array = ET.SubElement(inv_bind_mtx_source, 'float_array')
-            inv_bind_mtx_array.set('id', submesh['name'] + '-skin-bind_poses-array')
-            inv_bind_mtx_array.set('count', str(len(submesh['vgmap']) * 16))
-            inv_bind_mtx_array.text = " ".join([str(x) for y in [skeleton[bone_dict[x]]['inv_matrix'].flatten('F')\
-                for x in submesh['vgmap'].keys()] for x in y])
-            technique_common = ET.SubElement(inv_bind_mtx_source, 'technique_common')
-            accessor = ET.SubElement(technique_common, 'accessor')
-            accessor.set('source', '#' + submesh['name'] + '-skin-bind_poses-array')
-            accessor.set('count', str(len(submesh['vgmap'])))
-            accessor.set('stride', '16')
-            param = ET.SubElement(accessor, 'param')
-            param.set('name', 'TRANSFORM')
-            param.set('type', 'float4x4')
-            # Create an empty source for now (so order is preserved), will be filled as we read in the vertex buffers
-            blendweights_source = ET.SubElement(skin, 'source')
-            joints = ET.SubElement(skin, 'joints')
-            vgmap_input = ET.SubElement(joints, 'input')
-            vgmap_input.set('semantic', 'JOINT')
-            vgmap_input.set('source', '#' + submesh['name'] + '-skin-joints')
-            inv_bind_mtx_input = ET.SubElement(joints, 'input')
-            inv_bind_mtx_input.set('semantic', 'INV_BIND_MATRIX')
-            inv_bind_mtx_input.set('source', '#' + submesh['name'] + '-skin-bind_poses')
-            # Create an empty vertex weight group, will be filled as we read in the vertex buffers
-            vertex_weights = ET.SubElement(skin, 'vertex_weights')
         geometry = ET.SubElement(library_geometries, 'geometry')
         geometry.set("id", submesh['name'])
         geometry.set("name", submesh['name'])
         mesh = ET.SubElement(geometry, 'mesh')
         semantic_counter = 0
         for vb in submesh["vb"]:
-            if vb['SemanticName'] in ['POSITION', 'NORMAL', 'TEXCOORD', 'TANGENT', 'BINORMAL', 'BLENDWEIGHTS']:
+            if vb['SemanticName'] in ['POSITION', 'NORMAL', 'TEXCOORD', 'TANGENT', 'BINORMAL']:
                 if vb['SemanticName'] == 'POSITION':
                     source_id = submesh['name'] + '-positions'
                     source_name = 'position'
@@ -371,51 +343,118 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, materials):
                     source_id = submesh['name'] + '-UV' + vb['SemanticIndex'] + '-binormals'
                     source_name = 'UV' + vb['SemanticIndex'] + '-binormals'
                     param_names = ['X', 'Y', 'Z', 'W']
-                elif vb['SemanticName'] == 'BLENDWEIGHTS':
-                    source_id = submesh['name'] + '-skin-weights'
-                    source_name = 'skin-weights'
-                    param_names = ['WEIGHT']
-                if vb['SemanticName'] in ['POSITION', 'NORMAL', 'TEXCOORD', 'TANGENT', 'BINORMAL']:
-                    source = ET.SubElement(mesh, 'source')
-                elif vb['SemanticName'] == 'BLENDWEIGHTS':
-                    source = blendweights_source
+                source = ET.SubElement(mesh, 'source')
                 source.set("id", source_id)
                 source.set("name", source_name)
                 float_array = ET.SubElement(source, 'float_array')
                 float_array.set("id", source_id + '-array')
                 float_array.set("count", str(len([x for y in vb['Buffer'] for x in y])))
-                float_array.text = " ".join([str(x) for y in vb['Buffer'] for x in y])
+                float_array.text = " ".join(["{0:g}".format(x) for y in vb['Buffer'] for x in y])
                 technique_common = ET.SubElement(source, 'technique_common')
                 accessor = ET.SubElement(technique_common, 'accessor')
                 accessor.set('source', '#' + source_id + '-array')
-                if vb['SemanticName'] == 'BLENDWEIGHTS':
-                    accessor.set('count', str(len(vb['Buffer']) * len(vb['Buffer'][0])))
-                    accessor.set('stride', '1')
+                accessor.set('count', str(len(vb['Buffer'])))
+                accessor.set('stride', str(len(vb['Buffer'][0])))
+                for i in range(len(vb['Buffer'][0])):
                     param = ET.SubElement(accessor, 'param')
-                    param.set('name', 'WEIGHT')
+                    param.set('name', param_names[i])
                     param.set('type', 'float')
-                else:
-                    accessor.set('count', str(len(vb['Buffer'])))
-                    accessor.set('stride', str(len(vb['Buffer'][0])))
-                    for i in range(len(vb['Buffer'][0])):
-                        param = ET.SubElement(accessor, 'param')
-                        param.set('name', param_names[i])
-                        param.set('type', 'float')
-            elif vb['SemanticName'] == 'BLENDINDICES':
-                vertex_weights.set("count", str(len(vb['Buffer'])))
-                joint_input = ET.SubElement(vertex_weights, 'input')
-                joint_input.set('semantic', 'JOINT')
-                joint_input.set('source', '#' + submesh['name'] + '-skin-joints')
-                joint_input.set('offset', '0')
-                weight_input = ET.SubElement(vertex_weights, 'input')
-                weight_input.set('semantic', 'WEIGHT')
-                weight_input.set('source', '#' + submesh['name'] + '-skin-weights')
-                weight_input.set('offset', '1')
-                vcount = ET.SubElement(vertex_weights, 'vcount')
-                vcount.text = " ".join([str(len(x)) for x in vb['Buffer']])
-                v = ET.SubElement(vertex_weights, 'v')
-                blend_indices = [x for y in vb['Buffer'] for x in y]
-                v.text = " ".join([str(x) for y in [[blend_indices[i],i] for i in range(len(blend_indices))] for x in y])
+        if 'BLENDWEIGHTS' in semantics_list and 'BLENDINDICES' in semantics_list:
+            blendweights = [x['Buffer'] for x in submesh["vb"] if x['SemanticName'] == 'BLENDWEIGHTS'][0]
+            blendindices = [x['Buffer'] for x in submesh["vb"] if x['SemanticName'] == 'BLENDINDICES'][0]
+            blendjoints = joint_list
+            new_weights = []
+            new_indices = []
+            local_to_global_joints = {v:joint_list[k] for (k,v) in submesh['vgmap'].items()}
+            for i in range(len(blendweights)):
+                new_weight = []
+                new_index = []
+                for j in range(len(blendweights[i])):
+                    if blendweights[i][j] > 0.000001:
+                        new_weight.append(blendweights[i][j])
+                        new_index.append(local_to_global_joints[blendindices[i][j]])
+                new_weights.append(new_weight)
+                new_indices.append(new_index)
+            #Uncomment the next 3 lines to force local bones instead of global bones
+            #new_weights = blendweights
+            #new_indices = blendindices
+            #blendjoints = submesh['vgmap']
+            controller = ET.SubElement(library_controllers, 'controller')
+            controller.set('id', submesh['name'] + '-skin')
+            controller.set('name', 'skinCluster_' + submesh['name']) #Maya does skinCluster1, skinCluster2... dunno if this matters
+            skin = ET.SubElement(controller, 'skin')
+            skin.set('source', '#' + submesh['name'])
+            bind_shape_matrix = ET.SubElement(skin, 'bind_shape_matrix')
+            bind_shape_matrix.text = '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1'
+            vgmap_source = ET.SubElement(skin, 'source')
+            vgmap_source.set('id', submesh['name'] + '-skin-joints')
+            vgmap_name_array = ET.SubElement(vgmap_source, 'Name_array')
+            vgmap_name_array.set('id', submesh['name'] + '-skin-joints-array')
+            vgmap_name_array.set('count', str(len(submesh['vgmap'])))
+            vgmap_name_array.text = " ".join(blendjoints.keys())
+            for bone in submesh['vgmap'].keys():
+                bone_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == bone][0]
+                bone_node.set('type', 'JOINT')
+            technique_common = ET.SubElement(vgmap_source, 'technique_common')
+            accessor = ET.SubElement(technique_common, 'accessor')
+            accessor.set('source', '#' + submesh['name'] + '-skin-joints-array')
+            accessor.set('count', str(len(submesh['vgmap'])))
+            accessor.set('stride', '1')
+            param = ET.SubElement(accessor, 'param')
+            param.set('name', 'JOINT')
+            param.set('type', 'Name')
+            inv_bind_mtx_source = ET.SubElement(skin, 'source')
+            inv_bind_mtx_source.set('id', submesh['name'] + '-skin-bind_poses')
+            inv_bind_mtx_array = ET.SubElement(inv_bind_mtx_source, 'float_array')
+            inv_bind_mtx_array.set('id', submesh['name'] + '-skin-bind_poses-array')
+            inv_bind_mtx_array.set('count', str(len(blendjoints) * 16))
+            inv_bind_mtx_array.text = " ".join(["{0:g}".format(x) for y in [skeleton[bone_dict[x]]['inv_matrix'].flatten('F')\
+                for x in blendjoints.keys()] for x in y])
+            technique_common = ET.SubElement(inv_bind_mtx_source, 'technique_common')
+            accessor = ET.SubElement(technique_common, 'accessor')
+            accessor.set('source', '#' + submesh['name'] + '-skin-bind_poses-array')
+            accessor.set('count', str(len(blendjoints)))
+            accessor.set('stride', '16')
+            param = ET.SubElement(accessor, 'param')
+            param.set('name', 'TRANSFORM')
+            param.set('type', 'float4x4')
+            blendweights_source = ET.SubElement(skin, 'source')
+            blendweights_source.set("id", submesh['name'] + '-skin-weights')
+            blendweights_source.set("name", 'skin-weights')
+            float_array = ET.SubElement(blendweights_source, 'float_array')
+            float_array.set("id", submesh['name'] + '-skin-weights-array')
+            float_array.set("count", str(len([x for y in new_weights for x in y])))
+            float_array.text = " ".join(["{0:g}".format(x) for y in new_weights for x in y])
+            technique_common = ET.SubElement(blendweights_source, 'technique_common')
+            accessor = ET.SubElement(technique_common, 'accessor')
+            accessor.set('count', str(len([x for y in new_weights for x in y])))
+            accessor.set('stride', '1')
+            param = ET.SubElement(accessor, 'param')
+            param.set('name', 'WEIGHT')
+            param.set('type', 'float')
+            joints = ET.SubElement(skin, 'joints')
+            vgmap_input = ET.SubElement(joints, 'input')
+            vgmap_input.set('semantic', 'JOINT')
+            vgmap_input.set('source', '#' + submesh['name'] + '-skin-joints')
+            inv_bind_mtx_input = ET.SubElement(joints, 'input')
+            inv_bind_mtx_input.set('semantic', 'INV_BIND_MATRIX')
+            inv_bind_mtx_input.set('source', '#' + submesh['name'] + '-skin-bind_poses')
+            # Create an empty vertex weight group, will be filled as we read in the vertex buffers
+            vertex_weights = ET.SubElement(skin, 'vertex_weights')
+            vertex_weights.set("count", str(len(new_indices)))
+            joint_input = ET.SubElement(vertex_weights, 'input')
+            joint_input.set('semantic', 'JOINT')
+            joint_input.set('source', '#' + submesh['name'] + '-skin-joints')
+            joint_input.set('offset', '0')
+            weight_input = ET.SubElement(vertex_weights, 'input')
+            weight_input.set('semantic', 'WEIGHT')
+            weight_input.set('source', '#' + submesh['name'] + '-skin-weights')
+            weight_input.set('offset', '1')
+            vcount = ET.SubElement(vertex_weights, 'vcount')
+            vcount.text = " ".join([str(len(x)) for x in new_indices])
+            v = ET.SubElement(vertex_weights, 'v')
+            blend_indices = [x for y in new_indices for x in y]
+            v.text = " ".join([str(x) for y in [[blend_indices[i],i] for i in range(len(blend_indices))] for x in y])
         vertices = ET.SubElement(mesh, 'vertices')
         vertices.set('id', submesh['name'] + '-vertices')
         vertices_input = ET.SubElement(vertices, 'input')
@@ -498,8 +537,9 @@ def build_collada():
     collada = add_images(collada, images_data)
     collada = add_materials(collada, metadata['materials'])
     skeleton = add_bone_info(metadata['heirarchy'])
+    joint_list = get_joint_list([x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton[1]['name']], skeleton)
     collada = add_skeleton(collada, skeleton, metadata['name'])
-    collada = add_geometries_and_controllers(collada, submeshes, skeleton, metadata['materials'])
+    collada = add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, metadata['materials'])
     with io.BytesIO() as f:
         f.write(ET.tostring(collada, encoding='utf-8', xml_declaration=True))
         f.seek(0)
