@@ -80,8 +80,7 @@ def add_materials(collada, materials):
         profile_HLSL.set('platform', 'PC-DX')
         include = ET.SubElement(profile_HLSL, 'include')
         include.set('sid','include')
-        #include.set('url','../../../shaders/ed8_chr.fx')
-        include.set('url','../../../shaders/' + material['m_effectVariant']['m_id'].split('#')[1][0:7] + '.fx')
+        include.set('url','../../../shaders/ed8_chr.fx')
         for parameter in material['mu_shaderParameters']:
             # Float parameters - I haven't seen anything that isn't float, so I set everything here to float for now
             if isinstance(material['mu_shaderParameters'][parameter],list):
@@ -164,11 +163,13 @@ def add_materials(collada, materials):
                 max_anisotropy.text = '0'
                 setparam2 = ET.SubElement(instance_effect, 'setparam')
                 setparam2.set("ref", texture_name + "Surface")
-                init_from = ET.SubElement(setparam2, 'init_from')
+                surface = ET.SubElement(setparam2, 'surface')
+                surface.set('type', '2D')
+                init_from = ET.SubElement(surface, 'init_from')
                 init_from.set("mip", "0")
                 init_from.set("slice", "0")
                 init_from.text = texture_name
-                texformat = ET.SubElement(setparam2, 'format')
+                texformat = ET.SubElement(surface, 'format')
                 texformat.text = "A8R8G8B8"
                 #Effect
                 newparam = ET.SubElement(profile_HLSL, 'newparam')
@@ -306,6 +307,13 @@ def add_skeleton(collada, skeleton, model_name):
     visual_scene.set('id', 'VisualSceneNode')
     visual_scene.set('name', model_name)
     get_children(visual_scene, 0, skeleton)
+    extra = ET.SubElement(visual_scene, 'extra')
+    technique = ET.SubElement(extra, 'technique')
+    technique.set('profile','FCOLLADA')
+    start_time = ET.SubElement(technique, 'start_time')
+    start_time.text = '0'
+    end_time = ET.SubElement(technique, 'end_time')
+    end_time.text = '8.333333015441895'
     scene = collada.find('scene')
     instance_visual_scene = ET.SubElement(scene, 'instance_visual_scene')
     instance_visual_scene.set('url', '#VisualSceneNode')
@@ -521,14 +529,26 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
                 technique.set('profile', 'PSSG')
                 param = ET.SubElement(technique, 'param')
                 param.set("name", parameter)
+        extra = ET.SubElement(instance_controller, 'extra')
+        technique = ET.SubElement(extra, 'technique')
+        technique.set('profile', 'PHYRE')
+        object_render_properties = ET.SubElement(technique, 'object_render_properties')
+        object_render_properties.set('castsShadows', '1')
+        object_render_properties.set('receiveShadows', '1')
+        object_render_properties.set('visibleInReflections', '1')
+        object_render_properties.set('visibleInRefractions', '1')
+        object_render_properties.set('motionBlurEnabled', '1')
     return(collada)
 
-def write_shaders(materials):
+def write_shader(materials):
     if not os.path.exists("shaders"):
         os.mkdir("shaders")
+    filename = 'shaders/ed8_chr.fx'
+    shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
+    #shaderfx += ", ".join(['"SHADER_{0}"'.format(x['m_effectVariant']['m_id'].split('#')[1][0:4]) for x in materials]) + '\r\n'
+    #shaderfx += ", ".join(['"ed8_chr.fx#{0}"'.format(x['m_effectVariant']['m_id'].split('#')[1][0:6]) for x in materials]) + '\r\n'
     for material in materials:
-        filename = 'shaders/' + material['m_effectVariant']['m_id'].split('#')[1][0:7] + '.fx'
-        shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
+        shaderfx += '#ifdef SHADER_{0}\r\n'.format(material['m_effectVariant']['m_id'].split('#')[1][0:4])
         for parameter in material['mu_shaderParameters']:
             if isinstance(material['mu_shaderParameters'][parameter],list):
                 if len(material['mu_shaderParameters'][parameter]) == 1:
@@ -544,8 +564,30 @@ def write_shaders(materials):
             if isinstance(material['mu_shaderParameters'][parameter],str):
                 shaderfx += 'Texture2D {0} : {0};'.format(parameter)
             shaderfx += '\r\n'
-        with open(filename, 'wb') as f:
-            f.write(shaderfx.encode('utf-8'))
+        shaderfx  += '#endif //! SHADER_{0}\r\n\r\n\r\n'.format(material['m_effectVariant']['m_id'].split('#')[1][0:4])
+    with open(filename, 'wb') as f:
+        f.write(shaderfx.encode('utf-8'))
+
+def write_processing_batch_file(metadata):
+    batch_file = '''@ECHO OFF
+set "SCE_PHYRE=%cd%"
+CSIVAssetImportTool.exe -fi="chr\chr\{0}\{0}.dae" -platform="D3D11" -write=all
+PhyreDummyShaderCreator.exe D3D11\chr\chr\{0}\{0}.dae.phyre
+del *.fx
+del *.cgfx
+copy D3D11\chr\chr\{0}\{0}.dae.phyre .
+python replace_shader_references.py
+del {0}.dae.phyre.bak
+move {0}.dae.phyre {1}
+'''.format(metadata['name'], metadata['pkg_name'])
+    image_folders = list(set([os.path.dirname(x['uri']).replace('/','\\') for x in metadata['images']]))
+    if len(image_folders) > 0:
+        for folder in image_folders:
+            batch_file += '\r\ncopy D3D11\{0}\*.* {1}'.format(folder, metadata['pkg_name'])
+    batch_file += '\r\npython write_pkg.py {0}'.format(metadata['pkg_name'])
+    with open('RunMe.bat', 'wb') as f:
+        f.write(batch_file.encode('utf-8'))
+    return
 
 def build_collada():
     submeshes = []
@@ -577,7 +619,8 @@ def build_collada():
             os.makedirs(pathname)
         with open(pathname + metadata['name'] + ".dae", 'w') as f2:
             f2.write(pretty_xml_as_string)
-    write_shaders(metadata['materials'])
+    write_shader(metadata['materials'])
+    write_processing_batch_file(metadata)
     return
 
 if __name__ == '__main__':

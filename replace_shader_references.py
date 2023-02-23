@@ -7,29 +7,51 @@
 
 import os, json, shutil
 
+def make_true_shader_dict():
+    return({x['Material']:b'\x00'+x['m_effectVariant']['m_id'].encode() for x in metadata['materials']})
+
+def make_fake_shader_dict():
+    if os.path.exists('materials_list.txt'):
+        fake_shader_dict = {}
+        with open('materials_list.txt', 'r') as f:
+            for line in f:
+                entry = line.split('#')
+                if len(entry) > 2:
+                    data = [x.split(" ")[0] for x in entry[1:3]]
+                    fake_shader_dict[data[1]] = data[0]
+        return(fake_shader_dict)
+    else:
+        return False
+
+def replace_shader_references(filedata, true_shader_dict, fake_shader_dict):
+    if filedata[0:4] == b'RYHP':
+        shader_loc = filedata.find(b'\x00shader', 1)
+        new_phyre = filedata[0:shader_loc]
+        while shader_loc > 0:
+            shader_key = filedata[filedata.find(b'.fx#', shader_loc)+4:filedata.find(b'.fx#', shader_loc)+36].decode()
+            new_phyre += true_shader_dict[fake_shader_dict[shader_key]]
+            end_key = filedata.find(b'\x00', shader_loc + 1)
+            shader_loc = filedata.find(b'\x00shader', shader_loc + 1)
+        new_phyre += filedata[end_key:]
+        return(new_phyre)
+    else:
+        return False
+
 if __name__ == '__main__':
     # Set current directory
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
     if os.path.exists('metadata.json'):
         with open('metadata.json','rb') as f:
             metadata = json.loads(f.read())
-        true_shaders = [x['m_effectVariant']['m_id'] for x in metadata['materials']]
-        true_shaders_dict = {x[-32:-25]:b'\x00'+x.encode() for x in true_shaders}
         filename = metadata['name'] + '.dae.phyre'
+        true_shader_dict = make_true_shader_dict()
+        fake_shader_dict = make_fake_shader_dict()
+        
         if os.path.exists(filename):
             shutil.copy2(filename, filename + '.bak')
             with open(filename, 'rb') as f:
                 filedata = f.read()
-            if filedata[0:4] == b'RYHP':
-                shader_loc = filedata.find(b'\x00shader', 1)
-                new_phyre = filedata[0:shader_loc]
-                while shader_loc > 0:
-                    shader_key = filedata.find(b'.fx#', shader_loc) - 7 
-                    true_shader = filedata[shader_key:shader_key+7].decode()
-                    new_phyre += true_shaders_dict[true_shader]
-                    end_key = filedata.find(b'\x00', shader_loc + 1)
-                    shader_loc = filedata.find(b'\x00shader', shader_loc + 1)
-                new_phyre += filedata[end_key:]
+            new_phyre = replace_shader_references(filedata, true_shader_dict, fake_shader_dict)
             with open(filename, 'wb') as f:
                 f.write(new_phyre)
         else:

@@ -1449,7 +1449,7 @@ def decompress_fixups(fixup_buffer, instance_list, is_pointer_array, is_pointer)
 
     return fixup_buffer.decompressed
 
-def parse_cluster(filename='', reserved_argument=None, storage_media=None):
+def parse_cluster(filename='', reserved_argument=None, storage_media=None, pkg_name=''):
     global g_classMemberCount
     class_descriptors = []
     class_data_members = []
@@ -1567,7 +1567,7 @@ def parse_cluster(filename='', reserved_argument=None, storage_media=None):
         class_location += instance_list_header.size
         count_list += 1
 
-    render_mesh(g, cluster_mesh_info, header_processor, cluster_header)
+    render_mesh(g, cluster_mesh_info, header_processor, cluster_header, pkg_name)
     return cluster_mesh_info
 
 def file_is_ed8_pkg(path):
@@ -1848,7 +1848,7 @@ def get_mipmap_offset_and_size(mipmap_level, width, height, texture_format, is_c
     return (
      offset, current_width * current_height * bpp // 8, current_width, current_height)
 
-def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map):
+def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map, pkg_name = ''):
     g.seek(cluster_mesh_info.vram_model_data_offset)
     if is_cube_map:
         image_width = dict_data['m_size']
@@ -1890,14 +1890,18 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
          'LA8': 2}
         if dict_data['m_format'] in size_map:
             image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], True, cluster_header.platform_id, pitch)
-    if not os.path.exists('textures/'):
-        os.mkdir('textures/')
-    dds_output_path = 'textures/' + cluster_mesh_info.filename.split('.', 1)[0] + '.dds'
+    if 'PAssetReference' in cluster_mesh_info.data_instances_by_class:
+        path_name = pkg_name + '/' + os.path.dirname(cluster_mesh_info.data_instances_by_class['PAssetReference'][0]['m_id'])
+    else:
+        path_name = pkg_name + '/textures'
+    if not os.path.exists(path_name):
+        os.makedirs(path_name)
+    dds_output_path = path_name + '/' + cluster_mesh_info.filename.split('.', 1)[0] + '.dds'
     with cluster_mesh_info.storage_media.open(dds_output_path, 'wb') as (f):
         f.write(get_dds_header(dict_data['m_format'], image_width, image_height, None, False))
         f.write(image_data)
 
-def load_texture(dict_data, cluster_mesh_info):
+def load_texture(dict_data, cluster_mesh_info, pkg_name = ''):
     dds_basename = os.path.basename(dict_data['m_id'])
     found_basename = []
 
@@ -1907,7 +1911,7 @@ def load_texture(dict_data, cluster_mesh_info):
             return True
     cluster_mesh_info.storage_media.get_list_at('.', list_callback)
     if True and len(found_basename) > 0:
-        parse_cluster(found_basename[0], None, cluster_mesh_info.storage_media)
+        parse_cluster(found_basename[0], None, cluster_mesh_info.storage_media, pkg_name)
 
 def load_materials_with_actual_name(dict_data, cluster_mesh_info):
     if type(dict_data['m_effectVariant']) is dict and 'm_id' in dict_data['m_effectVariant']:
@@ -2148,22 +2152,22 @@ dataTypeCountMappingForGltf = {0: 'SCALAR',
  2: 'VEC3', 
  3: 'VEC4'}
 
-def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
+def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name=''):
     print("Processing {0}...".format(cluster_mesh_info.filename))
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PTexture2D']:
-            create_texture(g, v, cluster_mesh_info, cluster_header, False)
+            create_texture(g, v, cluster_mesh_info, cluster_header, False, pkg_name)
 
     if 'PTextureCubeMap' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PTextureCubeMap']:
-            create_texture(g, v, cluster_mesh_info, cluster_header, True)
+            create_texture(g, v, cluster_mesh_info, cluster_header, True, pkg_name)
 
     if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
             if not v['m_targetAssetType'] == 'PTexture2D':
                 if v['m_targetAssetType'] == 'PTextureCubeMap':
                     pass
-            load_texture(v, cluster_mesh_info)
+            load_texture(v, cluster_mesh_info, pkg_name)
 
     if 'PParameterBuffer' in cluster_mesh_info.data_instances_by_class:
         for k in cluster_mesh_info.data_instances_by_class.keys():
@@ -2333,16 +2337,16 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
 
                                 vertexData['mu_remappedVertBufferSkeleton'] = remapInd2.tobytes()
 
-    gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list)
+    gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name)
 
 shader_material_switches = {}
 
-def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list):
+def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name=''):
     global shader_material_switches
     import json
-    if not os.path.exists("meshes"):
-        os.mkdir("meshes")
-    metadata_json = {'name': cluster_mesh_info.filename.split('.', 1)[0]}
+    if not os.path.exists(pkg_name+"/meshes"):
+        os.mkdir(pkg_name+"/meshes")
+    metadata_json = {'name': cluster_mesh_info.filename.split('.', 1)[0], 'pkg_name': pkg_name}
     asset = {}
     asset['generator'] = 'ed8pkg2glb'
     asset['version'] = '2.0'
@@ -2652,8 +2656,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         for v in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
             if v['m_targetAssetType'] == 'PTexture2D':
                 image = {}
-                image_name = os.path.basename(v['m_id'])
-                image['uri'] = 'textures/' + image_name
+                #image_name = os.path.basename(v['m_id'])
+                image['uri'] = v['m_id'] #image_name
                 v['mu_gltfImageIndex'] = len(images)
                 images.append(image)
         metadata_json['images'] = images
@@ -2859,11 +2863,11 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 if len(m['m_vertexData']) > 0:
                     fmt['elements'] = elements
                     fmt['stride'] = str(AlignedByteOffset)
-                    write_fmt(fmt, "meshes/{0}_{1:02d}.fmt".format(t['mu_name'], tt))
-                    with open("meshes/{0}_{1:02d}.ib".format(t['mu_name'], tt), 'wb') as ff:
+                    write_fmt(fmt, pkg_name + "/meshes/{0}_{1:02d}.fmt".format(t['mu_name'], tt))
+                    with open(pkg_name + "/meshes/{0}_{1:02d}.ib".format(t['mu_name'], tt), 'wb') as ff:
                         ff.write(curmesh['m_meshSegments'][tt]['mu_indBuffer'])
-                    write_vb(vb, "meshes/{0}_{1:02d}.vb".format(t['mu_name'], tt), fmt)
-                    with open("meshes/{0}_{1:02d}.material".format(t['mu_name'], tt), "wb") as ff:
+                    write_vb(vb, pkg_name + "/meshes/{0}_{1:02d}.vb".format(t['mu_name'], tt), fmt)
+                    with open(pkg_name + "/meshes/{0}_{1:02d}.material".format(t['mu_name'], tt), "wb") as ff:
                         ff.write(json.dumps({'material': mat['mu_materialname']}, indent=4).encode("utf-8"))
 
                 uvDataStreamSet = {}
@@ -3093,7 +3097,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             skin = {"inverseBindMatrices": mesh['m_meshSegments'][i]['mu_gltfAccessorForInverseBindMatrixIndex'],\
                                 "joints": submesh_joint_list}
                             nodes[mesh_nodes[i]]['skin'] = len(skins)
-                            with open("meshes/{0}_{1:02d}.vgmap".format(v['mu_name'], i), 'wb') as f:
+                            with open(pkg_name + "/meshes/{0}_{1:02d}.vgmap".format(v['mu_name'], i), 'wb') as f:
                                 f.write(json.dumps(vgmap_list, indent=4).encode("utf-8"))
                             skins.append(skin)
             
@@ -3208,13 +3212,13 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         import json, base64
         embedded_giant_buffer_joined = b''.join(embedded_giant_buffer)
         buffer0['byteLength'] = len(embedded_giant_buffer_joined)
-        with cluster_mesh_info.storage_media.open(cluster_mesh_info.filename.split('.', 1)[0] + '.gltf', 'wb') as (f):
+        with cluster_mesh_info.storage_media.open(pkg_name + "/" + cluster_mesh_info.filename.split('.', 1)[0] + '.gltf', 'wb') as (f):
             buffer0["uri"] = cluster_mesh_info.filename.split('.', 1)[0] + '.bin'
             jsondata = json.dumps(cluster_mesh_info.gltf_data, indent=4).encode("utf-8")
             f.write(jsondata)
-        with open(cluster_mesh_info.filename.split('.', 1)[0] + '.bin', 'wb') as f:
+        with open(pkg_name + "/" + cluster_mesh_info.filename.split('.', 1)[0] + '.bin', 'wb') as f:
             f.write(embedded_giant_buffer_joined)        
-        with open("metadata.json".format(i), 'wb') as f:
+        with open(pkg_name + "/metadata.json".format(i), 'wb') as f:
             f.write(json.dumps(metadata_json, indent=4).encode("utf-8"))
 
 def process_pkg(pkg_name):
@@ -3230,6 +3234,8 @@ def process_pkg(pkg_name):
     if not is_cluster:
         is_pkg = file_is_ed8_pkg(pkg_name)
     if is_pkg:
+        if not os.path.exists(pkg_name[:-4]):
+            os.mkdir(pkg_name[:-4])
         storage_media = TSpecialOverlayMedia(os.path.realpath(pkg_name))
         items = []
 
@@ -3247,8 +3253,19 @@ def process_pkg(pkg_name):
 
         for item in items:
             print("Parsing {0}...".format(item))
-            parse_cluster(item, None, storage_media)
+            parse_cluster(item, None, storage_media, pkg_name[:-4])
 
+        build_items = []
+        def list_build_items_callback(item):
+            if item[-4:] == '.xml' or item[-42:-38] == '.fx#':
+                build_items.append(item)
+        storage_media.get_list_at('.', list_build_items_callback)
+        if not os.path.exists(pkg_name[:-4] + '/' + pkg_name[:-4]):
+            os.makedirs(pkg_name[:-4] + '/' + pkg_name[:-4])
+        for i in range(len(build_items)):
+            with storage_media.open(build_items[i], 'rb') as f:
+                with open(pkg_name[:-4] + '/' + pkg_name[:-4] + '/' + build_items[i], 'wb') as ff:
+                    ff.write(f.read())
     else:
         raise Exception('Passed in file is not compatible file')
 
