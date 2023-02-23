@@ -80,7 +80,8 @@ def add_materials(collada, materials):
         profile_HLSL.set('platform', 'PC-DX')
         include = ET.SubElement(profile_HLSL, 'include')
         include.set('sid','include')
-        include.set('url','./shaders/ed8_chr.fx')
+        #include.set('url','./shaders/ed8_chr.fx')
+        include.set('url','shaders/' + material['m_effectVariant']['m_id'].split('#')[1][0:7] + '.fx')
         for parameter in material['mu_shaderParameters']:
             # Float parameters - I haven't seen anything that isn't float, so I set everything here to float for now
             if isinstance(material['mu_shaderParameters'][parameter],list):
@@ -522,6 +523,28 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
                 param.set("name", parameter)
     return(collada)
 
+def write_shaders(materials):
+    if not os.path.exists("shaders"):
+        os.mkdir("shaders")
+    for material in materials:
+        filename = 'shaders/' + material['m_effectVariant']['m_id'].split('#')[1][0:7] + '.fx'
+        shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n'
+        for parameter in material['mu_shaderParameters']:
+            shaderfx += '\r\n'
+            if isinstance(material['mu_shaderParameters'][parameter],list):
+                if len(material['mu_shaderParameters'][parameter]) == 1:
+                    value = "{0:.3f}".format(material['mu_shaderParameters'][parameter][0])
+                else:
+                    value = "float{0}({1})".format(len(material['mu_shaderParameters'][parameter]),\
+                        ", ".join(["{0:.3f}".format(x) for x in material['mu_shaderParameters'][parameter]]))
+                shaderfx += 'half {0} : {0} = {1};'.format(parameter, value)
+            if isinstance(material['mu_shaderParameters'][parameter],dict):
+                shaderfx += 'sampler {0} : {0};'.format(parameter)
+            if isinstance(material['mu_shaderParameters'][parameter],str):
+                shaderfx += 'Texture2D {0} : {0};'.format(parameter)
+        with open(filename, 'wb') as f:
+            f.write(shaderfx.encode('utf-8'))
+
 def build_collada():
     submeshes = []
     meshes = [x.split('meshes\\')[1].split('.fmt')[0] for x in glob.glob('meshes/*.fmt')]
@@ -549,6 +572,7 @@ def build_collada():
         pretty_xml_as_string = dom.toprettyxml(indent='  ')
         with open(metadata['name'] + ".dae", 'w') as f2:
             f2.write(pretty_xml_as_string)
+    write_shaders(metadata['materials'])
     return
 
 if __name__ == '__main__':
