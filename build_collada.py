@@ -528,20 +528,22 @@ def write_shaders(materials):
         os.mkdir("shaders")
     for material in materials:
         filename = 'shaders/' + material['m_effectVariant']['m_id'].split('#')[1][0:7] + '.fx'
-        shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n'
+        shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
         for parameter in material['mu_shaderParameters']:
-            shaderfx += '\r\n'
             if isinstance(material['mu_shaderParameters'][parameter],list):
                 if len(material['mu_shaderParameters'][parameter]) == 1:
+                    valuetype = 'half'
                     value = "{0:.3f}".format(material['mu_shaderParameters'][parameter][0])
                 else:
+                    valuetype = 'half{0}'.format(len(material['mu_shaderParameters'][parameter]))
                     value = "float{0}({1})".format(len(material['mu_shaderParameters'][parameter]),\
                         ", ".join(["{0:.3f}".format(x) for x in material['mu_shaderParameters'][parameter]]))
-                shaderfx += 'half {0} : {0} = {1};'.format(parameter, value)
+                shaderfx += '{0} {1} : {1} = {2};'.format(valuetype, parameter, value)
             if isinstance(material['mu_shaderParameters'][parameter],dict):
                 shaderfx += 'sampler {0} : {0};'.format(parameter)
             if isinstance(material['mu_shaderParameters'][parameter],str):
                 shaderfx += 'Texture2D {0} : {0};'.format(parameter)
+            shaderfx += '\r\n'
         with open(filename, 'wb') as f:
             f.write(shaderfx.encode('utf-8'))
 
