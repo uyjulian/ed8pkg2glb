@@ -427,6 +427,7 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
             float_array.text = " ".join(["{0:g}".format(x) for y in new_weights for x in y])
             technique_common = ET.SubElement(blendweights_source, 'technique_common')
             accessor = ET.SubElement(technique_common, 'accessor')
+            accessor.set('source', '#' + submesh['name'] + '-skin-weights-array')
             accessor.set('count', str(len([x for y in new_weights for x in y])))
             accessor.set('stride', '1')
             param = ET.SubElement(accessor, 'param')
