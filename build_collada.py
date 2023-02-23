@@ -62,7 +62,8 @@ def add_materials(collada, materials):
     library_materials = collada.find('library_materials')
     library_effects = collada.find('library_effects')
     all_shader_switches = ['SHADER_'+x['m_effectVariant']['m_id'].split('#')[-1][0:4] for x in materials]
-    for material in materials:
+    # Skip the "Skinned" materials, those are added at time of compile
+    for material in [x for x in materials if "-Skinned" not in x['Material']]:
         #Materials
         material_element = ET.SubElement(library_materials, 'material')
         material_element.set("id", material['Material'])
@@ -505,7 +506,7 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
         technique_common = ET.SubElement(bind_material, 'technique_common')
         instance_material = ET.SubElement(technique_common, 'instance_material')
         instance_material.set('symbol', submesh['name'] + 'SG')
-        instance_material.set('target', '#' + submesh['material']['material'])
+        instance_material.set('target', '#' + submesh['material']['material'].split("-Skinned")[0])
         material = [x for x in materials if x['Material'] == submesh['material']['material']][0]
         for parameter in material['mu_shaderParameters']:
             # Texture parameters - I think these are constant from texture to texture and model to model, variations are in the effects?
