@@ -41,12 +41,12 @@ def basic_collada():
 def add_images(collada, images):
     library_images = collada.find('library_images')
     for image in images:
-        image_name = image.replace('.DDS','.dds').split('textures/')[1].split('.dds')[0]
+        image_name = image.replace('.DDS','.dds').split('.dds')[0]
         image_element = ET.SubElement(library_images, 'image')
-        image_element.set("id", image_name)
-        image_element.set("name", image_name)
+        image_element.set("id", os.path.basename(image_name))
+        image_element.set("name", os.path.basename(image_name))
         image_element_init_from = ET.SubElement(image_element, 'init_from')
-        image_element_init_from.text = './' + image
+        image_element_init_from.text = '../../../' + image
         image_element_extra = ET.SubElement(image_element, 'extra')
         image_element_extra_technique = ET.SubElement(image_element_extra, 'technique')
         image_element_extra_technique.set("profile", "MAYA")
@@ -80,8 +80,8 @@ def add_materials(collada, materials):
         profile_HLSL.set('platform', 'PC-DX')
         include = ET.SubElement(profile_HLSL, 'include')
         include.set('sid','include')
-        #include.set('url','./shaders/ed8_chr.fx')
-        include.set('url','shaders/' + material['m_effectVariant']['m_id'].split('#')[1][0:7] + '.fx')
+        #include.set('url','../../../shaders/ed8_chr.fx')
+        include.set('url','../../../shaders/' + material['m_effectVariant']['m_id'].split('#')[1][0:7] + '.fx')
         for parameter in material['mu_shaderParameters']:
             # Float parameters - I haven't seen anything that isn't float, so I set everything here to float for now
             if isinstance(material['mu_shaderParameters'][parameter],list):
@@ -572,7 +572,10 @@ def build_collada():
         f.seek(0)
         dom = xml.dom.minidom.parse(f)
         pretty_xml_as_string = dom.toprettyxml(indent='  ')
-        with open(metadata['name'] + ".dae", 'w') as f2:
+        pathname = 'chr/chr/{0}/'.format(metadata['name'])
+        if not os.path.exists(pathname):
+            os.makedirs(pathname)
+        with open(pathname + metadata['name'] + ".dae", 'w') as f2:
             f2.write(pretty_xml_as_string)
     write_shaders(metadata['materials'])
     return
