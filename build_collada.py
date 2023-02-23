@@ -390,15 +390,15 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
             vgmap_source.set('id', submesh['name'] + '-skin-joints')
             vgmap_name_array = ET.SubElement(vgmap_source, 'Name_array')
             vgmap_name_array.set('id', submesh['name'] + '-skin-joints-array')
-            vgmap_name_array.set('count', str(len(submesh['vgmap'])))
+            vgmap_name_array.set('count', str(len(blendjoints)))
             vgmap_name_array.text = " ".join(blendjoints.keys())
-            for bone in submesh['vgmap'].keys():
+            for bone in blendjoints.keys():
                 bone_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == bone][0]
                 bone_node.set('type', 'JOINT')
             technique_common = ET.SubElement(vgmap_source, 'technique_common')
             accessor = ET.SubElement(technique_common, 'accessor')
             accessor.set('source', '#' + submesh['name'] + '-skin-joints-array')
-            accessor.set('count', str(len(submesh['vgmap'])))
+            accessor.set('count', str(len(blendjoints)))
             accessor.set('stride', '1')
             param = ET.SubElement(accessor, 'param')
             param.set('name', 'JOINT')
