@@ -62,6 +62,8 @@ def add_materials(collada, materials):
     library_materials = collada.find('library_materials')
     library_effects = collada.find('library_effects')
     all_shader_switches = ['SHADER_'+x['m_effectVariant']['m_id'].split('#')[-1][0:4] for x in materials]
+    filter_map = ['NEAREST', 'LINEAR', 'NEAREST_MIPMAP_NEAREST', 'LINEAR_MIPMAP_NEAREST', 'NEAREST_MIPMAP_LINEAR', 'LINEAR_MIPMAP_LINEAR']
+    wrap_map = ['CLAMP','WRAP','CLAMP','CLAMP','MIRROR']
     # Skip the "Skinned" materials, those are added at time of compile
     for material in [x for x in materials if "-Skinned" not in x['Material']]:
         #Materials
@@ -114,20 +116,19 @@ def add_materials(collada, materials):
                 semantic.text = parameter
                 values = ET.SubElement(newparam, 'float{0}'.format({1:'', 2:2, 3:3, 4:4, 5:5}[len(material['mu_shaderParameters'][parameter])]))
                 values.text = " ".join(["{0:g}".format(x) for x in material['mu_shaderParameters'][parameter]])
-            #Not sure if any of these are important, they aren't in my example files, they might be for the effects section
+            #Sampler definitions, for the effects section
             if isinstance(material['mu_shaderParameters'][parameter],dict):
                 #None in Material
                 #Effect
                 newparam = ET.SubElement(profile_HLSL, 'newparam')
                 newparam.set('sid', parameter)
                 samplerDX = ET.SubElement(newparam, 'samplerDX')
-                # 0-3 are correct, I think 4 is supposed to be mirrored wrap but I don't know what the code is
                 wrap_s = ET.SubElement(samplerDX, 'wrap_s')
-                wrap_s.text = ['CLAMP','WRAP','CLAMP','CLAMP','WRAP'][material['mu_shaderParameters'][parameter]['m_wrapS']]
+                wrap_s.text = wrap_map[material['mu_shaderParameters'][parameter]['m_wrapS']]
                 wrap_t = ET.SubElement(samplerDX, 'wrap_t')
-                wrap_t.text = ['CLAMP','WRAP','CLAMP','CLAMP','WRAP'][material['mu_shaderParameters'][parameter]['m_wrapT']]
+                wrap_t.text = wrap_map[material['mu_shaderParameters'][parameter]['m_wrapT']]
                 wrap_p = ET.SubElement(samplerDX, 'wrap_p')
-                wrap_p.text = ['CLAMP','WRAP','CLAMP','CLAMP','WRAP'][material['mu_shaderParameters'][parameter]['m_wrapR']]
+                wrap_p.text = wrap_map[material['mu_shaderParameters'][parameter]['m_wrapR']]
                 dxfilter = ET.SubElement(samplerDX, 'dxfilter')
                 dxfilter.text = 'MIN_MAG_MIP_LINEAR' # This is also probably not correct but I don't know the possible codes
                 func = ET.SubElement(samplerDX, 'func')
@@ -140,9 +141,10 @@ def add_materials(collada, materials):
                 lod_max_distance.text = '3402823466385289'
                 border_color = ET.SubElement(samplerDX, 'border_color')
                 border_color.text = '0 0 0 0' # In the example it's always this, and in the phyre file it's a single 0.  I dunno.
-            # Texture parameters - I think these are constant from texture to texture and model to model, variations are in the effects?
+            # Texture parameters - only support for 2D currently
             if isinstance(material['mu_shaderParameters'][parameter],str):
                 texture_name = material['mu_shaderParameters'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
+                sampler_name = parameter + 'Sampler'
                 #Material
                 setparam = ET.SubElement(instance_effect, 'setparam')
                 setparam.set("ref", material['Material'] + parameter)
@@ -150,17 +152,24 @@ def add_materials(collada, materials):
                 source = ET.SubElement(sampler, 'source')
                 source.text = texture_name + "Surface"
                 wrap_s = ET.SubElement(sampler, 'wrap_s')
-                wrap_s.text = 'WRAP'
                 wrap_t = ET.SubElement(sampler, 'wrap_t')
-                wrap_t.text = 'WRAP'
                 minfilter = ET.SubElement(sampler, 'minfilter')
-                minfilter.text = 'NONE'
                 magfilter = ET.SubElement(sampler, 'magfilter')
-                magfilter.text = 'NONE'
                 mipfilter = ET.SubElement(sampler, 'mipfilter')
                 mipfilter.text = 'NONE'
                 max_anisotropy = ET.SubElement(sampler, 'max_anisotropy')
-                max_anisotropy.text = '0'
+                if sampler_name in material['mu_shaderParameters']:
+                    wrap_s.text = wrap_map[material['mu_shaderParameters'][sampler_name]['m_wrapS']]
+                    wrap_t.text = wrap_map[material['mu_shaderParameters'][sampler_name]['m_wrapT']]
+                    minfilter.text = filter_map[material['mu_shaderParameters'][sampler_name]['m_minFilter']]
+                    magfilter.text = filter_map[material['mu_shaderParameters'][sampler_name]['m_magFilter']]
+                    max_anisotropy.text = "{0:g}".format(material['mu_shaderParameters'][sampler_name]['m_maxAnisotropy'])
+                else: # CartoonMapSampler and SphereMapSampler
+                    wrap_s.text = 'WRAP'
+                    wrap_t.text = 'WRAP'
+                    minfilter.text = 'NONE'
+                    magfilter.text = 'NONE'
+                    max_anisotropy.text = '0'
                 setparam2 = ET.SubElement(instance_effect, 'setparam')
                 setparam2.set("ref", texture_name + "Surface")
                 surface = ET.SubElement(setparam2, 'surface')
@@ -217,10 +226,30 @@ def add_materials(collada, materials):
         # Switches are taken from the shader files themselves
         shader = ET.SubElement(material_switches, current_shader_switch)
         material_switch_list = ET.SubElement(technique, 'material_switch_list')
-        for material_switch in material['m_effectVariant']['material_swiches']:
+        #for material_switch in material['m_effectVariant']['material_swiches']:
+            #material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
+            #material_switch_entry.set("name", material_switch)
+            #material_switch_entry.set("material_switch_value", material['m_effectVariant']['material_swiches'][material_switch])
+        for material_switch in ['BLOOM_INTENSITY', 'SAMPLER_TOGGLE', 'VERTEX_COLOR_ENABLED', 'LIGHTING_ENABLED',\
+                'DIFFUSE_ENABLED', 'DIFFUSE2_ENABLED', 'DIFFUSE3_ENABLED', 'ALPHA_BLENDING_ENABLED', 'NORMAL_MAPPING_ENABLED',\
+                'WRAP_DIFFUSE_LIGHTING', 'SPECULAR_ENABLED', 'CASTS_SHADOWS', 'RECEIVE_SHADOWS', 'DOUBLE_SIDED', 'MOTION_BLUR_ENABLED',\
+                'GENERATE_LIGHTS', 'SHININESS', 'RENDER_AS_LOW_RES', 'LIGHTMAP_OCCLUSION', 'SUBDIV', 'SUBDIV_SCALAR_DISPLACEMENT',\
+                'SUBDIV_VECTOR_DISPLACEMENT', 'FOR_EFFECT', 'FOR_SHADOW', 'USE_OUTLINE', 'USE_OUTLINE_COLOR', 'ALPHA_TESTING_ENABLED',\
+                'ADDITIVE_BLENDING_ENABLED', 'SUBTRACT_BLENDING_ENABLED', 'MULTIPLICATIVE_BLENDING_ENABLED', 'TRANSPARENT_DELAY_ENABLED',\
+                'PORTRAIT_GLASS_FIX', 'FOG_ENABLED', 'NO_ALL_LIGHTING_ENABLED', 'NO_MAIN_LIGHT_SHADING_ENABLED',\
+                'FORCE_CHAR_LIGHT_DIRECTION_ENABLED', 'PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED', 'SHADOW_COLOR_SHIFT_ENABLED',\
+                'CARTOON_SHADING_ENABLED', 'SPECULAR_COLOR_ENABLED', 'SPECULAR_MAPPING_ENABLED', 'RIM_LIGHTING_ENABLED',\
+                'RIM_TRANSPARENCY_ENABLED', 'NORMAL_MAPP_DXT5_NM_ENABLED', 'EMISSION_MAPPING_ENABLED', 'SPHERE_MAPPING_ENABLED',\
+                'SPHERE_RECEIVE_OFFSET_ENABLED', 'SPHERE_MAPPING_HAIRCUTICLE_ENABLED', 'CUBE_MAPPING_ENABLED', 'DUDV_MAPPING_ENABLED',\
+                'GLARE_ENABLED', 'MULTI_UV_ENANLED', 'MULTI_UV_PROJTEXCOORD', 'MULTI_UV_ADDITIVE_BLENDING_ENANLED', 'MULTI_UV_DUDV_ENANLED',\
+                'MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED', 'MULTI_UV_FACE_ENANLED',\
+                'MULTI_UV_NORMAL_MAPPING_ENABLED', 'MULTI_UV_SPECULAR_MAPPING_ENABLED', 'MULTI_UV_GLARE_MAPPING_ENABLED',\
+                'MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED', 'MULTI_UV2_ENANLED', 'MULTI_UV2_ADDITIVE_BLENDING_ENANLED',\
+                'MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED',\
+                'MULTI_UV2_SPECULAR_MAPPING_ENABLED', 'GAME_MATERIAL_ID', 'GAME_MATERIAL_TEXCOORD', 'GLARE_INTENSITY']:
             material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
             material_switch_entry.set("name", material_switch)
-            material_switch_entry.set("material_switch_value", material['m_effectVariant']['material_swiches'][material_switch])
+            material_switch_entry.set("material_switch_value", '0')
         for i in range(len(all_shader_switches)):
             material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
             material_switch_entry.set("name", all_shader_switches[i])
@@ -285,28 +314,43 @@ def get_bone_dict(skeleton):
     return(bone_dict)
 
 # Recursive function to fill out the entire node tree; call with the first node and i = 0
-def get_children(parent_node, i, skeleton):
+def get_children(parent_node, i, metadata):
     node = ET.SubElement(parent_node, 'node')
-    node.set('id', skeleton[i]['name'])
-    node.set('name', skeleton[i]['name'])
-    node.set('sid', skeleton[i]['name'])
+    node.set('id', metadata['heirarchy'][i]['name'])
+    node.set('name', metadata['heirarchy'][i]['name'])
+    node.set('sid', metadata['heirarchy'][i]['name'])
     node.set('type', 'NODE')
-    if 'matrix' in skeleton[i]:
+    if 'matrix' in metadata['heirarchy'][i]:
         matrix = ET.SubElement(node, 'matrix')
-        matrix.text = " ".join([str(x) for x in skeleton[i]['matrix'].flatten('F')])
-    if 'children' in skeleton[i].keys():
-        for j in range(len(skeleton[i]['children'])):
-            if skeleton[i]['children'][j] < len(skeleton):
-                get_children(node, skeleton[i]['children'][j], skeleton)
+        matrix.text = " ".join([str(x) for x in metadata['heirarchy'][i]['matrix'].flatten('F')])
+    if 'children' in metadata['heirarchy'][i].keys():
+        for j in range(len(metadata['heirarchy'][i]['children'])):
+            if metadata['heirarchy'][i]['children'][j] < len(metadata['heirarchy']):
+                get_children(node, metadata['heirarchy'][i]['children'][j], metadata)
+    extra = ET.SubElement(node, 'extra')
+    technique = ET.SubElement(extra, 'technique')
+    if metadata['heirarchy'][i]['name'] in metadata['locators']:
+        technique.set('profile', 'PHYRE')
+        locator = ET.SubElement(technique, 'locator')
+        locator.text = '1'
+    else:
+        technique.set('profile', 'MAYA')
+        dynamic_attributes = ET.SubElement(technique, 'dynamic_attributes')
+        filmboxTypeID = ET.SubElement(dynamic_attributes, 'filmboxTypeID')
+        filmboxTypeID.set('short_name', 'filmboxTypeID')
+        filmboxTypeID.set('type', 'int')
+        filmboxTypeID.text = '5'
+        segment_scale_compensate = ET.SubElement(technique, 'segment_scale_compensate')
+        segment_scale_compensate.text = '0'
     return
 
 # Build out the base node tree, run this before building geometries
-def add_skeleton(collada, skeleton, model_name):
+def add_skeleton(collada, metadata):
     library_visual_scenes = collada.find('library_visual_scenes')
     visual_scene = ET.SubElement(library_visual_scenes, 'visual_scene')
     visual_scene.set('id', 'VisualSceneNode')
-    visual_scene.set('name', model_name)
-    get_children(visual_scene, 0, skeleton)
+    visual_scene.set('name', metadata['name'])
+    get_children(visual_scene, 0, metadata)
     extra = ET.SubElement(visual_scene, 'extra')
     technique = ET.SubElement(extra, 'technique')
     technique.set('profile','FCOLLADA')
@@ -612,7 +656,7 @@ def build_collada():
     collada = add_materials(collada, metadata['materials'])
     skeleton = add_bone_info(metadata['heirarchy'])
     joint_list = get_joint_list([x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton[1]['name']], skeleton)
-    collada = add_skeleton(collada, skeleton, metadata['name'])
+    collada = add_skeleton(collada, metadata)
     collada = add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, metadata['materials'])
     with io.BytesIO() as f:
         f.write(ET.tostring(collada, encoding='utf-8', xml_declaration=True))
