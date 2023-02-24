@@ -1,7 +1,9 @@
-# ED8 PKG to GLTF, forked from uyjulian/ed8pkg2glb.  Probably broken, do not use if you are
-# trying to get a packaged model, please use uyjulian's original release.  This is rewritten
-# to keep the meshes segmented, for access to their original bone palettes.  There is no other
-# reason for my fork to exist.  HUGE thank you to uyjulian for writing the original program!
+# ED8 PKG to GLTF, forked from uyjulian/ed8pkg2glb.  This is also configured to dumped meshes,
+# textures, shaders, metadata (materials, shader parameters, locators, etc) and the asset XML.
+# HUGE thank you to uyjulian for writing the original program!
+#
+# For command line options, run:
+# /path/to/python3 ed8pkg2gltf.py --help
 #
 # GitHub eArmada8/ed8pkg2gltf
 
@@ -796,6 +798,7 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
      'PEffect',
      'PEffectVariant',
      'PLight',
+     'PLocator',
      'PMaterial',
      'PMaterialSwitch',
      'PMatrix4',
@@ -1449,7 +1452,7 @@ def decompress_fixups(fixup_buffer, instance_list, is_pointer_array, is_pointer)
 
     return fixup_buffer.decompressed
 
-def parse_cluster(filename='', reserved_argument=None, storage_media=None, pkg_name=''):
+def parse_cluster(filename='', reserved_argument=None, storage_media=None, pkg_name='', partialmaps = False):
     global g_classMemberCount
     class_descriptors = []
     class_data_members = []
@@ -1567,7 +1570,7 @@ def parse_cluster(filename='', reserved_argument=None, storage_media=None, pkg_n
         class_location += instance_list_header.size
         count_list += 1
 
-    render_mesh(g, cluster_mesh_info, header_processor, cluster_header, pkg_name)
+    render_mesh(g, cluster_mesh_info, header_processor, cluster_header, pkg_name, partialmaps = partialmaps)
     return cluster_mesh_info
 
 def file_is_ed8_pkg(path):
@@ -2152,7 +2155,7 @@ dataTypeCountMappingForGltf = {0: 'SCALAR',
  2: 'VEC3', 
  3: 'VEC4'}
 
-def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name=''):
+def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name='', partialmaps = False):
     print("Processing {0}...".format(cluster_mesh_info.filename))
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PTexture2D']:
@@ -2337,11 +2340,11 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name='')
 
                                 vertexData['mu_remappedVertBufferSkeleton'] = remapInd2.tobytes()
 
-    gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name)
+    gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name, partialmaps = partialmaps)
 
 shader_material_switches = {}
 
-def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name=''):
+def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name='', partialmaps = False):
     global shader_material_switches
     import json
     if not os.path.exists(pkg_name+"/meshes"):
@@ -2821,6 +2824,11 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     dxgi_format = "".join([RGBAD[i]+bytesize[componentType] for i in range(numelements[accType])])\
                         + '_' + elementtype[componentType]
                     streamInfo = vertexData['m_streams'][0]
+                    vertexBuffer = vertexData['mu_vertBuffer']
+                    if partialmaps == False and streamInfo['m_renderDataType'] == 'SkinIndices':
+                        dxgi_format = "".join([RGBAD[i]+'16' for i in range(numelements[accType])]) + '_UINT'
+                        vertexBuffer = vertexData['mu_remappedVertBufferSkeleton']
+                        stride = numelements[accType] * 2
                     if streamInfo['m_renderDataType'] in ['ST', 'SkinnableTangent', 'SkinnableBinormal']:
                         semantic_index = uvTangentBinormalCount[streamInfo['m_renderDataType']]
                         uvTangentBinormalCount[streamInfo['m_renderDataType']] += 1
@@ -2830,10 +2838,10 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         'SemanticIndex': str(semantic_index), 'Format': dxgi_format, 'InputSlot': '0',\
                         'AlignedByteOffset': str(AlignedByteOffset),\
                         'InputSlotClass': 'per-vertex', 'InstanceDataStepRate': '0'}
-                    with io.BytesIO(vertexData['mu_vertBuffer']) as vertBuffer:
+                    with io.BytesIO(vertexBuffer) as vertBufferStream:
                         vb.append({'SemanticName': semantics[streamInfo['m_renderDataType']],\
                             'SemanticIndex': str(semantic_index),\
-                            'Buffer': [unpack_dxgi_vector(vertBuffer, stride, dxgi_format, e = '<')\
+                            'Buffer': [unpack_dxgi_vector(vertBufferStream, stride, dxgi_format, e = '<')\
                                 for x in range(accessors[vertexData['mu_gltfAccessorIndex']]['count'])]})
                     elements.append(element)
                     AlignedByteOffset += stride
@@ -3068,6 +3076,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 matrices[joint_list[j]] = mesh['m_skeletonMatrices'][j]['m_elements']
             if len(mesh_segment_nodes) > 0:
                 mesh_nodes = {}
+                remapped_vgmap_list = {nodes[joint_list_to_node[joint_list[j]]]['name']:j for j in range(len(joint_list))}
                 for i in range(len(mesh_segment_nodes)):
                     mesh_nodes[mesh_segment_nodes[i]['mesh']] = [j for j in range(len(nodes)) if nodes[j]['name'] == mesh_segment_nodes[i]['name']][0]
                 for i in range(len(mesh['m_meshSegments'])):
@@ -3097,8 +3106,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             skin = {"inverseBindMatrices": mesh['m_meshSegments'][i]['mu_gltfAccessorForInverseBindMatrixIndex'],\
                                 "joints": submesh_joint_list}
                             nodes[mesh_nodes[i]]['skin'] = len(skins)
-                            with open(pkg_name + "/meshes/{0}_{1:02d}.vgmap".format(v['mu_name'], i), 'wb') as f:
-                                f.write(json.dumps(vgmap_list, indent=4).encode("utf-8"))
+                            if partialmaps == True:
+                                with open(pkg_name + "/meshes/{0}_{1:02d}.vgmap".format(v['mu_name'], i), 'wb') as f:
+                                    f.write(json.dumps(vgmap_list, indent=4).encode("utf-8"))
+                            else:
+                                with open(pkg_name + "/meshes/{0}_{1:02d}.vgmap".format(v['mu_name'], i), 'wb') as f:
+                                    f.write(json.dumps(remapped_vgmap_list, indent=4).encode("utf-8"))
                             skins.append(skin)
             
             if 'mu_gltfAccessorForInverseBindMatrixIndex' in mesh and 'mu_gltfNodeIndex' in v:
@@ -3208,6 +3221,10 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     cluster_mesh_info.gltf_data['scenes'] = scenes
     cluster_mesh_info.gltf_data['bufferViews'] = bufferviews
     cluster_mesh_info.gltf_data['accessors'] = accessors
+
+    if 'PLocator' in cluster_mesh_info.data_instances_by_class:
+        metadata_json['locators'] = [x['mu_name'] for x in cluster_mesh_info.data_instances_by_class['PLocator']]
+
     if len(nodes) > 0:
         import json, base64
         embedded_giant_buffer_joined = b''.join(embedded_giant_buffer)
@@ -3221,7 +3238,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         with open(pkg_name + "/metadata.json".format(i), 'wb') as f:
             f.write(json.dumps(metadata_json, indent=4).encode("utf-8"))
 
-def process_pkg(pkg_name):
+def process_pkg(pkg_name, partialmaps = False, overwrite = False):
     is_cluster = False
     is_pkg = False
     storage_media = None
@@ -3234,38 +3251,42 @@ def process_pkg(pkg_name):
     if not is_cluster:
         is_pkg = file_is_ed8_pkg(pkg_name)
     if is_pkg:
-        if not os.path.exists(pkg_name[:-4]):
-            os.mkdir(pkg_name[:-4])
-        storage_media = TSpecialOverlayMedia(os.path.realpath(pkg_name))
-        items = []
+        if os.path.exists(pkg_name[:-4]) and (os.path.isdir(pkg_name[:-4])) and (overwrite == False):
+            if str(input(pkg_name[:-4] + " folder exists! Overwrite? (y/N) ")).lower()[0:1] == 'y':
+                overwrite = True
+        if (overwrite == True) or not os.path.exists(pkg_name[:-4]):
+            if not os.path.exists(pkg_name[:-4]):
+                os.mkdir(pkg_name[:-4])
+            storage_media = TSpecialOverlayMedia(os.path.realpath(pkg_name))
+            items = []
 
-        def list_callback(item):
-            if item[-10:-6] == '.dae':
-                items.append(item)
-
-        storage_media.get_list_at('.', list_callback)
-        if len(items) == 0:
-            def list_callback2(item):
-                if item[-10:-6] == '.dds':
+            def list_callback(item):
+                if item[-10:-6] == '.dae':
                     items.append(item)
 
-            storage_media.get_list_at('.', list_callback2)
+            storage_media.get_list_at('.', list_callback)
+            if len(items) == 0:
+                def list_callback2(item):
+                    if item[-10:-6] == '.dds':
+                        items.append(item)
 
-        for item in items:
-            print("Parsing {0}...".format(item))
-            parse_cluster(item, None, storage_media, pkg_name[:-4])
+                storage_media.get_list_at('.', list_callback2)
 
-        build_items = []
-        def list_build_items_callback(item):
-            if item[-4:] == '.xml' or item[-42:-38] == '.fx#':
-                build_items.append(item)
-        storage_media.get_list_at('.', list_build_items_callback)
-        if not os.path.exists(pkg_name[:-4] + '/' + pkg_name[:-4]):
-            os.makedirs(pkg_name[:-4] + '/' + pkg_name[:-4])
-        for i in range(len(build_items)):
-            with storage_media.open(build_items[i], 'rb') as f:
-                with open(pkg_name[:-4] + '/' + pkg_name[:-4] + '/' + build_items[i], 'wb') as ff:
-                    ff.write(f.read())
+            for item in items:
+                print("Parsing {0}...".format(item))
+                parse_cluster(item, None, storage_media, pkg_name[:-4], partialmaps = partialmaps)
+
+            build_items = []
+            def list_build_items_callback(item):
+                if item[-4:] == '.xml' or item[-42:-38] == '.fx#':
+                    build_items.append(item)
+            storage_media.get_list_at('.', list_build_items_callback)
+            if not os.path.exists(pkg_name[:-4] + '/' + pkg_name[:-4]):
+                os.makedirs(pkg_name[:-4] + '/' + pkg_name[:-4])
+            for i in range(len(build_items)):
+                with storage_media.open(build_items[i], 'rb') as f:
+                    with open(pkg_name[:-4] + '/' + pkg_name[:-4] + '/' + build_items[i], 'wb') as ff:
+                        ff.write(f.read())
     else:
         raise Exception('Passed in file is not compatible file')
 
@@ -3277,10 +3298,12 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         import argparse
         parser = argparse.ArgumentParser()
+        parser.add_argument('-p', '--partialmaps', help="Provide vgmaps with non-empty groups only", action="store_true")
+        parser.add_argument('-o', '--overwrite', help="Overwrite existing files", action="store_true")
         parser.add_argument('pkg_filename', help="Name of pkg file to export from (required).")
         args = parser.parse_args()
         if os.path.exists(args.pkg_filename) and args.pkg_filename[-4:].lower() == '.pkg':
-            process_pkg(args.pkg_filename)
+            process_pkg(args.pkg_filename, partialmaps = args.partialmaps, overwrite = args.overwrite)
     else:
         pkg_files = glob.glob('*.pkg')
         for i in range(len(pkg_files)):
