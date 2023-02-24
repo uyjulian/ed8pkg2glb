@@ -196,7 +196,7 @@ def add_materials(collada, materials):
                 max_anisotropy = ET.SubElement(sampler, 'max_anisotropy')
                 max_anisotropy.text = '0'
                 newparam2 = ET.SubElement(profile_HLSL, 'newparam')
-                newparam2.set("ref", texture_name + "Surface")
+                newparam2.set("sid", texture_name + "Surface")
                 annotate = ET.SubElement(newparam2, 'annotate')
                 annotate.set('name', 'UIName')
                 string = ET.SubElement(annotate, 'string')
@@ -565,6 +565,11 @@ def write_shader(materials):
                 shaderfx += 'Texture2D {0} : {0};'.format(parameter)
             shaderfx += '\r\n'
         shaderfx  += '#endif //! SHADER_{0}\r\n\r\n\r\n'.format(material['m_effectVariant']['m_id'].split('#')[1][0:4])
+    shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'
+    shaderfx += '#ifdef SUBDIV_SCALAR_DISPLACEMENT\r\nTexture2D<half> DisplacementScalar;\r\n#endif // SUBDIV_SCALAR_DISPLACEMENT\r\n\r\n'
+    shaderfx += '#ifdef SUBDIV_VECTOR_DISPLACEMENT\r\nTexture2D<half4> DisplacementVector;\r\n#define USE_TANGENTS\r\n#endif // SUBDIV_VECTOR_DISPLACEMENT\r\n\r\n'
+    shaderfx += '#if defined(SUBDIV_SCALAR_DISPLACEMENT) || defined(SUBDIV_VECTOR_DISPLACEMENT)\r\nhalf DisplacementScale = 1.0f;\r\n'
+    shaderfx += '#define USE_UVS\r\n#endif // defined(SUBDIV_SCALAR_DISPLACEMENT) || defined(SUBDIV_VECTOR_DISPLACEMENT)'
     with open(filename, 'wb') as f:
         f.write(shaderfx.encode('utf-8'))
 
