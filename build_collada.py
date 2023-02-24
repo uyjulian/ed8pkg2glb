@@ -639,37 +639,49 @@ move {0}.dae.phyre {1}
     return
 
 def build_collada():
-    submeshes = []
-    meshes = [x.split('meshes\\')[1].split('.fmt')[0] for x in glob.glob('meshes/*.fmt')]
-    for filename in meshes:
-        submesh = {'name': filename}
-        submesh['fmt'] = read_fmt('meshes/'+filename+'.fmt')
-        submesh['ib'] = read_ib('meshes/'+filename+'.ib', submesh['fmt'])
-        submesh['vb'] = read_vb('meshes/'+filename+'.vb', submesh['fmt'])
-        submesh['vgmap'] = read_struct_from_json('meshes/'+filename+'.vgmap')
-        submesh['material'] = read_struct_from_json('meshes/'+filename+'.material')
-        submeshes.append(submesh)
-    collada = basic_collada()
-    metadata = read_struct_from_json('metadata.json')
-    images_data = [x['uri'] for x in metadata['images']]
-    collada = add_images(collada, images_data)
-    collada = add_materials(collada, metadata['materials'])
-    skeleton = add_bone_info(metadata['heirarchy'])
-    joint_list = get_joint_list([x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton[1]['name']], skeleton)
-    collada = add_skeleton(collada, metadata)
-    collada = add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, metadata['materials'])
-    with io.BytesIO() as f:
-        f.write(ET.tostring(collada, encoding='utf-8', xml_declaration=True))
-        f.seek(0)
-        dom = xml.dom.minidom.parse(f)
-        pretty_xml_as_string = dom.toprettyxml(indent='  ')
-        pathname = 'chr/chr/{0}/'.format(metadata['name'])
-        if not os.path.exists(pathname):
-            os.makedirs(pathname)
-        with open(pathname + metadata['name'] + ".dae", 'w') as f2:
-            f2.write(pretty_xml_as_string)
-    write_shader(metadata['materials'])
-    write_processing_batch_file(metadata)
+    if os.path.exists('metadata.json'):
+        metadata = read_struct_from_json('metadata.json')
+        print("Processing {0}...".format(metadata['pkg_name']))
+        submeshes = []
+        meshes = [x.split('meshes\\')[1].split('.fmt')[0] for x in glob.glob('meshes/*.fmt')]
+        for filename in meshes:
+            try:
+                print("Reading submesh {0}...".format(filename))
+                submesh = {'name': filename}
+                submesh['fmt'] = read_fmt('meshes/'+filename+'.fmt')
+                submesh['ib'] = read_ib('meshes/'+filename+'.ib', submesh['fmt'])
+                submesh['vb'] = read_vb('meshes/'+filename+'.vb', submesh['fmt'])
+                submesh['vgmap'] = read_struct_from_json('meshes/'+filename+'.vgmap')
+                submesh['material'] = read_struct_from_json('meshes/'+filename+'.material')
+                submeshes.append(submesh)
+            except FileNotFoundError:
+                print("Submesh {0} not found or corrupt, skipping...".format(filename))
+        collada = basic_collada()
+        images_data = [x['uri'] for x in metadata['images']]
+        collada = add_images(collada, images_data)
+        print("Adding materials...")
+        collada = add_materials(collada, metadata['materials'])
+        print("Adding skeleton...")
+        skeleton = add_bone_info(metadata['heirarchy'])
+        joint_list = get_joint_list([x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton[1]['name']], skeleton)
+        collada = add_skeleton(collada, metadata)
+        print("Adding geometry...")
+        collada = add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, metadata['materials'])
+        print("Writing COLLADA file...")
+        with io.BytesIO() as f:
+            f.write(ET.tostring(collada, encoding='utf-8', xml_declaration=True))
+            f.seek(0)
+            dom = xml.dom.minidom.parse(f)
+            pretty_xml_as_string = dom.toprettyxml(indent='  ')
+            pathname = 'chr/chr/{0}/'.format(metadata['name'])
+            if not os.path.exists(pathname):
+                os.makedirs(pathname)
+            with open(pathname + metadata['name'] + ".dae", 'w') as f2:
+                f2.write(pretty_xml_as_string)
+        print("Writing shader file...")
+        write_shader(metadata['materials'])
+        print("Writing RunMe.bat.")
+        write_processing_batch_file(metadata)
     return
 
 if __name__ == '__main__':
