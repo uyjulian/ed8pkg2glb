@@ -549,7 +549,7 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
         double_sided = ET.SubElement(technique, 'double_sided')
         double_sided.text = '1'
         # Create geometry node
-        meshname = "".join(submesh["name"].split("_")[:-1])
+        meshname = "_".join(submesh["name"].split("_")[:-1])
         mesh_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == meshname][0]
         instance_controller = ET.SubElement(mesh_node, 'instance_controller')
         instance_controller.set('url', '#' + submesh["name"] + '-skin')
