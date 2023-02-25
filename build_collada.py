@@ -591,24 +591,28 @@ def write_shader(materials):
     shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
     #shaderfx += ", ".join(['"SHADER_{0}"'.format(x['m_effectVariant']['m_id'].split('#')[1][0:4]) for x in materials]) + '\r\n'
     #shaderfx += ", ".join(['"ed8_chr.fx#{0}"'.format(x['m_effectVariant']['m_id'].split('#')[1][0:6]) for x in materials]) + '\r\n'
+    added_shaders = []
     for material in materials:
-        shaderfx += '#ifdef SHADER_{0}\r\n'.format(material['m_effectVariant']['m_id'].split('#')[1][0:4])
-        for parameter in material['mu_shaderParameters']:
-            if isinstance(material['mu_shaderParameters'][parameter],list):
-                if len(material['mu_shaderParameters'][parameter]) == 1:
-                    valuetype = 'half'
-                    value = "{0:.3f}".format(material['mu_shaderParameters'][parameter][0])
-                else:
-                    valuetype = 'half{0}'.format(len(material['mu_shaderParameters'][parameter]))
-                    value = "float{0}({1})".format(len(material['mu_shaderParameters'][parameter]),\
-                        ", ".join(["{0:.3f}".format(x) for x in material['mu_shaderParameters'][parameter]]))
-                shaderfx += '{0} {1} : {1} = {2};'.format(valuetype, parameter, value)
-            if isinstance(material['mu_shaderParameters'][parameter],dict):
-                shaderfx += 'sampler {0} : {0};'.format(parameter)
-            if isinstance(material['mu_shaderParameters'][parameter],str):
-                shaderfx += 'Texture2D {0} : {0};'.format(parameter)
-            shaderfx += '\r\n'
-        shaderfx  += '#endif //! SHADER_{0}\r\n\r\n\r\n'.format(material['m_effectVariant']['m_id'].split('#')[1][0:4])
+        shader_switch = 'SHADER_{0}'.format(material['m_effectVariant']['m_id'].split('#')[1][0:4])
+        if shader_switch not in added_shaders:
+            added_shaders.append(shader_switch)
+            shaderfx += '#ifdef {0}\r\n'.format(shader_switch)
+            for parameter in material['mu_shaderParameters']:
+                if isinstance(material['mu_shaderParameters'][parameter],list):
+                    if len(material['mu_shaderParameters'][parameter]) == 1:
+                        valuetype = 'half'
+                        value = "{0:.3f}".format(material['mu_shaderParameters'][parameter][0])
+                    else:
+                        valuetype = 'half{0}'.format(len(material['mu_shaderParameters'][parameter]))
+                        value = "float{0}({1})".format(len(material['mu_shaderParameters'][parameter]),\
+                            ", ".join(["{0:.3f}".format(x) for x in material['mu_shaderParameters'][parameter]]))
+                    shaderfx += '{0} {1} : {1} = {2};'.format(valuetype, parameter, value)
+                if isinstance(material['mu_shaderParameters'][parameter],dict):
+                    shaderfx += 'sampler {0} : {0};'.format(parameter)
+                if isinstance(material['mu_shaderParameters'][parameter],str):
+                    shaderfx += 'Texture2D {0} : {0};'.format(parameter)
+                shaderfx += '\r\n'
+            shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
     shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'
     shaderfx += '#ifdef SUBDIV_SCALAR_DISPLACEMENT\r\nTexture2D<half> DisplacementScalar;\r\n#endif // SUBDIV_SCALAR_DISPLACEMENT\r\n\r\n'
     shaderfx += '#ifdef SUBDIV_VECTOR_DISPLACEMENT\r\nTexture2D<half4> DisplacementVector;\r\n#define USE_TANGENTS\r\n#endif // SUBDIV_VECTOR_DISPLACEMENT\r\n\r\n'
