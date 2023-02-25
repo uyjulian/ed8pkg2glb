@@ -16,7 +16,7 @@ The original phyre asset decompiler is written by Julian Uy (github.com/uyjulian
 ### Step 1: Decompilation
 Obtain a model pkg file.  In CS3/CS4, the files are stored in assets.pka and must be extracted.  Use [extract_pka.py](https://github.com/eArmada8/unpackpka) in the same folder as assets.pka.
 
-Place ed8pkg2gltf.py and lib_fmtibvb.py into a folder with your character model (.pkg) file.  Double-click ed8pkg2gltf.py.  It will create a folder with the same name as the pkg, and dump in there the model in gltf form, meshes for modding in a folder, textures in their own folder, and a metadata.json file.
+Place ed8pkg2gltf.py and lib_fmtibvb.py into a folder with your character model (.pkg) file.  Double-click ed8pkg2gltf.py.  It will create a folder with the same name as the pkg, and dump in there the model in gltf form, meshes for modding in a folder, textures in their own folder, and a metadata.json file.  (Note: Vertex group mapping behavior can be configured, see below.)
 
 Note: If there is more than one .pkg file in the directory, the script will dump them all.
 
@@ -28,7 +28,7 @@ Note: If there is more than one .pkg file in the directory, the script will dump
 
 - Textures can be edited in the program of your choice.  If you add files and/or change file names, both the metadata.json and the asset_D3D11.xml should be updated.  To see what texture formats are supported, run ```CSIVAssetImportTool.exe -?```
 
-- Meshes can be modified by importing them into Blender using DarkStarSword's plugin (see above).  Export when finished and overwrite the original files.  Note that meshes with more than 80 active vertex groups will disable GPU skinning (empty groups are okay as the compiler will cull empty groups from skin index of each individual mesh).  To remove a mesh, just delete the files (.fmt/.ib/.vb).  If adding a mesh, be sure it conforms to the existing skeletal map (.vgmap).
+- Meshes can be modified by importing them into Blender using DarkStarSword's plugin (see above).  Export when finished and overwrite the original files.  Note that meshes with more than 80 active vertex groups will disable GPU skinning (empty groups are okay as the compiler will cull empty groups from skin index of each individual mesh).  To remove a mesh, just delete the files (.fmt/.ib/.vb).  If adding a mesh, be sure it conforms to the existing skeletal map (.vgmap).  (***Note:*** Meshes dumped with this tool have remapped skeletons by default, so existing 3DMigoto meshes cannot be dumped in as-is.  You can either merge into a dumped mesh, or you can run the decompiler with the partial maps option to get meshes with original mapping.  The latter is probably preferred for converting mods since I have confirmed that otherwise you can literally replace the .fmt/.ib/.vb files {keep the .material and .vgmap files} for rapid mod conversion.)
 
 - Material assignments can be changed by changing the .material file associated with the mesh.  Note that the material defines both the textures and the shader.
 
