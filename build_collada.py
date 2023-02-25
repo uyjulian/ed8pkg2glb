@@ -61,175 +61,178 @@ def add_materials(collada, materials):
     # Materials and effects can be done in parallel
     library_materials = collada.find('library_materials')
     library_effects = collada.find('library_effects')
-    all_shader_switches = ['SHADER_'+x['m_effectVariant']['m_id'].split('#')[-1][0:4] for x in materials]
-    filter_map = ['NEAREST', 'LINEAR', 'NEAREST_MIPMAP_NEAREST', 'LINEAR_MIPMAP_NEAREST', 'NEAREST_MIPMAP_LINEAR', 'LINEAR_MIPMAP_LINEAR']
-    wrap_map = ['CLAMP','WRAP','CLAMP','CLAMP','MIRROR']
-    # Skip the "Skinned" materials, those are added at time of compile
-    for material in [x for x in materials if "-Skinned" not in x['Material']]:
+    all_shader_switches = ['SHADER_'+v['shader'].split('#')[-1][0:4] for (k,v) in materials.items()]
+    for material in materials:
         #Materials
         material_element = ET.SubElement(library_materials, 'material')
-        material_element.set("id", material['Material'])
-        material_element.set("name", material['Material'])
+        material_element.set("id", material)
+        material_element.set("name", material)
         instance_effect = ET.SubElement(material_element, 'instance_effect')
-        instance_effect.set("url", "#{0}-fx".format(material['Material']))
+        instance_effect.set("url", "#{0}-fx".format(material))
         technique_hint = ET.SubElement(instance_effect, 'technique_hint')
         technique_hint.set("platform", "PC-DX")
         technique_hint.set("ref", "ForwardRender")
         #Effects
         effect_element = ET.SubElement(library_effects, 'effect')
-        effect_element.set("id", material['Material'] + '-fx')
+        effect_element.set("id", material + '-fx')
         profile_HLSL = ET.SubElement(effect_element, 'profile_HLSL')
         profile_HLSL.set('platform', 'PC-DX')
         include = ET.SubElement(profile_HLSL, 'include')
         include.set('sid','include')
         include.set('url','../../../shaders/ed8_chr.fx')
-        for parameter in material['mu_shaderParameters']:
-            # Float parameters - I haven't seen anything that isn't float, so I set everything here to float for now
-            if isinstance(material['mu_shaderParameters'][parameter],list):
-                #Material
-                setparam = ET.SubElement(instance_effect, 'setparam')
-                setparam.set("ref", material['Material'] + parameter)
-                values = ET.SubElement(setparam, 'float{0}'.format({1:'', 2:2, 3:3, 4:4, 5:5}[len(material['mu_shaderParameters'][parameter])]))
-                values.text = " ".join(["{0:g}".format(x) for x in material['mu_shaderParameters'][parameter]])
-                #Effect
-                newparam = ET.SubElement(profile_HLSL, 'newparam')
-                newparam.set('sid', material['Material'] + parameter)
+        # Float parameters - I haven't seen anything that isn't float, so I set everything here to float for now
+        for parameter in materials[material]['shaderParameters']:
+            #Material
+            setparam = ET.SubElement(instance_effect, 'setparam')
+            setparam.set("ref", material + parameter)
+            values = ET.SubElement(setparam, 'float{0}'.format({1:'', 2:2, 3:3, 4:4, 5:5}[len(materials[material]['shaderParameters'][parameter])]))
+            values.text = " ".join(["{0:g}".format(x) for x in materials[material]['shaderParameters'][parameter]])
+            #Effect
+            newparam = ET.SubElement(profile_HLSL, 'newparam')
+            newparam.set('sid', material + parameter)
+            annotate = ET.SubElement(newparam, 'annotate')
+            annotate.set('name', 'UIName')
+            string = ET.SubElement(annotate, 'string')
+            string.text = parameter
+            if len(materials[material]['shaderParameters'][parameter]) == 1:
                 annotate = ET.SubElement(newparam, 'annotate')
-                annotate.set('name', 'UIName')
-                string = ET.SubElement(annotate, 'string')
-                string.text = parameter
-                if len(material['mu_shaderParameters'][parameter]) == 1:
-                    annotate = ET.SubElement(newparam, 'annotate')
-                    annotate.set('name', 'UIMin')
-                    string = ET.SubElement(annotate, 'float')
-                    string.text = '0'
-                    annotate = ET.SubElement(newparam, 'annotate')
-                    annotate.set('name', 'UIMax')
-                    string = ET.SubElement(annotate, 'float')
-                    string.text = '1'
-                else:
-                    annotate = ET.SubElement(newparam, 'annotate')
-                    annotate.set('name', 'UIType')
-                    string = ET.SubElement(annotate, 'string')
-                    string.text = 'Color'
-                semantic = ET.SubElement(newparam, 'semantic')
-                semantic.text = parameter
-                values = ET.SubElement(newparam, 'float{0}'.format({1:'', 2:2, 3:3, 4:4, 5:5}[len(material['mu_shaderParameters'][parameter])]))
-                values.text = " ".join(["{0:g}".format(x) for x in material['mu_shaderParameters'][parameter]])
-            #Sampler definitions, for the effects section
-            if isinstance(material['mu_shaderParameters'][parameter],dict):
-                #None in Material
-                #Effect
-                newparam = ET.SubElement(profile_HLSL, 'newparam')
-                newparam.set('sid', parameter)
-                samplerDX = ET.SubElement(newparam, 'samplerDX')
-                wrap_s = ET.SubElement(samplerDX, 'wrap_s')
-                wrap_s.text = wrap_map[material['mu_shaderParameters'][parameter]['m_wrapS']]
-                wrap_t = ET.SubElement(samplerDX, 'wrap_t')
-                wrap_t.text = wrap_map[material['mu_shaderParameters'][parameter]['m_wrapT']]
-                wrap_p = ET.SubElement(samplerDX, 'wrap_p')
-                wrap_p.text = wrap_map[material['mu_shaderParameters'][parameter]['m_wrapR']]
-                dxfilter = ET.SubElement(samplerDX, 'dxfilter')
-                dxfilter.text = 'MIN_MAG_MIP_LINEAR' # This is also probably not correct but I don't know the possible codes
-                func = ET.SubElement(samplerDX, 'func')
-                func.text = 'NEVER' # Again, who knows?
-                max_anisotropy = ET.SubElement(samplerDX, 'max_anisotropy')
-                max_anisotropy.text = "{0:g}".format(material['mu_shaderParameters'][parameter]['m_maxAnisotropy'])
-                lod_min_distance = ET.SubElement(samplerDX, 'lod_min_distance')
-                lod_min_distance.text = '-3402823466385289'
-                lod_max_distance = ET.SubElement(samplerDX, 'lod_max_distance')
-                lod_max_distance.text = '3402823466385289'
-                border_color = ET.SubElement(samplerDX, 'border_color')
-                border_color.text = '0 0 0 0' # In the example it's always this, and in the phyre file it's a single 0.  I dunno.
-            # Texture parameters - only support for 2D currently
-            if isinstance(material['mu_shaderParameters'][parameter],str):
-                texture_name = material['mu_shaderParameters'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
-                sampler_name = parameter + 'Sampler'
-                #Material
-                setparam = ET.SubElement(instance_effect, 'setparam')
-                setparam.set("ref", material['Material'] + parameter)
-                sampler = ET.SubElement(setparam, 'sampler2D')
-                source = ET.SubElement(sampler, 'source')
-                source.text = texture_name + "Surface"
-                wrap_s = ET.SubElement(sampler, 'wrap_s')
-                wrap_t = ET.SubElement(sampler, 'wrap_t')
-                minfilter = ET.SubElement(sampler, 'minfilter')
-                magfilter = ET.SubElement(sampler, 'magfilter')
-                mipfilter = ET.SubElement(sampler, 'mipfilter')
-                mipfilter.text = 'NONE'
-                max_anisotropy = ET.SubElement(sampler, 'max_anisotropy')
-                if sampler_name in material['mu_shaderParameters']:
-                    wrap_s.text = wrap_map[material['mu_shaderParameters'][sampler_name]['m_wrapS']]
-                    wrap_t.text = wrap_map[material['mu_shaderParameters'][sampler_name]['m_wrapT']]
-                    minfilter.text = filter_map[material['mu_shaderParameters'][sampler_name]['m_minFilter']]
-                    magfilter.text = filter_map[material['mu_shaderParameters'][sampler_name]['m_magFilter']]
-                    max_anisotropy.text = "{0:g}".format(material['mu_shaderParameters'][sampler_name]['m_maxAnisotropy'])
-                else: # CartoonMapSampler and SphereMapSampler
-                    wrap_s.text = 'WRAP'
-                    wrap_t.text = 'WRAP'
-                    minfilter.text = 'NONE'
-                    magfilter.text = 'NONE'
-                    max_anisotropy.text = '0'
-                setparam2 = ET.SubElement(instance_effect, 'setparam')
-                setparam2.set("ref", texture_name + "Surface")
-                surface = ET.SubElement(setparam2, 'surface')
-                surface.set('type', '2D')
-                init_from = ET.SubElement(surface, 'init_from')
-                init_from.set("mip", "0")
-                init_from.set("slice", "0")
-                init_from.text = texture_name
-                texformat = ET.SubElement(surface, 'format')
-                texformat.text = "A8R8G8B8"
-                #Effect
-                newparam = ET.SubElement(profile_HLSL, 'newparam')
-                newparam.set("sid", material['Material'] + parameter)
+                annotate.set('name', 'UIMin')
+                string = ET.SubElement(annotate, 'float')
+                string.text = '0'
                 annotate = ET.SubElement(newparam, 'annotate')
-                annotate.set('name', 'UIName')
+                annotate.set('name', 'UIMax')
+                string = ET.SubElement(annotate, 'float')
+                string.text = '1'
+            else:
+                annotate = ET.SubElement(newparam, 'annotate')
+                annotate.set('name', 'UIType')
                 string = ET.SubElement(annotate, 'string')
-                string.text = parameter
-                semantic = ET.SubElement(newparam, 'semantic')
-                semantic.text = parameter
-                sampler = ET.SubElement(newparam, 'sampler2D')
-                source = ET.SubElement(sampler, 'source')
-                source.text = texture_name + "Surface"
-                wrap_s = ET.SubElement(sampler, 'wrap_s')
+                string.text = 'Color'
+            semantic = ET.SubElement(newparam, 'semantic')
+            semantic.text = parameter
+            values = ET.SubElement(newparam, 'float{0}'.format({1:'', 2:2, 3:3, 4:4, 5:5}[len(materials[material]['shaderParameters'][parameter])]))
+            values.text = " ".join(["{0:g}".format(x) for x in materials[material]['shaderParameters'][parameter]])
+        #Sampler definitions, for the effects section
+        for parameter in materials[material]['shaderSamplerDefs']:
+            #None in Material
+            #Effect
+            newparam = ET.SubElement(profile_HLSL, 'newparam')
+            newparam.set('sid', parameter)
+            samplerDX = ET.SubElement(newparam, 'samplerDX')
+            wrap_s = ET.SubElement(samplerDX, 'wrap_s')
+            wrap_s.text = materials[material]['shaderSamplerDefs'][parameter]['m_wrapS']
+            wrap_t = ET.SubElement(samplerDX, 'wrap_t')
+            wrap_t.text = materials[material]['shaderSamplerDefs'][parameter]['m_wrapT']
+            wrap_p = ET.SubElement(samplerDX, 'wrap_p')
+            wrap_p.text = materials[material]['shaderSamplerDefs'][parameter]['m_wrapR']
+            dxfilter = ET.SubElement(samplerDX, 'dxfilter')
+            dxfilter.text = 'MIN_MAG_MIP_LINEAR' # This is probably not correct but I don't know the possible codes
+            func = ET.SubElement(samplerDX, 'func')
+            func.text = 'NEVER' # Again, who knows?
+            max_anisotropy = ET.SubElement(samplerDX, 'max_anisotropy')
+            max_anisotropy.text = "{0:g}".format(materials[material]['shaderSamplerDefs'][parameter]['m_maxAnisotropy'])
+            lod_min_distance = ET.SubElement(samplerDX, 'lod_min_distance')
+            lod_min_distance.text = '-3402823466385289'
+            lod_max_distance = ET.SubElement(samplerDX, 'lod_max_distance')
+            lod_max_distance.text = '3402823466385289'
+            border_color = ET.SubElement(samplerDX, 'border_color')
+            border_color.text = '0 0 0 0' # In the example it's always this, and in the phyre file it's a single 0.  I dunno.
+        # Texture parameters - only support for 2D currently
+        for parameter in materials[material]['shaderTextures']:
+            texture_name = materials[material]['shaderTextures'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
+            sampler_name = parameter + 'Sampler'
+            #Material
+            setparam = ET.SubElement(instance_effect, 'setparam')
+            setparam.set("ref", material + parameter)
+            sampler = ET.SubElement(setparam, 'sampler2D')
+            source = ET.SubElement(sampler, 'source')
+            source.text = texture_name + "Surface"
+            wrap_s = ET.SubElement(sampler, 'wrap_s')
+            wrap_t = ET.SubElement(sampler, 'wrap_t')
+            minfilter = ET.SubElement(sampler, 'minfilter')
+            magfilter = ET.SubElement(sampler, 'magfilter')
+            mipfilter = ET.SubElement(sampler, 'mipfilter')
+            mipfilter.text = 'NONE'
+            max_anisotropy = ET.SubElement(sampler, 'max_anisotropy')
+            if sampler_name in materials[material]['shaderSamplerDefs']:
+                wrap_s.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_wrapS']
+                wrap_t.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_wrapT']
+                minfilter.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_minFilter']
+                magfilter.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_magFilter']
+                max_anisotropy.text = "{0:g}".format(materials[material]['shaderSamplerDefs'][sampler_name]['m_maxAnisotropy'])
+            else: # CartoonMapSampler and SphereMapSampler
                 wrap_s.text = 'WRAP'
-                wrap_t = ET.SubElement(sampler, 'wrap_t')
                 wrap_t.text = 'WRAP'
-                minfilter = ET.SubElement(sampler, 'minfilter')
                 minfilter.text = 'NONE'
-                magfilter = ET.SubElement(sampler, 'magfilter')
                 magfilter.text = 'NONE'
-                mipfilter = ET.SubElement(sampler, 'mipfilter')
-                mipfilter.text = 'NONE'
-                max_anisotropy = ET.SubElement(sampler, 'max_anisotropy')
                 max_anisotropy.text = '0'
-                newparam2 = ET.SubElement(profile_HLSL, 'newparam')
-                newparam2.set("sid", texture_name + "Surface")
-                annotate = ET.SubElement(newparam2, 'annotate')
-                annotate.set('name', 'UIName')
-                string = ET.SubElement(annotate, 'string')
-                string.text = texture_name
-                surface = ET.SubElement(newparam2, 'surface')
-                surface.set('type', '2D')
-                init_from = ET.SubElement(surface, 'init_from')
-                init_from.set("mip", "0")
-                init_from.set("slice", "0")
-                init_from.text = texture_name
-                texformat = ET.SubElement(surface, 'format')
-                texformat.text = "A8R8G8B8"
+            setparam2 = ET.SubElement(instance_effect, 'setparam')
+            setparam2.set("ref", texture_name + "Surface")
+            surface = ET.SubElement(setparam2, 'surface')
+            surface.set('type', '2D')
+            init_from = ET.SubElement(surface, 'init_from')
+            init_from.set("mip", "0")
+            init_from.set("slice", "0")
+            init_from.text = texture_name
+            texformat = ET.SubElement(surface, 'format')
+            texformat.text = "A8R8G8B8"
+            #Effect
+            newparam = ET.SubElement(profile_HLSL, 'newparam')
+            newparam.set("sid", material + parameter)
+            annotate = ET.SubElement(newparam, 'annotate')
+            annotate.set('name', 'UIName')
+            string = ET.SubElement(annotate, 'string')
+            string.text = parameter
+            semantic = ET.SubElement(newparam, 'semantic')
+            semantic.text = parameter
+            sampler = ET.SubElement(newparam, 'sampler2D')
+            source = ET.SubElement(sampler, 'source')
+            source.text = texture_name + "Surface"
+            wrap_s = ET.SubElement(sampler, 'wrap_s')
+            wrap_t = ET.SubElement(sampler, 'wrap_t')
+            minfilter = ET.SubElement(sampler, 'minfilter')
+            magfilter = ET.SubElement(sampler, 'magfilter')
+            mipfilter = ET.SubElement(sampler, 'mipfilter')
+            mipfilter.text = 'NONE'
+            max_anisotropy = ET.SubElement(sampler, 'max_anisotropy')
+            if sampler_name in materials[material]['shaderSamplerDefs']:
+                wrap_s.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_wrapS']
+                wrap_t.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_wrapT']
+                minfilter.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_minFilter']
+                magfilter.text = materials[material]['shaderSamplerDefs'][sampler_name]['m_magFilter']
+                max_anisotropy.text = "{0:g}".format(materials[material]['shaderSamplerDefs'][sampler_name]['m_maxAnisotropy'])
+            else: # CartoonMapSampler and SphereMapSampler
+                wrap_s.text = 'WRAP'
+                wrap_t.text = 'WRAP'
+                minfilter.text = 'NONE'
+                magfilter.text = 'NONE'
+                max_anisotropy.text = '0'
+            newparam2 = ET.SubElement(profile_HLSL, 'newparam')
+            newparam2.set("sid", texture_name + "Surface")
+            annotate = ET.SubElement(newparam2, 'annotate')
+            annotate.set('name', 'UIName')
+            string = ET.SubElement(annotate, 'string')
+            string.text = texture_name
+            surface = ET.SubElement(newparam2, 'surface')
+            surface.set('type', '2D')
+            init_from = ET.SubElement(surface, 'init_from')
+            init_from.set("mip", "0")
+            init_from.set("slice", "0")
+            init_from.text = texture_name
+            texformat = ET.SubElement(surface, 'format')
+            texformat.text = "A8R8G8B8"
         extra = ET.SubElement(material_element, 'extra')
         technique = ET.SubElement(extra, 'technique')
         technique.set("profile", "PHYRE")
         material_switches = ET.SubElement(technique, 'material_switches')
-        current_shader_switch = 'SHADER_' + material['m_effectVariant']['m_id'].split('#')[-1][0:4]
-        # Switches are taken from the shader files themselves
+        current_shader_switch = 'SHADER_' + materials[material]['shader'].split('#')[-1][0:4]
         shader = ET.SubElement(material_switches, current_shader_switch)
         material_switch_list = ET.SubElement(technique, 'material_switch_list')
-        #for material_switch in material['m_effectVariant']['material_swiches']:
+        ## Switches are taken from the shader files themselves
+        #for material_switch in materials[material]['shaderSwitches']:
             #material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
             #material_switch_entry.set("name", material_switch)
-            #material_switch_entry.set("material_switch_value", material['m_effectVariant']['material_swiches'][material_switch])
+            #material_switch_entry.set("material_switch_value", materials[material]['shaderSwitches'][material_switch])
         for material_switch in ['BLOOM_INTENSITY', 'SAMPLER_TOGGLE', 'VERTEX_COLOR_ENABLED', 'LIGHTING_ENABLED',\
                 'DIFFUSE_ENABLED', 'DIFFUSE2_ENABLED', 'DIFFUSE3_ENABLED', 'ALPHA_BLENDING_ENABLED', 'NORMAL_MAPPING_ENABLED',\
                 'WRAP_DIFFUSE_LIGHTING', 'SPECULAR_ENABLED', 'CASTS_SHADOWS', 'RECEIVE_SHADOWS', 'DOUBLE_SIDED', 'MOTION_BLUR_ENABLED',\
@@ -262,11 +265,12 @@ def add_materials(collada, materials):
         renderpass = ET.SubElement(forwardrendertechnique, 'pass')
         shader = ET.SubElement(renderpass, 'shader')
         shader.set('stage','VERTEX')
-        for parameter in material['mu_shaderParameters']:
+        for parameter in list(materials[material]['shaderParameters'].keys()) +\
+                list(materials[material]['shaderSamplerDefs'].keys()) + list(materials[material]['shaderTextures'].keys()):
             switch_bind = ET.SubElement(shader, 'bind')
             switch_bind.set('symbol', parameter)
             switch_param = ET.SubElement(switch_bind, 'param')
-            switch_param.set('ref', material['Material'] + parameter)
+            switch_param.set('ref', material + parameter)
         extra = ET.SubElement(effect_element, 'extra')
         technique = ET.SubElement(extra, 'technique')
         technique.set('profile', 'PHYRE')
@@ -559,20 +563,19 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
         technique_common = ET.SubElement(bind_material, 'technique_common')
         instance_material = ET.SubElement(technique_common, 'instance_material')
         instance_material.set('symbol', submesh['name'] + 'SG')
-        instance_material.set('target', '#' + submesh['material']['material'].split("-Skinned")[0])
-        material = [x for x in materials if x['Material'] == submesh['material']['material']][0]
-        for parameter in material['mu_shaderParameters']:
+        instance_material.set('target', '#' + submesh['material']['material'])
+        material = [v for (k,v) in materials.items() if k == submesh['material']['material']][0]
+        for parameter in material['shaderTextures']:
             # Texture parameters - I think these are constant from texture to texture and model to model, variations are in the effects?
-            if isinstance(material['mu_shaderParameters'][parameter],str):
-                texture_name = material['mu_shaderParameters'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
-                bind = ET.SubElement(instance_material, 'bind')
-                bind.set("semantic", parameter)
-                bind.set("target", texture_name + '-lib/outColor')
-                extra = ET.SubElement(bind, 'extra')
-                technique = ET.SubElement(extra, 'technique')
-                technique.set('profile', 'PSSG')
-                param = ET.SubElement(technique, 'param')
-                param.set("name", parameter)
+            texture_name = material['shaderTextures'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
+            bind = ET.SubElement(instance_material, 'bind')
+            bind.set("semantic", parameter)
+            bind.set("target", texture_name + '-lib/outColor')
+            extra = ET.SubElement(bind, 'extra')
+            technique = ET.SubElement(extra, 'technique')
+            technique.set('profile', 'PSSG')
+            param = ET.SubElement(technique, 'param')
+            param.set("name", parameter)
         extra = ET.SubElement(instance_controller, 'extra')
         technique = ET.SubElement(extra, 'technique')
         technique.set('profile', 'PHYRE')
@@ -593,24 +596,23 @@ def write_shader(materials):
     #shaderfx += ", ".join(['"ed8_chr.fx#{0}"'.format(x['m_effectVariant']['m_id'].split('#')[1][0:6]) for x in materials]) + '\r\n'
     added_shaders = []
     for material in materials:
-        shader_switch = 'SHADER_{0}'.format(material['m_effectVariant']['m_id'].split('#')[1][0:4])
+        shader_switch = 'SHADER_{0}'.format(materials[material]['shader'].split('#')[1][0:4])
         if shader_switch not in added_shaders:
             added_shaders.append(shader_switch)
             shaderfx += '#ifdef {0}\r\n'.format(shader_switch)
-            for parameter in material['mu_shaderParameters']:
-                if isinstance(material['mu_shaderParameters'][parameter],list):
-                    if len(material['mu_shaderParameters'][parameter]) == 1:
-                        valuetype = 'half'
-                        value = "{0:.3f}".format(material['mu_shaderParameters'][parameter][0])
-                    else:
-                        valuetype = 'half{0}'.format(len(material['mu_shaderParameters'][parameter]))
-                        value = "float{0}({1})".format(len(material['mu_shaderParameters'][parameter]),\
-                            ", ".join(["{0:.3f}".format(x) for x in material['mu_shaderParameters'][parameter]]))
-                    shaderfx += '{0} {1} : {1} = {2};'.format(valuetype, parameter, value)
-                if isinstance(material['mu_shaderParameters'][parameter],dict):
-                    shaderfx += 'sampler {0} : {0};'.format(parameter)
-                if isinstance(material['mu_shaderParameters'][parameter],str):
-                    shaderfx += 'Texture2D {0} : {0};'.format(parameter)
+            for parameter in materials[material]['shaderParameters']:
+                if len(materials[material]['shaderParameters'][parameter]) == 1:
+                    valuetype = 'half'
+                    value = "{0:.3f}".format(materials[material]['shaderParameters'][parameter][0])
+                else:
+                    valuetype = 'half{0}'.format(len(materials[material]['shaderParameters'][parameter]))
+                    value = "float{0}({1})".format(len(materials[material]['shaderParameters'][parameter]),\
+                        ", ".join(["{0:.3f}".format(x) for x in materials[material]['shaderParameters'][parameter]]))
+                shaderfx += '{0} {1} : {1} = {2};'.format(valuetype, parameter, value)
+            for parameter in materials[material]['shaderSamplerDefs']:
+                shaderfx += 'sampler {0} : {0};'.format(parameter)
+            for parameter in materials[material]['shaderTextures']:
+                shaderfx += 'Texture2D {0} : {0};'.format(parameter)
                 shaderfx += '\r\n'
             shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
     shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'

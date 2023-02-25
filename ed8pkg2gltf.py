@@ -2757,8 +2757,10 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
 
     cluster_mesh_info.gltf_data['textures'] = textures
     materials = []
-    materials_struct = []
+    materials_struct = {}
     if 'PMaterial' in cluster_mesh_info.data_instances_by_class:
+        filter_map = ['NEAREST', 'LINEAR', 'NEAREST_MIPMAP_NEAREST', 'LINEAR_MIPMAP_NEAREST', 'NEAREST_MIPMAP_LINEAR', 'LINEAR_MIPMAP_LINEAR']
+        wrap_map = ['CLAMP','WRAP','CLAMP','CLAMP','MIRROR']
         for v in cluster_mesh_info.data_instances_by_class['PMaterial']:
             material = {}
             material['name'] = v['mu_materialname']
@@ -2776,14 +2778,24 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 material['normalTexture'] = normalTextureInfo
             v['mu_gltfMaterialIndex'] = len(materials)
             materials.append(material)
-            if 'dae' in cluster_mesh_info.filename:
-                material = {"Material": v['mu_materialname'], "m_effectVariant": v['m_parameterBuffer']["m_effectVariant"],\
-                    "mu_shaderParameters": {key:list(value) if isinstance(value, array.array) else value for (key,value) in v['m_parameterBuffer']['mu_shaderParameters'].items()}}
-                shader_name = material["m_effectVariant"]["m_id"].replace("shaders/","")
+            if 'dae' in cluster_mesh_info.filename and 'Skinned' not in v['mu_materialname']:
+                material = {}
+                material['shader'] = v['m_parameterBuffer']['m_effectVariant']['m_id']
+                skinned_material = [x for x in cluster_mesh_info.data_instances_by_class['PMaterial'] if x['mu_materialname'] == v['mu_materialname']+'-Skinned']
+                if len(skinned_material) > 0:
+                    material['skinned_shader'] = skinned_material[0]['m_parameterBuffer']['m_effectVariant']['m_id']
+                shaderParameters = {key:list(value) if isinstance(value, array.array) else value for (key,value) in v['m_parameterBuffer']['mu_shaderParameters'].items()}
+                material['shaderTextures'] = {k:v for (k,v) in shaderParameters.items() if isinstance(v,str)}
+                material['shaderParameters'] = {k:v for (k,v) in shaderParameters.items() if isinstance(v,list)}
+                material['shaderSamplerDefs'] = {k:v for (k,v) in shaderParameters.items() if isinstance(v,dict)}
+                for samplerDef in material['shaderSamplerDefs']:
+                    material['shaderSamplerDefs'][samplerDef] =\
+                        {k:wrap_map[v] if 'wrap' in k else filter_map[v] if 'Filter' in k else v for (k,v) in material['shaderSamplerDefs'][samplerDef].items()}
+                shader_name = material['shader'].replace("shaders/","")
                 if shader_name in shader_material_switches.keys():
-                    material["m_effectVariant"]["material_swiches"] = shader_material_switches[shader_name]
-                materials_struct.append(material)
-        if len(materials_struct) > 0:
+                    material['shaderSwitches'] = shader_material_switches[shader_name]
+                materials_struct[v['mu_materialname']] = material
+        if len(materials_struct.keys()) > 0:
             metadata_json['materials'] = materials_struct
 
     if 'PMaterialSwitch' in cluster_mesh_info.data_instances_by_class:
@@ -2879,7 +2891,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         ff.write(curmesh['m_meshSegments'][tt]['mu_indBuffer'])
                     write_vb(vb, pkg_name + "/meshes/{0}_{1:02d}.vb".format(t['mu_name'], tt), fmt)
                     with open(pkg_name + "/meshes/{0}_{1:02d}.material".format(t['mu_name'], tt), "wb") as ff:
-                        ff.write(json.dumps({'material': mat['mu_materialname']}, indent=4).encode("utf-8"))
+                        ff.write(json.dumps({'material': mat['mu_materialname'].split('-Skinned')[0]}, indent=4).encode("utf-8"))
 
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']:

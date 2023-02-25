@@ -7,8 +7,11 @@
 
 import os, json, shutil
 
-def make_true_shader_dict():
-    return({x['Material']:b'\x00'+x['m_effectVariant']['m_id'].encode() for x in metadata['materials']})
+def make_true_shader_dict(metadata):
+    true_shader_dict = {}
+    true_shader_dict.update({k:b'\x00'+v['shader'].encode() for (k,v) in metadata['materials'].items()})
+    true_shader_dict.update({k+'-Skinned':b'\x00'+v['skinned_shader'].encode() for (k,v) in metadata['materials'].items()})
+    return(true_shader_dict)
 
 def make_fake_shader_dict():
     if os.path.exists('materials_list.txt'):
@@ -44,7 +47,7 @@ if __name__ == '__main__':
         with open('metadata.json','rb') as f:
             metadata = json.loads(f.read())
         filename = metadata['name'] + '.dae.phyre'
-        true_shader_dict = make_true_shader_dict()
+        true_shader_dict = make_true_shader_dict(metadata)
         fake_shader_dict = make_fake_shader_dict()
         
         if os.path.exists(filename):
