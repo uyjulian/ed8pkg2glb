@@ -10,6 +10,9 @@
 import os, gc, sys, io, struct, array, glob
 from lib_fmtibvb import *
 
+# This script outputs non-empty vgmaps by default, change the following line to True to change
+partial_vgmaps_default = False
+
 try:
     import zstandard
 except:
@@ -3238,7 +3241,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         with open(pkg_name + "/metadata.json".format(i), 'wb') as f:
             f.write(json.dumps(metadata_json, indent=4).encode("utf-8"))
 
-def process_pkg(pkg_name, partialmaps = False, overwrite = False):
+def process_pkg(pkg_name, partialmaps = partial_vgmaps_default, overwrite = False):
     is_cluster = False
     is_pkg = False
     storage_media = None
@@ -3298,12 +3301,19 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         import argparse
         parser = argparse.ArgumentParser()
-        parser.add_argument('-p', '--partialmaps', help="Provide vgmaps with non-empty groups only", action="store_true")
+        if partial_vgmaps_default == False:
+            parser.add_argument('-p', '--partialmaps', help="Provide vgmaps with non-empty groups only", action="store_true")
+        else:
+            parser.add_argument('-c', '--completemaps', help="Provide vgmaps with entire skeleton", action="store_false")
         parser.add_argument('-o', '--overwrite', help="Overwrite existing files", action="store_true")
         parser.add_argument('pkg_filename', help="Name of pkg file to export from (required).")
         args = parser.parse_args()
+        if partial_vgmaps_default == False:
+            partialmaps = args.partialmaps
+        else:
+            partialmaps = args.completemaps
         if os.path.exists(args.pkg_filename) and args.pkg_filename[-4:].lower() == '.pkg':
-            process_pkg(args.pkg_filename, partialmaps = args.partialmaps, overwrite = args.overwrite)
+            process_pkg(args.pkg_filename, partialmaps = partialmaps, overwrite = args.overwrite)
     else:
         pkg_files = glob.glob('*.pkg')
         for i in range(len(pkg_files)):

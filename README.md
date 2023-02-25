@@ -7,8 +7,9 @@ The original phyre asset decompiler is written by Julian Uy (github.com/uyjulian
 
 ## Requirements:
 1. Python 3.9 or newer is required for use of this script.  It is free from the Microsoft Store, for Windows users.  For Linux users, please consult your distro.
-2. The output can be imported into Blender using DarkStarSword's amazing plugin: https://github.com/DarkStarSword/3d-fixes/blob/master/blender_3dmigoto.py
-3. Compilation is dependent on the phyre Engine tools from [here](https://github.com/Trails-Research-Group/Doc/releases/download/v0.0/WorkFolder.zip), as described on the [tutorial from the Trails-Research-Group](https://github.com/Trails-Research-Group/Doc/wiki/How-to:-Import-custom-models-to-Cold-Steel-IV).  (You do not need the tutorial for basic mods, just the tools.)
+2. The zstandard module for python is needed for decompiling zstandard-compressed pkgs.  Install by running the included install_zstandard.bat or by typing "python3 -m pip install  zstandard" in the command line / shell.
+3. The output can be imported into Blender using DarkStarSword's amazing plugin: https://github.com/DarkStarSword/3d-fixes/blob/master/blender_3dmigoto.py
+4. Compilation is dependent on the phyre Engine tools from [here](https://github.com/Trails-Research-Group/Doc/releases/download/v0.0/WorkFolder.zip), as described on the [tutorial from the Trails-Research-Group](https://github.com/Trails-Research-Group/Doc/wiki/How-to:-Import-custom-models-to-Cold-Steel-IV).  (You do not need the tutorial for basic mods, just the tools.)
 
 ## Usage:
 
@@ -54,6 +55,14 @@ The default behavior of the script is to provide meshes and .vgmap files with th
 
 `-o, --overwrite`
 Overwrite existing files without prompting.
+
+**Complete VGMap Setting:**
+
+While most modders prefer that complete VGmaps is the default, you may want partial maps to be the default (for example to use existing 3dmigoto mods as a base).  You can (permanently) change the default behavior by editing the python script itself.  There is a line at the top:
+`partial_vgmaps_default = False`
+which you can change to 
+`partial_vgmaps_default = True`
+This will also change the command line argument `-p, --partialmaps` into `-c, --completemaps` which you would call to enable complete group vgmaps instead.
 
 Everything below this line is from uyjulian's original README:
 
