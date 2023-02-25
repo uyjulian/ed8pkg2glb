@@ -2,7 +2,7 @@
 #
 # GitHub eArmada8/ed8pkg2gltf
 
-import struct, glob, io, os, sys
+import struct, glob, io, os, sys, shutil
 
 # Adds file onto the end of the stream, and appends name/size to contents.  Offsets are not calculated.
 def insert_file_into_stream (f, content_struct, binary_file_data, file_details):
