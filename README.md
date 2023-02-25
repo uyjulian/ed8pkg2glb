@@ -22,7 +22,7 @@ Note: If there is more than one .pkg file in the directory, the script will dump
 
 ### Step 2: Modding
 
-- Ignore the glTF file.
+- Ignore the glTF file.  (Or use it for other purposes, but it is not used during compile.)
 
 - There is a folder with the same name as the package, this is the build folder.  The asset_D3D11.xml file and compiled shaders reside here.  For simple mods, nothing here should be changed.
 
