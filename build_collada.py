@@ -380,7 +380,7 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
         mesh = ET.SubElement(geometry, 'mesh')
         semantic_counter = 0
         for vb in submesh["vb"]:
-            if vb['SemanticName'] in ['POSITION', 'NORMAL', 'TEXCOORD', 'TANGENT', 'BINORMAL']:
+            if vb['SemanticName'] in ['POSITION', 'NORMAL', 'TEXCOORD', 'TANGENT', 'BINORMAL', 'COLOR']:
                 if vb['SemanticName'] == 'POSITION':
                     source_id = submesh['name'] + '-positions'
                     source_name = 'position'
@@ -401,6 +401,10 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
                     source_id = submesh['name'] + '-UV' + vb['SemanticIndex'] + '-binormals'
                     source_name = 'UV' + vb['SemanticIndex'] + '-binormals'
                     param_names = ['X', 'Y', 'Z', 'W']
+                elif vb['SemanticName'] == 'COLOR':
+                    source_id = submesh['name'] + '-colors' + vb['SemanticIndex']
+                    source_name = 'color' + vb['SemanticIndex']
+                    param_names = ['R', 'G', 'B', 'A']
                 source = ET.SubElement(mesh, 'source')
                 source.set("id", source_id)
                 source.set("name", source_name)
@@ -524,7 +528,7 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
         triangles.set('count', str(len(submesh['ib'])))
         input_count = 0
         for vb in submesh["vb"]:
-            if vb['SemanticName'] in ['POSITION', 'NORMAL', 'TEXCOORD', 'TANGENT', 'BINORMAL']:
+            if vb['SemanticName'] in ['POSITION', 'NORMAL', 'TEXCOORD', 'TANGENT', 'BINORMAL', 'COLOR']:
                 triangle_input = ET.SubElement(triangles, 'input')
                 if vb['SemanticName'] == 'POSITION':
                     triangle_input.set('semantic', 'VERTEX')
@@ -541,9 +545,12 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
                 elif vb['SemanticName'] == 'BINORMAL':
                     triangle_input.set('semantic', 'TEXBINORMAL')
                     triangle_input.set('source', '#' + submesh['name'] + '-UV' + vb['SemanticIndex'] + '-binormals')
+                elif vb['SemanticName'] == 'COLOR':
+                    triangle_input.set('semantic', 'COLOR')
+                    triangle_input.set('source', '#' + submesh['name'] + '-colors' + vb['SemanticIndex'])
                 triangle_input.set('offset', str(input_count))
                 input_count += 1
-                if vb['SemanticName'] in ['TEXCOORD', 'TANGENT', 'BINORMAL']:
+                if vb['SemanticName'] in ['TEXCOORD', 'TANGENT', 'BINORMAL', 'COLOR']:
                     triangle_input.set('set', vb['SemanticIndex'])
         p = ET.SubElement(triangles, 'p')
         p.text = " ".join([str(x) for y in [[x]*input_count for x in [x for y in submesh['ib'] for x in y]] for x in y])

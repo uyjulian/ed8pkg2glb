@@ -2810,7 +2810,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     elementtype = {5120: 'SINT', 5121: 'UINT', 5122: 'SINT', 5123: 'UINT', 5125: 'UINT', 5126: 'FLOAT'}
     numelements = {'SCALAR':1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
     semantics = {'SkinnableVertex': 'POSITION', 'SkinnableNormal': 'NORMAL', 'ST': 'TEXCOORD', 'SkinnableTangent': 'TANGENT',\
-        'SkinnableBinormal': 'BINORMAL', 'SkinWeights': 'BLENDWEIGHTS', 'SkinIndices': 'BLENDINDICES'}
+        'SkinnableBinormal': 'BINORMAL', 'Color': 'COLOR', 'SkinWeights': 'BLENDWEIGHTS', 'SkinIndices': 'BLENDINDICES'}
     if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
         mesh_instances = cluster_mesh_info.data_instances_by_class['PMeshInstance']
     for t in mesh_instances:
@@ -2829,7 +2829,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 segmentcontext = t['m_segmentContext'][tt]
                 attributes = {}
                 colorCount = 0
-                uvTangentBinormalCount = {'ST':0,'SkinnableTangent':0,'SkinnableBinormal':0}
+                uvTangentBinormalCount = {'ST':0,'SkinnableTangent':0,'SkinnableBinormal':0, 'Color':0}
                 AlignedByteOffset = 0
                 for i in range(len(m['m_vertexData'])):
                     vertexData = m['m_vertexData'][i]
@@ -2844,7 +2844,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         dxgi_format = "".join([RGBAD[i]+'16' for i in range(numelements[accType])]) + '_UINT'
                         vertexBuffer = vertexData['mu_remappedVertBufferSkeleton']
                         stride = numelements[accType] * 2
-                    if streamInfo['m_renderDataType'] in ['ST', 'SkinnableTangent', 'SkinnableBinormal']:
+                    if streamInfo['m_renderDataType'] in ['ST', 'SkinnableTangent', 'SkinnableBinormal', 'Color']:
                         semantic_index = uvTangentBinormalCount[streamInfo['m_renderDataType']]
                         uvTangentBinormalCount[streamInfo['m_renderDataType']] += 1
                     else:
