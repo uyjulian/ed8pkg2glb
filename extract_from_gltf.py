@@ -119,8 +119,57 @@ def dump_meshes (mesh_node, gltf):
         submesh['fmt']['stride'] = str(AlignedByteOffset)
         submesh['fmt']['elements'] = elements
         submesh['vgmap'] = dict(vgmap)
+        if mesh.primitives[i].material is not None:
+            submesh['material'] = gltf.materials[mesh.primitives[i].material].name.split('-Skinned')[0]
+        else:
+            submesh['material'] = 'None'
         submeshes.append(submesh)
     return(submeshes)
+
+def get_texture_details (gltf, texture_num):
+    filter_codes = {9728: 'NEAREST', 9729: 'LINEAR', 9984: 'NEAREST_MIPMAP_NEAREST',\
+        9985: 'LINEAR_MIPMAP_NEAREST', 9986: 'NEAREST_MIPMAP_LINEAR', 9987: 'LINEAR_MIPMAP_LINEAR'}
+    wrap_codes = {33071: 'CLAMP', 33648: 'MIRROR', 10497: 'WRAP'}
+    texture = {'uri': '', 'sampler_settings': ''}
+    if gltf.textures[texture_num].source is not None:
+        if gltf.images[gltf.textures[texture_num].source].uri is not None:
+            texture['uri'] = gltf.images[gltf.textures[texture_num].source].uri
+    if gltf.textures[texture_num].sampler is not None:
+        sampler = gltf.samplers[gltf.textures[texture_num].sampler]
+        if sampler.magFilter is not None:
+            texture['sampler_settings'] += 'magFilter: {0}, '.format(filter_codes[sampler.magFilter])
+        if sampler.minFilter is not None:
+            texture['sampler_settings'] += 'minFilter: {0}, '.format(filter_codes[sampler.minFilter])
+        if sampler.wrapS is not None:
+            texture['sampler_settings'] += 'wrapS: {0}, '.format(wrap_codes[sampler.wrapS])
+        if sampler.wrapT is not None:
+            texture['sampler_settings'] += 'wrapT: {0}, '.format(wrap_codes[sampler.wrapT])
+    texture['sampler_settings'] = ', '.join(texture['sampler_settings'].split(', ')[:-1])
+    return(texture)
+
+def build_materials (gltf):
+    materials = [x for x in gltf.materials if 'Skinned' not in x.name]
+    material_struct = {}
+    for material in materials:
+        name = material.name
+        texture_list = {}
+        if material.pbrMetallicRoughness is not None and material.pbrMetallicRoughness.baseColorTexture is not None:
+            texture_list['baseColorTexture'] = get_texture_details(gltf, material.pbrMetallicRoughness.baseColorTexture.index)
+        if material.normalTexture is not None:
+            texture_list['normalTexture'] = get_texture_details(gltf, material.normalTexture.index)
+        if material.occlusionTexture is not None:
+            texture_list['occlusionTexture'] = get_texture_details(gltf, material.occlusionTexture.index)
+        if material.emissiveTexture is not None:
+            texture_list['emissiveTexture'] = get_texture_details(gltf, material.emissiveTexture.index)
+        material_struct[name] = {'basic_texture_info_replace_me': texture_list}
+    return(material_struct)
+
+def image_list (material_struct):
+    image_list = []
+    material_tex_list = [v['basic_texture_info_replace_me'] for (k,v) in material_struct.items()]
+    for texture in material_tex_list:
+        image_list.extend([v['uri'] for (k,v) in texture.items()])
+    return([{'uri': x} for x in list(set(image_list))])
 
 def process_gltf(filename, overwrite = False):
     print("Processing {0}...".format(filename))
@@ -138,6 +187,7 @@ def process_gltf(filename, overwrite = False):
         joint_nodes = [gltf.nodes[i].name for i in list(set([x for y in [x.joints for x in gltf.skins] for x in y]))]
         locators = [x.name for x in gltf.nodes if x.mesh is None and x.skin is None and x.name not in joint_nodes]
         mesh_nodes = [x for x in gltf.nodes if x.mesh is not None]
+        material_struct = build_materials(gltf)
         for mesh_node in mesh_nodes:
             submeshes = dump_meshes(mesh_node, gltf)
             for i in range(len(submeshes)):
@@ -146,9 +196,11 @@ def process_gltf(filename, overwrite = False):
                 write_vb(submeshes[i]['vb'], '{0}/meshes/{1}.vb'.format(model_name, submeshes[i]['name']), submeshes[i]['fmt'])
                 with open('{0}/meshes/{1}.vgmap'.format(model_name, submeshes[i]['name']), 'wb') as f:
                     f.write(json.dumps(submeshes[i]['vgmap'], indent=4).encode("utf-8"))
+                with open('{0}/meshes/{1}.material'.format(model_name, submeshes[i]['name']), 'wb') as f:
+                    f.write(json.dumps({'material': submeshes[i]['material']}, indent=4).encode("utf-8"))
         metadata = {'name': model_name, 'pkg_name': model_name.upper(),\
-            'images': [{'uri': 'assetconv_temp/dds_dae/D3D11/SAMPLESAMPLESAMPLE.dds'}],\
-            'materials': {}, 'heirarchy': heirarchy, 'locators': locators}
+            'images': image_list(material_struct),\
+            'materials': material_struct, 'heirarchy': heirarchy, 'locators': locators}
         with open("{0}/metadata.json".format(model_name), 'wb') as f:
             f.write(json.dumps(metadata, indent=4).encode("utf-8"))
     
