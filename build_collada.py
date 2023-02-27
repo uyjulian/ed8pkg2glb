@@ -293,12 +293,13 @@ def add_bone_info (skeleton):
                                                  skeleton[i]['matrix'][12:16]])
         else:
             skeleton[i]['matrix'] = numpy.array([1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1])
-        if i == 0:
+        parent = [j for j in range(len(skeleton)) if i in skeleton[j]['children']]
+        if len(parent) > 0:
+            skeleton[i]['parent'] = parent[0]
+            skeleton[i]['abs_matrix'] = numpy.dot(skeleton[i]['matrix'], skeleton[skeleton[i]['parent']]['abs_matrix'])
+        else:
             skeleton[i]['parent'] = -1
             skeleton[i]['abs_matrix'] = skeleton[i]['matrix']
-        else:
-            skeleton[i]['parent'] = [j for j in range(len(skeleton)) if i in skeleton[j]['children']][0]
-            skeleton[i]['abs_matrix'] = numpy.dot(skeleton[i]['matrix'], skeleton[skeleton[i]['parent']]['abs_matrix'])
         skeleton[i]['inv_matrix'] = numpy.linalg.inv(skeleton[i]['abs_matrix'])
     return(skeleton)
 
@@ -331,6 +332,10 @@ def get_children (parent_node, i, metadata):
         for j in range(len(metadata['heirarchy'][i]['children'])):
             if metadata['heirarchy'][i]['children'][j] < len(metadata['heirarchy']):
                 get_children(node, metadata['heirarchy'][i]['children'][j], metadata)
+    if i == 0:
+        orphan_nodes = [j for j in range(len(metadata['heirarchy'])) if metadata['heirarchy'][j]['parent'] == -1 and j > 0]
+        for j in orphan_nodes:
+            get_children(node, j, metadata)
     extra = ET.SubElement(node, 'extra')
     technique = ET.SubElement(extra, 'technique')
     if metadata['heirarchy'][i]['name'] in metadata['locators']:
