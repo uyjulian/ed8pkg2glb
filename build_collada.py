@@ -353,6 +353,27 @@ def get_children (parent_node, i, metadata):
         segment_scale_compensate.text = '0'
     return
 
+# Used to add an empty node to visual scene if no node can be found to attach geometry
+def add_empty_node (name, parent_node):
+    node = ET.SubElement(parent_node, 'node')
+    node.set('id', name)
+    node.set('name', name)
+    node.set('sid', name)
+    node.set('type', 'NODE')
+    matrix = ET.SubElement(node, 'matrix')
+    matrix.text = "1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"
+    extra = ET.SubElement(node, 'extra')
+    technique = ET.SubElement(extra, 'technique')
+    technique.set('profile', 'MAYA')
+    dynamic_attributes = ET.SubElement(technique, 'dynamic_attributes')
+    filmboxTypeID = ET.SubElement(dynamic_attributes, 'filmboxTypeID')
+    filmboxTypeID.set('short_name', 'filmboxTypeID')
+    filmboxTypeID.set('type', 'int')
+    filmboxTypeID.text = '5'
+    segment_scale_compensate = ET.SubElement(technique, 'segment_scale_compensate')
+    segment_scale_compensate.text = '0'
+    return(node)
+
 # Build out the base node tree, run this before building geometries
 def add_skeleton (collada, metadata):
     library_visual_scenes = collada.find('library_visual_scenes')
@@ -566,7 +587,13 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, joint_list, ma
         double_sided.text = '1'
         # Create geometry node
         meshname = "_".join(submesh["name"].split("_")[:-1])
-        mesh_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == meshname][0]
+        if meshname == '':
+            meshname = submesh["name"]
+        parent_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == meshname]
+        if len(parent_node) > 0:
+            mesh_node = parent_node[0]
+        else:
+            mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
         instance_controller = ET.SubElement(mesh_node, 'instance_controller')
         instance_controller.set('url', '#' + submesh["name"] + '-skin')
         controller_skeleton = ET.SubElement(instance_controller, 'skeleton')
