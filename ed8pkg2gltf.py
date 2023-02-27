@@ -2829,6 +2829,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 segmentcontext = t['m_segmentContext'][tt]
                 attributes = {}
                 colorCount = 0
+                tangentCount = 0
                 uvTangentBinormalCount = {'ST':0,'SkinnableTangent':0,'SkinnableBinormal':0, 'Color':0}
                 AlignedByteOffset = 0
                 for i in range(len(m['m_vertexData'])):
@@ -2879,6 +2880,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     elif streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent':
                         if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
                             attributes['TANGENT'] = streamInfo['mu_gltfAccessorForExpandedHandednessTangent']
+                        elif tangentCount == 0:
+                            attributes['TANGENT'] = vertexData['mu_gltfAccessorIndex']
+                        tangentCount += 1
                     elif streamInfo['m_renderDataType'] == 'Binormal' or streamInfo['m_renderDataType'] == 'SkinnableBinormal':
                         pass
                     else:
