@@ -8,7 +8,7 @@ from lib_fmtibvb import *
 
 # Create the basic COLLADA XML document, with values that do not change from model to model (I think)
 # TODO: Are units, gravity and time step constant?
-def basic_collada():
+def basic_collada ():
     collada = ET.Element('COLLADA')
     collada.set("xmlns", "http://www.collada.org/2005/11/COLLADASchema")
     collada.set("version", "1.4.1")
@@ -38,7 +38,7 @@ def basic_collada():
     return(collada)
 
 # Add image URIs
-def add_images(collada, images):
+def add_images (collada, images):
     library_images = collada.find('library_images')
     for image in images:
         image_name = image.replace('.DDS','.dds').split('.dds')[0]
@@ -57,7 +57,7 @@ def add_images(collada, images):
     return(collada)
 
 # Build the materials section
-def add_materials(collada, materials):
+def add_materials (collada, materials):
     # Materials and effects can be done in parallel
     library_materials = collada.find('library_materials')
     library_effects = collada.find('library_effects')
@@ -281,7 +281,7 @@ def add_materials(collada, materials):
     return(collada)
 
 # Change matrices to numpy arrays, add parent bone ID, world space matrix, inverse bind matrix
-def add_bone_info(skeleton):
+def add_bone_info (skeleton):
     for i in range(len(skeleton)):
         if 'children' not in skeleton[i].keys():
             skeleton[i]['children'] = []
@@ -302,7 +302,7 @@ def add_bone_info(skeleton):
         skeleton[i]['inv_matrix'] = numpy.linalg.inv(skeleton[i]['abs_matrix'])
     return(skeleton)
 
-def get_joint_list(vgmaps, skeleton):
+def get_joint_list (vgmaps, skeleton):
     i = 0
     joint_list = {}
     for bone in skeleton:
@@ -311,14 +311,14 @@ def get_joint_list(vgmaps, skeleton):
             i += 1
     return(joint_list)
 
-def get_bone_dict(skeleton):
+def get_bone_dict (skeleton):
     bone_dict = {}
     for i in range(len(skeleton)):
         bone_dict[skeleton[i]['name']] = i
     return(bone_dict)
 
 # Recursive function to fill out the entire node tree; call with the first node and i = 0
-def get_children(parent_node, i, metadata):
+def get_children (parent_node, i, metadata):
     node = ET.SubElement(parent_node, 'node')
     node.set('id', metadata['heirarchy'][i]['name'])
     node.set('name', metadata['heirarchy'][i]['name'])
@@ -349,7 +349,7 @@ def get_children(parent_node, i, metadata):
     return
 
 # Build out the base node tree, run this before building geometries
-def add_skeleton(collada, metadata):
+def add_skeleton (collada, metadata):
     library_visual_scenes = collada.find('library_visual_scenes')
     visual_scene = ET.SubElement(library_visual_scenes, 'visual_scene')
     visual_scene.set('id', 'VisualSceneNode')
@@ -368,7 +368,7 @@ def add_skeleton(collada, metadata):
     return(collada)
 
 # Add geometries and skin them.  Needs a base node tree to build links to.
-def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, materials):
+def add_geometries_and_controllers (collada, submeshes, skeleton, joint_list, materials):
     library_geometries = collada.find('library_geometries')
     library_controllers = collada.find('library_controllers')
     bone_dict = get_bone_dict(skeleton)
@@ -594,7 +594,7 @@ def add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, mat
         object_render_properties.set('motionBlurEnabled', '1')
     return(collada)
 
-def write_shader(materials):
+def write_shader (materials):
     if not os.path.exists("shaders"):
         os.mkdir("shaders")
     filename = 'shaders/ed8_chr.fx'
@@ -629,19 +629,41 @@ def write_shader(materials):
     shaderfx += '#define USE_UVS\r\n#endif // defined(SUBDIV_SCALAR_DISPLACEMENT) || defined(SUBDIV_VECTOR_DISPLACEMENT)'
     with open(filename, 'wb') as f:
         f.write(shaderfx.encode('utf-8'))
+    return
 
-def write_processing_batch_file(metadata):
+def write_asset_xml (metadata):
+    if not os.path.exists(metadata['pkg_name']):
+        os.mkdir(metadata['pkg_name'])
+    filename = '{0}/asset_D3D11.xml'.format(metadata['pkg_name'])
+    images = []
+    for i in range(len(metadata['images'])):
+        images.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_texture" />\r\n'.format(metadata['images'][i]['uri']))
+    images.sort()
+    shaders = []
+    for material in metadata['materials']:
+        shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['shader']))
+        shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['skinned_shader']))
+    shaders.sort()
+    asset_xml = '<?xml version="1.0" encoding="utf-8"?>\r\n<fassets>\r\n\t<asset symbol="{0}">\r\n'.format(metadata['pkg_name'])
+    asset_xml += '\t\t<cluster path="data/D3D11/chr/chr/{0}/{1}.dae.phyre" type="p_collada" />\r\n'.format(metadata['name'].split('_')[0], metadata['name'])
+    asset_xml += ''.join(images) + ''.join(shaders)
+    asset_xml +='\t</asset>\r\n</fassets>\r\n'
+    with open(filename, 'wb') as f:
+        f.write(asset_xml.encode('utf-8'))
+    return
+
+def write_processing_batch_file (metadata):
     batch_file = '''@ECHO OFF
 set "SCE_PHYRE=%cd%"
-CSIVAssetImportTool.exe -fi="chr\chr\{0}\{0}.dae" -platform="D3D11" -write=all
-PhyreDummyShaderCreator.exe D3D11\chr\chr\{0}\{0}.dae.phyre
+CSIVAssetImportTool.exe -fi="chr\chr\{0}\{1}.dae" -platform="D3D11" -write=all
+PhyreDummyShaderCreator.exe D3D11\chr\chr\{0}\{1}.dae.phyre
 del *.fx
 del *.cgfx
-copy D3D11\chr\chr\{0}\{0}.dae.phyre .
+copy D3D11\chr\chr\{0}\{1}.dae.phyre .
 python replace_shader_references.py
-del {0}.dae.phyre.bak
-move {0}.dae.phyre {1}
-'''.format(metadata['name'], metadata['pkg_name'])
+del {1}.dae.phyre.bak
+move {1}.dae.phyre {2}
+'''.format(metadata['name'].split('_')[0], metadata['name'], metadata['pkg_name'])
     image_folders = list(set([os.path.dirname(x['uri']).replace('/','\\') for x in metadata['images']]))
     if len(image_folders) > 0:
         for folder in image_folders:
@@ -686,13 +708,15 @@ def build_collada():
             f.seek(0)
             dom = xml.dom.minidom.parse(f)
             pretty_xml_as_string = dom.toprettyxml(indent='  ')
-            pathname = 'chr/chr/{0}/'.format(metadata['name'])
+            pathname = 'chr/chr/{0}/'.format(metadata['name'].split('_')[0])
             if not os.path.exists(pathname):
                 os.makedirs(pathname)
             with open(pathname + metadata['name'] + ".dae", 'w') as f2:
                 f2.write(pretty_xml_as_string)
         print("Writing shader file...")
         write_shader(metadata['materials'])
+        print("Writing asset_D3D11.xml...")
+        write_asset_xml(metadata)
         print("Writing RunMe.bat.")
         write_processing_batch_file(metadata)
     return
