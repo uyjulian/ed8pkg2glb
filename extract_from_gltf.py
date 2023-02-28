@@ -84,6 +84,54 @@ def dxgi_format (gltf, accessor_num):
         dxgi_format += elementtype[accessor.componentType]
     return(dxgi_format)
 
+#adapted from concept3d @ stackexchange, thank you!
+def calc_tangents (submesh):
+    #If IB is flat list, convert to triangles
+    if isinstance(submesh['ib'][0], list) is False:
+        triangles = [[submesh['ib'][i*3],submesh['ib'][i*3+1], submesh['ib'][i*3+2]] for i in range(len(submesh['ib'])//3)]
+    else:
+        triangles = list(submesh['ib'])
+    posBuffer = [x['Buffer'] for x in submesh['vb'] if x['SemanticName'] == 'POSITION'][0]
+    normBuffer = [numpy.array(x['Buffer']) for x in submesh['vb'] if x['SemanticName'] == 'NORMAL'][0]
+    texBuffer = [x['Buffer'] for x in submesh['vb'] if x['SemanticName'] == 'TEXCOORD' and x['SemanticIndex'] == '0'][0]
+    tanBuffer = []
+    binormalBuffer = []
+    tan1 = [numpy.array([0.0,0.0,0.0]) for i in range(len(posBuffer))]
+    tan2 = [numpy.array([0.0,0.0,0.0]) for i in range(len(posBuffer))]
+    for i in range(len(triangles)):
+        x1 = posBuffer[triangles[i][1]][0] - posBuffer[triangles[i][0]][0]
+        x2 = posBuffer[triangles[i][1]][0] - posBuffer[triangles[i][0]][0]
+        y1 = posBuffer[triangles[i][1]][1] - posBuffer[triangles[i][0]][1]
+        y2 = posBuffer[triangles[i][2]][1] - posBuffer[triangles[i][0]][1]
+        z1 = posBuffer[triangles[i][1]][2] - posBuffer[triangles[i][0]][2]
+        z2 = posBuffer[triangles[i][2]][2] - posBuffer[triangles[i][0]][2]
+        s1 = texBuffer[triangles[i][1]][0] - texBuffer[triangles[i][0]][0]
+        s2 = texBuffer[triangles[i][2]][0] - texBuffer[triangles[i][0]][0]
+        t1 = texBuffer[triangles[i][1]][1] - texBuffer[triangles[i][0]][1]
+        t2 = texBuffer[triangles[i][2]][1] - texBuffer[triangles[i][0]][1]
+        r = 1.0 / (s1 * t2 - s2 * t1)
+        sdir = numpy.array([(t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r,\
+                    (t2 * z1 - t1 * z2) * r]);
+        tdir = numpy.array([(s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r,\
+                    (s1 * z2 - s2 * z1) * r]);
+        tan1[triangles[i][0]] += sdir
+        tan1[triangles[i][1]] += sdir
+        tan1[triangles[i][2]] += sdir
+        tan2[triangles[i][0]] += tdir
+        tan2[triangles[i][1]] += tdir
+        tan2[triangles[i][2]] += tdir
+    for a in range(len(posBuffer)):
+        vector = tan1[a] - normBuffer[a] * numpy.dot(normBuffer[a], tan1[a])
+        if not numpy.linalg.norm(vector) == 0.0:
+            vector = vector / numpy.linalg.norm(vector)
+        if numpy.dot(numpy.cross(normBuffer[a], tan1[a]), tan2[a]) < 0:
+            handedness = -1
+        else:
+            handedness = 1
+        tanBuffer.append(vector.tolist())
+        binormalBuffer.append((numpy.cross(normBuffer[a], vector) * handedness).tolist())
+    return (tanBuffer, binormalBuffer)
+
 def dump_meshes (mesh_node, gltf):
     basename = mesh_node.name
     mesh = gltf.meshes[mesh_node.mesh]
@@ -116,6 +164,23 @@ def dump_meshes (mesh_node, gltf):
                                 'InputSlotClass': 'per-vertex', 'InstanceDataStepRate': '0'}
                     elements.append(element)
                     AlignedByteOffset += accessor_stride(gltf, accessor)
+        if 'TANGENT' not in [x['SemanticName'] for x in submesh['fmt']['elements']]:
+            tangentBuf, binormalBuf = calc_tangents (submesh)
+            submesh['vb'].append({'SemanticName': 'TANGENT', 'SemanticIndex': '0', 'Buffer': tangentBuf})
+            element = {'id': str(len(elements)), 'SemanticName': 'TANGENT',\
+                'SemanticIndex': '0', 'Format': 'R32G32B32_FLOAT',\
+                'InputSlot': '0', 'AlignedByteOffset': str(AlignedByteOffset),\
+                'InputSlotClass': 'per-vertex', 'InstanceDataStepRate': '0'}
+            elements.append(element)
+            AlignedByteOffset += 12
+            #submesh['vb'].append({'SemanticName': 'BINORMAL', 'SemanticIndex': '0',\
+                        #'Buffer': binormalBuf})
+            #element = {'id': str(len(elements)), 'SemanticName': 'BINORMAL',\
+                #'SemanticIndex': '0', 'Format': 'R32G32B32_FLOAT',\
+                #'InputSlot': '0', 'AlignedByteOffset': str(AlignedByteOffset),\
+                #'InputSlotClass': 'per-vertex', 'InstanceDataStepRate': '0'}
+            #elements.append(element)
+            #AlignedByteOffset += 12
         submesh['fmt']['stride'] = str(AlignedByteOffset)
         submesh['fmt']['elements'] = elements
         submesh['vgmap'] = dict(vgmap)
