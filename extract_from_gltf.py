@@ -10,25 +10,33 @@ from pyquaternion import Quaternion
 from lib_fmtibvb import *
 
 def process_nodes (gltf):
+    identity = [1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]
     heirarchy = []
     for i in range(len(gltf.nodes)):
         new_node = {}
         new_node['name'] = gltf.nodes[i].name
         if gltf.nodes[i].matrix is not None:
             matrix = numpy.array([gltf.nodes[i].matrix[0:4],\
-                gltf.nodes[i].matrix[4:8], gltf.nodes[i].matrix[8:12], gltf.nodes[i].matrix[12:16]])
+                gltf.nodes[i].matrix[4:8], gltf.nodes[i].matrix[8:12], gltf.nodes[i].matrix[12:16]]).transpose()
+        elif gltf.nodes[i].translation is not None or gltf.nodes[i].rotation is not None or gltf.nodes[i].scale is not None:
+            if gltf.nodes[i].translation is not None:
+                t = numpy.array([[1,0,0,gltf.nodes[i].translation[0]],[0,1,0,gltf.nodes[i].translation[1]],[0,0,1,gltf.nodes[i].translation[2]],[0,0,0,1]])
+            else:
+                t = numpy.array(identity)
+            if gltf.nodes[i].rotation is not None:
+                r = Quaternion(w=gltf.nodes[i].rotation[3], x=gltf.nodes[i].rotation[0],\
+                    y=gltf.nodes[i].rotation[1], z=gltf.nodes[i].rotation[2]).transformation_matrix
+            else:
+                r = numpy.array(identity)
+            if gltf.nodes[i].scale is not None:
+                s = numpy.array([[gltf.nodes[i].scale[0],0,0,0],[0,gltf.nodes[i].scale[1],0,0],\
+                    [0,0,gltf.nodes[i].scale[2],0],[0,0,0,1]])
+            else:
+                s = numpy.array(identity)
+            matrix = numpy.dot(numpy.dot(t, r), s)
         else:
-            matrix = numpy.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
-        if gltf.nodes[i].rotation is not None:
-            matrix = Quaternion(w=gltf.nodes[i].rotation[3], x=gltf.nodes[i].rotation[0],\
-                y=gltf.nodes[i].rotation[1], z=gltf.nodes[i].rotation[2]).transformation_matrix
-        if gltf.nodes[i].translation is not None:
-            matrix[0][3], matrix[1][3], matrix[2][3] = gltf.nodes[i].translation
-        if gltf.nodes[i].scale is not None:
-            scale_matrix = numpy.array([[gltf.nodes[i].scale[0],0,0,0],[0,gltf.nodes[i].scale[1],0,0],\
-                [0,0,gltf.nodes[i].scale[2],0],[0,0,0,1]])
-            matrix = numpy.dot(matrix, scale_matrix)
-        new_node['matrix'] = [x for y in matrix.tolist() for x in y]
+            matrix = numpy.array([identity])    
+        new_node['matrix'] = matrix.flatten('F').tolist()
         if gltf.nodes[i].children is not None:
             new_node['children'] = gltf.nodes[i].children
         heirarchy.append(new_node)
@@ -164,7 +172,7 @@ def dump_meshes (mesh_node, gltf):
                                 'InputSlotClass': 'per-vertex', 'InstanceDataStepRate': '0'}
                     elements.append(element)
                     AlignedByteOffset += accessor_stride(gltf, accessor)
-        if 'TANGENT' not in [x['SemanticName'] for x in submesh['fmt']['elements']]:
+        if 'TANGENT' not in [x['SemanticName'] for x in submesh['vb']]:
             tangentBuf, binormalBuf = calc_tangents (submesh)
             submesh['vb'].append({'SemanticName': 'TANGENT', 'SemanticIndex': '0', 'Buffer': tangentBuf})
             element = {'id': str(len(elements)), 'SemanticName': 'TANGENT',\
