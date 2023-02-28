@@ -1,4 +1,5 @@
-# ED8 COLLADA builder, needs output from my fork of uyjulian/ed8pkg2glb.  Very broken.
+# ED8 COLLADA builder, needs output from my fork of uyjulian/ed8pkg2glb.
+# Needs pyquaternion if heirarchy is inputted as TRS instead of matrix.
 #
 # GitHub eArmada8/ed8pkg2gltf
 
@@ -280,27 +281,56 @@ def add_materials (collada, materials):
         supported_shadows = ET.SubElement(context_switches, 'supported_shadows')
     return(collada)
 
+def calc_abs_matrix(node, skeleton):
+    skeleton[node]['abs_matrix'] = numpy.dot(skeleton[node]['rel_matrix'], skeleton[skeleton[node]['parent']]['abs_matrix'])
+    skeleton[node]['inv_matrix'] = numpy.linalg.inv(skeleton[node]['abs_matrix'])
+    if 'children' in skeleton[node].keys():
+        for child in skeleton[node]['children']:
+            skeleton = calc_abs_matrix(child, skeleton)
+            skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
+    return(skeleton)
+
 # Change matrices to numpy arrays, add parent bone ID, world space matrix, inverse bind matrix
 def add_bone_info (skeleton):
+    children_list = [{i:skeleton[i]['children'] if 'children' in skeleton[i].keys() else []} for i in range(len(skeleton))]
+    parent_dict = {x:list(y.keys())[0] for y in children_list for x in list(y.values())[0]}
+    top_nodes = [i for i in range(len(skeleton)) if i not in parent_dict.keys()]
+    identity_mtx = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
     for i in range(len(skeleton)):
-        if 'children' not in skeleton[i].keys():
-            skeleton[i]['children'] = []
-    for i in range(len(skeleton)):
-        if 'matrix' in skeleton[i]:
-            skeleton[i]['matrix'] = numpy.array([skeleton[i]['matrix'][0:4],\
-                                                 skeleton[i]['matrix'][4:8],\
-                                                 skeleton[i]['matrix'][8:12],\
-                                                 skeleton[i]['matrix'][12:16]])
-        else:
-            skeleton[i]['matrix'] = numpy.array([1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1])
-        parent = [j for j in range(len(skeleton)) if i in skeleton[j]['children']]
-        if len(parent) > 0:
-            skeleton[i]['parent'] = parent[0]
-            skeleton[i]['abs_matrix'] = numpy.dot(skeleton[i]['matrix'], skeleton[skeleton[i]['parent']]['abs_matrix'])
+        if i in parent_dict.keys():
+            skeleton[i]['parent'] = parent_dict[i]
         else:
             skeleton[i]['parent'] = -1
-            skeleton[i]['abs_matrix'] = skeleton[i]['matrix']
-        skeleton[i]['inv_matrix'] = numpy.linalg.inv(skeleton[i]['abs_matrix'])
+        if 'matrix' in skeleton[i]:
+            matrix = numpy.array([skeleton[i]['matrix'][0:4],\
+                skeleton[i]['matrix'][4:8], skeleton[i]['matrix'][8:12], skeleton[i]['matrix'][12:16]]).transpose()
+        elif 'translation' in skeleton[i].keys() or 'rotation' in skeleton[i].keys() or 'scale' in skeleton[i].keys():
+            from pyquaternion import Quaternion
+            if 'translation' in skeleton[i].keys():
+                t = numpy.array([[1,0,0,skeleton[i]['translation'][0]],[0,1,0,skeleton[i]['translation'][1]],\
+                    [0,0,1,skeleton[i]['translation'][2]],[0,0,0,1]])
+            else:
+                t = numpy.array(identity_mtx)
+            if 'rotation' in skeleton[i].keys(): # quaternion is expected in xyzw (GLTF standard)
+                r = Quaternion(w=skeleton[i]['rotation'][3], x=skeleton[i]['rotation'][0],\
+                    y=skeleton[i]['rotation'][1], z=skeleton[i]['rotation'][2]).transformation_matrix
+            else:
+                r = numpy.array(identity_mtx)
+            if 'scale' in skeleton[i].keys():
+                s = numpy.array([[skeleton[i]['scale'][0],0,0,0],[0,skeleton[i]['scale'][1],0,0],\
+                    [0,0,skeleton[i]['scale'][2],0],[0,0,0,1]])
+            else:
+                s = numpy.array(identity_mtx)
+            matrix = numpy.dot(numpy.dot(t, r), s)
+        else:
+            matrix = numpy.array(identity_mtx)    
+        skeleton[i]['rel_matrix'] = matrix
+        skeleton[i]['num_descendents'] = 0
+    for node in top_nodes:
+        skeleton[node]['abs_matrix'] = skeleton[node]['rel_matrix']
+        for child in skeleton[node]['children']:
+            skeleton = calc_abs_matrix(child, skeleton)
+            skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
     return(skeleton)
 
 def get_joint_list (vgmaps, skeleton):
@@ -325,17 +355,13 @@ def get_children (parent_node, i, metadata):
     node.set('name', metadata['heirarchy'][i]['name'])
     node.set('sid', metadata['heirarchy'][i]['name'])
     node.set('type', 'NODE')
-    if 'matrix' in metadata['heirarchy'][i]:
+    if 'rel_matrix' in metadata['heirarchy'][i]:
         matrix = ET.SubElement(node, 'matrix')
-        matrix.text = " ".join([str(x) for x in metadata['heirarchy'][i]['matrix'].flatten('F')])
+        matrix.text = " ".join(["{0:g}".format(x) for x in metadata['heirarchy'][i]['rel_matrix'].flatten('F')])
     if 'children' in metadata['heirarchy'][i].keys():
         for j in range(len(metadata['heirarchy'][i]['children'])):
             if metadata['heirarchy'][i]['children'][j] < len(metadata['heirarchy']):
                 get_children(node, metadata['heirarchy'][i]['children'][j], metadata)
-    if i == 0:
-        orphan_nodes = [j for j in range(len(metadata['heirarchy'])) if metadata['heirarchy'][j]['parent'] == -1 and j > 0]
-        for j in orphan_nodes:
-            get_children(node, j, metadata)
     extra = ET.SubElement(node, 'extra')
     technique = ET.SubElement(extra, 'technique')
     if metadata['heirarchy'][i]['name'] in metadata['locators']:
@@ -377,26 +403,39 @@ def add_empty_node (name, parent_node):
 # Build out the base node tree, run this before building geometries
 def add_skeleton (collada, metadata):
     library_visual_scenes = collada.find('library_visual_scenes')
-    visual_scene = ET.SubElement(library_visual_scenes, 'visual_scene')
-    visual_scene.set('id', 'VisualSceneNode')
-    visual_scene.set('name', metadata['name'])
-    get_children(visual_scene, 0, metadata)
-    extra = ET.SubElement(visual_scene, 'extra')
-    technique = ET.SubElement(extra, 'technique')
-    technique.set('profile','FCOLLADA')
-    start_time = ET.SubElement(technique, 'start_time')
-    start_time.text = '0'
-    end_time = ET.SubElement(technique, 'end_time')
-    end_time.text = '8.333333015441895'
     scene = collada.find('scene')
-    instance_visual_scene = ET.SubElement(scene, 'instance_visual_scene')
-    instance_visual_scene.set('url', '#VisualSceneNode')
+    children_nodes = list(set([x for y in [x['children'] for x in metadata['heirarchy'] if 'children' in x.keys()] for x in y]))
+    top_nodes = [i for i in range(len(metadata['heirarchy'])) if i not in children_nodes]
+    for i in range(len(top_nodes)):
+        visual_scene = ET.SubElement(library_visual_scenes, 'visual_scene')
+        visual_scene.set('id', metadata['heirarchy'][top_nodes[i]]['name'])
+        if metadata['heirarchy'][top_nodes[i]]['name'] == 'VisualSceneNode':
+            visual_scene.set('name', metadata['name'])
+        else:
+            visual_scene.set('name', metadata['heirarchy'][top_nodes[i]]['name']) # I don't think secondary scenes will be used by the compiler
+        get_children(visual_scene, top_nodes[i], metadata)
+        extra = ET.SubElement(visual_scene, 'extra')
+        technique = ET.SubElement(extra, 'technique')
+        technique.set('profile','FCOLLADA')
+        start_time = ET.SubElement(technique, 'start_time')
+        start_time.text = '0'
+        end_time = ET.SubElement(technique, 'end_time')
+        end_time.text = '8.333333015441895'
+        instance_visual_scene = ET.SubElement(scene, 'instance_visual_scene')
+        instance_visual_scene.set('url', '#' + metadata['heirarchy'][top_nodes[i]]['name'])
     return(collada)
 
 # Add geometries and skin them.  Needs a base node tree to build links to.
-def add_geometries_and_controllers (collada, submeshes, skeleton, joint_list, materials):
+def add_geometries_and_controllers (collada, submeshes, skeleton, materials):
     library_geometries = collada.find('library_geometries')
     library_controllers = collada.find('library_controllers')
+    library_visual_scenes = collada.find('library_visual_scenes')
+    top_node_children = [x['children'] for x in skeleton if x['name'] == library_visual_scenes[0].attrib['id']][0] # Children of top node
+    # I know this results in some overwriting but it does not matter, we are just trying to identify the child of the top node that is the skeleton
+    num_kids = {skeleton[x]['num_descendents']:x for x in top_node_children}
+    # Whichever child of the top node with the most descendents wins and is crowned the skeleton
+    skeleton_name = skeleton[num_kids[sorted(num_kids.keys(), reverse=True)[0]]]['name']
+    joint_list = get_joint_list([x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton_name], skeleton)
     bone_dict = get_bone_dict(skeleton)
     for submesh in submeshes:
         semantics_list = [x['SemanticName'] for x in submesh["vb"]]
@@ -481,7 +520,10 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, joint_list, ma
             vgmap_name_array.set('count', str(len(blendjoints)))
             vgmap_name_array.text = " ".join(blendjoints.keys())
             for bone in blendjoints.keys():
-                bone_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == bone][0]
+                try:
+                    bone_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == bone][0]
+                except IndexError:
+                    print("bone missing: {0}".format(bone))
                 bone_node.set('type', 'JOINT')
             technique_common = ET.SubElement(vgmap_source, 'technique_common')
             accessor = ET.SubElement(technique_common, 'accessor')
@@ -597,7 +639,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, joint_list, ma
         instance_controller = ET.SubElement(mesh_node, 'instance_controller')
         instance_controller.set('url', '#' + submesh["name"] + '-skin')
         controller_skeleton = ET.SubElement(instance_controller, 'skeleton')
-        controller_skeleton.text = '#' + skeleton[skeleton[0]['children'][0]]['name'] # Should always be 'up_point' or its equivalent!
+        controller_skeleton.text = '#' + skeleton_name # Should always be 'up_point' or its equivalent!
         bind_material = ET.SubElement(instance_controller, 'bind_material')
         technique_common = ET.SubElement(bind_material, 'technique_common')
         instance_material = ET.SubElement(technique_common, 'instance_material')
@@ -730,10 +772,9 @@ def build_collada():
         collada = add_materials(collada, metadata['materials'])
         print("Adding skeleton...")
         skeleton = add_bone_info(metadata['heirarchy'])
-        joint_list = get_joint_list([x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton[1]['name']], skeleton)
         collada = add_skeleton(collada, metadata)
         print("Adding geometry...")
-        collada = add_geometries_and_controllers(collada, submeshes, skeleton, joint_list, metadata['materials'])
+        collada = add_geometries_and_controllers(collada, submeshes, skeleton, metadata['materials'])
         print("Writing COLLADA file...")
         with io.BytesIO() as f:
             f.write(ET.tostring(collada, encoding='utf-8', xml_declaration=True))
