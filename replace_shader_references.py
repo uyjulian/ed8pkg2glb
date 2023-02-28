@@ -21,7 +21,7 @@ def make_fake_shader_dict():
                 entry = line.split('#')
                 if len(entry) > 2:
                     data = [x.split(" ")[0] for x in entry[1:3]]
-                    fake_shader_dict[data[1]] = data[0]
+                    fake_shader_dict[data[1].strip()] = data[0]
         return(fake_shader_dict)
     else:
         return False
