@@ -282,12 +282,13 @@ def add_materials (collada, materials):
     return(collada)
 
 def calc_abs_matrix(node, skeleton):
-    skeleton[node]['abs_matrix'] = numpy.dot(skeleton[node]['rel_matrix'], skeleton[skeleton[node]['parent']]['abs_matrix'])
+    skeleton[node]['abs_matrix'] = numpy.dot(skeleton[skeleton[node]['parent']]['abs_matrix'], skeleton[node]['rel_matrix'])
     skeleton[node]['inv_matrix'] = numpy.linalg.inv(skeleton[node]['abs_matrix'])
     if 'children' in skeleton[node].keys():
         for child in skeleton[node]['children']:
-            skeleton = calc_abs_matrix(child, skeleton)
-            skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
+            if child < len(skeleton):
+                skeleton = calc_abs_matrix(child, skeleton)
+                skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
     return(skeleton)
 
 # Change matrices to numpy arrays, add parent bone ID, world space matrix, inverse bind matrix
@@ -333,14 +334,19 @@ def add_bone_info (skeleton):
             skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
     return(skeleton)
 
-def get_joint_list (vgmaps, skeleton):
-    i = 0
-    joint_list = {}
-    for bone in skeleton:
-        if bone['name'] in vgmaps:
-            joint_list[bone['name']] = i
-            i += 1
-    return(joint_list)
+# Ordered_list should be empty when calling
+def order_nodes_by_heirarchy (node, filter_list, skeleton, ordered_list = []):
+    if skeleton[node]['name'] in filter_list:
+        ordered_list.append(skeleton[node]['name'])
+    if 'children' in skeleton[node].keys():
+        for child in skeleton[node]['children']:
+            ordered_list = order_nodes_by_heirarchy (child, filter_list, skeleton, ordered_list)
+    return(ordered_list)
+
+# Needs to be ordered by heirarchy, phyre Engine seems very sensitive to this
+def get_joint_list (top_node, vgmaps, skeleton):
+    ordered_list = order_nodes_by_heirarchy (top_node, vgmaps, skeleton, ordered_list = [])
+    return({ordered_list[i]:i for i in range(len(ordered_list))})
 
 def get_bone_dict (skeleton):
     bone_dict = {}
@@ -357,7 +363,7 @@ def get_children (parent_node, i, metadata):
     node.set('type', 'NODE')
     if 'rel_matrix' in metadata['heirarchy'][i]:
         matrix = ET.SubElement(node, 'matrix')
-        matrix.text = " ".join(["{0:g}".format(x) for x in metadata['heirarchy'][i]['rel_matrix'].flatten('F')])
+        matrix.text = " ".join(["{0:g}".format(x) for x in metadata['heirarchy'][i]['rel_matrix'].flatten('C')])
     if 'children' in metadata['heirarchy'][i].keys():
         for j in range(len(metadata['heirarchy'][i]['children'])):
             if metadata['heirarchy'][i]['children'][j] < len(metadata['heirarchy']):
@@ -434,8 +440,9 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials):
     # I know this results in some overwriting but it does not matter, we are just trying to identify the child of the top node that is the skeleton
     num_kids = {skeleton[x]['num_descendents']:x for x in top_node_children}
     # Whichever child of the top node with the most descendents wins and is crowned the skeleton
-    skeleton_name = skeleton[num_kids[sorted(num_kids.keys(), reverse=True)[0]]]['name']
-    joint_list = get_joint_list([x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton_name], skeleton)
+    skeleton_id = num_kids[sorted(num_kids.keys(), reverse=True)[0]]
+    skeleton_name = skeleton[skeleton_id]['name']
+    joint_list = get_joint_list(skeleton_id, [x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton_name], skeleton)
     bone_dict = get_bone_dict(skeleton)
     for submesh in submeshes:
         semantics_list = [x['SemanticName'] for x in submesh["vb"]]
@@ -538,7 +545,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials):
             inv_bind_mtx_array = ET.SubElement(inv_bind_mtx_source, 'float_array')
             inv_bind_mtx_array.set('id', submesh['name'] + '-skin-bind_poses-array')
             inv_bind_mtx_array.set('count', str(len(blendjoints) * 16))
-            inv_bind_mtx_array.text = " ".join(["{0:g}".format(x) for y in [skeleton[bone_dict[x]]['inv_matrix'].flatten('F')\
+            inv_bind_mtx_array.text = " ".join(["{0:g}".format(x) for y in [skeleton[bone_dict[x]]['inv_matrix'].flatten('C')\
                 for x in blendjoints.keys()] for x in y])
             technique_common = ET.SubElement(inv_bind_mtx_source, 'technique_common')
             accessor = ET.SubElement(technique_common, 'accessor')
