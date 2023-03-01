@@ -9,8 +9,11 @@ from pygltflib import GLTF2
 from pyquaternion import Quaternion
 from lib_fmtibvb import *
 
+# This script outputs non-empty vgmaps by default, change the following line to True to change
+complete_vgmaps_default = False
+
 def process_nodes (gltf):
-    identity = [1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]
+    identity = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
     heirarchy = []
     for i in range(len(gltf.nodes)):
         new_node = {}
@@ -35,7 +38,7 @@ def process_nodes (gltf):
                 s = numpy.array(identity)
             matrix = numpy.dot(numpy.dot(t, r), s)
         else:
-            matrix = numpy.array([identity])    
+            matrix = numpy.array(identity)
         new_node['matrix'] = matrix.flatten('F').tolist()
         if gltf.nodes[i].children is not None:
             new_node['children'] = gltf.nodes[i].children
@@ -140,7 +143,7 @@ def calc_tangents (submesh):
         binormalBuffer.append((numpy.cross(normBuffer[a], vector) * handedness).tolist())
     return (tanBuffer, binormalBuffer)
 
-def dump_meshes (mesh_node, gltf):
+def dump_meshes (mesh_node, gltf, complete_maps = False):
     basename = mesh_node.name
     mesh = gltf.meshes[mesh_node.mesh]
     skin = gltf.skins[mesh_node.skin]
@@ -191,7 +194,12 @@ def dump_meshes (mesh_node, gltf):
             #AlignedByteOffset += 12
         submesh['fmt']['stride'] = str(AlignedByteOffset)
         submesh['fmt']['elements'] = elements
-        submesh['vgmap'] = dict(vgmap)
+        vgs_i = [i for i in range(len(submesh['vb'])) if submesh['vb'][i]['SemanticName'] == 'BLENDINDICES']
+        if complete_maps == False and len(vgs_i) > 0:
+            used_vgs = list(set([x for y in submesh['vb'][vgs_i[0]]['Buffer'] for x in y]))
+            submesh['vgmap'] = {k:v for (k,v) in vgmap.items() if v in used_vgs }
+        else:
+            submesh['vgmap'] = dict(vgmap)
         if mesh.primitives[i].material is not None:
             submesh['material'] = gltf.materials[mesh.primitives[i].material].name.split('-Skinned')[0]
         else:
@@ -244,7 +252,7 @@ def image_list (material_struct):
         image_list.extend([v['uri'] for (k,v) in texture.items()])
     return([{'uri': x} for x in list(set(image_list))])
 
-def process_gltf(filename, overwrite = False):
+def process_gltf(filename, complete_maps = complete_vgmaps_default, overwrite = False):
     print("Processing {0}...".format(filename))
     gltf = GLTF2().load(filename)
     model_name = filename.split('.gltf')[0]
@@ -262,7 +270,7 @@ def process_gltf(filename, overwrite = False):
         mesh_nodes = [x for x in gltf.nodes if x.mesh is not None]
         material_struct = build_materials(gltf)
         for mesh_node in mesh_nodes:
-            submeshes = dump_meshes(mesh_node, gltf)
+            submeshes = dump_meshes(mesh_node, gltf, complete_maps = complete_maps)
             for i in range(len(submeshes)):
                 write_fmt(submeshes[i]['fmt'], '{0}/meshes/{1}.fmt'.format(model_name, submeshes[i]['name']))
                 write_ib(submeshes[i]['ib'], '{0}/meshes/{1}.ib'.format(model_name, submeshes[i]['name']), submeshes[i]['fmt'])
@@ -276,7 +284,7 @@ def process_gltf(filename, overwrite = False):
             'materials': material_struct, 'heirarchy': heirarchy, 'locators': locators}
         with open("{0}/metadata.json".format(model_name), 'wb') as f:
             f.write(json.dumps(metadata, indent=4).encode("utf-8"))
-    
+
 if __name__ == '__main__':
     # Set current directory
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
@@ -285,11 +293,19 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         import argparse
         parser = argparse.ArgumentParser()
+        if complete_vgmaps_default == True:
+            parser.add_argument('-p', '--partialmaps', help="Provide vgmaps with non-empty groups only", action="store_false")
+        else:
+            parser.add_argument('-c', '--completemaps', help="Provide vgmaps with entire mesh skeleton", action="store_true")
         parser.add_argument('-o', '--overwrite', help="Overwrite existing files", action="store_true")
         parser.add_argument('gltf_filename', help="Name of gltf file to process.")
         args = parser.parse_args()
+        if complete_vgmaps_default == True:
+            complete_maps = args.partialmaps
+        else:
+            complete_maps = args.completemaps
         if os.path.exists(args.gltf_filename) and args.gltf_filename[-5:].lower() == '.gltf':
-            process_gltf(args.gltf_filename, overwrite = args.overwrite)
+            process_gltf(args.gltf_filename, complete_maps = complete_maps, overwrite = args.overwrite)
     else:
         gltf_files = glob.glob('*.gltf')
         for i in range(len(gltf_files)):
