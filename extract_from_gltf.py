@@ -120,7 +120,10 @@ def calc_tangents (submesh):
         s2 = texBuffer[triangles[i][2]][0] - texBuffer[triangles[i][0]][0]
         t1 = texBuffer[triangles[i][1]][1] - texBuffer[triangles[i][0]][1]
         t2 = texBuffer[triangles[i][2]][1] - texBuffer[triangles[i][0]][1]
-        r = 1.0 / (s1 * t2 - s2 * t1)
+        if (s1 * t2 - s2 * t1) == 0:
+            r = 1.0 / 0.000001
+        else:
+            r = 1.0 / (s1 * t2 - s2 * t1)
         sdir = numpy.array([(t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r,\
                     (t2 * z1 - t1 * z2) * r]);
         tdir = numpy.array([(s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r,\
