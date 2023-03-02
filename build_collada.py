@@ -329,9 +329,10 @@ def add_bone_info (skeleton):
         skeleton[i]['num_descendents'] = 0
     for node in top_nodes:
         skeleton[node]['abs_matrix'] = skeleton[node]['rel_matrix']
-        for child in skeleton[node]['children']:
-            skeleton = calc_abs_matrix(child, skeleton)
-            skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
+        if 'children' in skeleton[node].keys():
+            for child in skeleton[node]['children']:
+                skeleton = calc_abs_matrix(child, skeleton)
+                skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
     return(skeleton)
 
 # Ordered_list should be empty when calling
@@ -413,22 +414,26 @@ def add_skeleton (collada, metadata):
     children_nodes = list(set([x for y in [x['children'] for x in metadata['heirarchy'] if 'children' in x.keys()] for x in y]))
     top_nodes = [i for i in range(len(metadata['heirarchy'])) if i not in children_nodes]
     for i in range(len(top_nodes)):
-        visual_scene = ET.SubElement(library_visual_scenes, 'visual_scene')
-        visual_scene.set('id', metadata['heirarchy'][top_nodes[i]]['name'])
-        if metadata['heirarchy'][top_nodes[i]]['name'] == 'VisualSceneNode':
-            visual_scene.set('name', metadata['name'])
-        else:
-            visual_scene.set('name', metadata['heirarchy'][top_nodes[i]]['name']) # I don't think secondary scenes will be used by the compiler
-        get_children(visual_scene, top_nodes[i], metadata)
-        extra = ET.SubElement(visual_scene, 'extra')
-        technique = ET.SubElement(extra, 'technique')
-        technique.set('profile','FCOLLADA')
-        start_time = ET.SubElement(technique, 'start_time')
-        start_time.text = '0'
-        end_time = ET.SubElement(technique, 'end_time')
-        end_time.text = '8.333333015441895'
-        instance_visual_scene = ET.SubElement(scene, 'instance_visual_scene')
-        instance_visual_scene.set('url', '#' + metadata['heirarchy'][top_nodes[i]]['name'])
+        # Do not add top nodes without children, which are likely an artifact anyway of decompile / noesis / etc
+        # All scene nodes should have children (and of course, the compiler only supports single scene)
+        if 'children' in metadata['heirarchy'][top_nodes[i]].keys():
+            visual_scene = ET.SubElement(library_visual_scenes, 'visual_scene')
+            visual_scene.set('id', metadata['heirarchy'][top_nodes[i]]['name'])
+            if metadata['heirarchy'][top_nodes[i]]['name'] == 'VisualSceneNode':
+                visual_scene.set('name', metadata['name'])
+            else:
+                # Actually the compiler only supports single scene, so this will create a compile error
+                visual_scene.set('name', metadata['heirarchy'][top_nodes[i]]['name'])
+            get_children(visual_scene, top_nodes[i], metadata)
+            extra = ET.SubElement(visual_scene, 'extra')
+            technique = ET.SubElement(extra, 'technique')
+            technique.set('profile','FCOLLADA')
+            start_time = ET.SubElement(technique, 'start_time')
+            start_time.text = '0'
+            end_time = ET.SubElement(technique, 'end_time')
+            end_time.text = '8.333333015441895'
+            instance_visual_scene = ET.SubElement(scene, 'instance_visual_scene')
+            instance_visual_scene.set('url', '#' + metadata['heirarchy'][top_nodes[i]]['name'])
     return(collada)
 
 # Add geometries and skin them.  Needs a base node tree to build links to.
