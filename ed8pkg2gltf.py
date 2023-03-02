@@ -1455,7 +1455,7 @@ def decompress_fixups(fixup_buffer, instance_list, is_pointer_array, is_pointer)
 
     return fixup_buffer.decompressed
 
-def parse_cluster(filename='', reserved_argument=None, storage_media=None, pkg_name='', partialmaps = False):
+def parse_cluster(filename='', reserved_argument=None, storage_media=None, pkg_name='', partialmaps = False, allbuffers = False):
     global g_classMemberCount
     class_descriptors = []
     class_data_members = []
@@ -1573,7 +1573,7 @@ def parse_cluster(filename='', reserved_argument=None, storage_media=None, pkg_n
         class_location += instance_list_header.size
         count_list += 1
 
-    render_mesh(g, cluster_mesh_info, header_processor, cluster_header, pkg_name, partialmaps = partialmaps)
+    render_mesh(g, cluster_mesh_info, header_processor, cluster_header, pkg_name, partialmaps = partialmaps, allbuffers = allbuffers)
     return cluster_mesh_info
 
 def file_is_ed8_pkg(path):
@@ -2158,7 +2158,7 @@ dataTypeCountMappingForGltf = {0: 'SCALAR',
  2: 'VEC3', 
  3: 'VEC4'}
 
-def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name='', partialmaps = False):
+def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name='', partialmaps = False, allbuffers = False):
     print("Processing {0}...".format(cluster_mesh_info.filename))
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PTexture2D']:
@@ -2343,11 +2343,11 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name='',
 
                                 vertexData['mu_remappedVertBufferSkeleton'] = remapInd2.tobytes()
 
-    gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name, partialmaps = partialmaps)
+    gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name, partialmaps = partialmaps, allbuffers = allbuffers)
 
 shader_material_switches = {}
 
-def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name='', partialmaps = False):
+def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list, pkg_name='', partialmaps = False, allbuffers = False):
     global shader_material_switches
     import json
     if not os.path.exists(pkg_name+"/meshes"):
@@ -2850,6 +2850,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         uvTangentBinormalCount[streamInfo['m_renderDataType']] += 1
                     else:
                         semantic_index = 0
+                    if semantic_index > 2 and allbuffers == False:
+                        continue
                     element = {'id': str(i), 'SemanticName': semantics[streamInfo['m_renderDataType']],\
                         'SemanticIndex': str(semantic_index), 'Format': dxgi_format, 'InputSlot': '0',\
                         'AlignedByteOffset': str(AlignedByteOffset),\
@@ -3257,7 +3259,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         with open(pkg_name + "/metadata.json".format(i), 'wb') as f:
             f.write(json.dumps(metadata_json, indent=4).encode("utf-8"))
 
-def process_pkg(pkg_name, partialmaps = partial_vgmaps_default, overwrite = False):
+def process_pkg(pkg_name, partialmaps = partial_vgmaps_default, allbuffers = False, overwrite = False):
     is_cluster = False
     is_pkg = False
     storage_media = None
@@ -3293,7 +3295,7 @@ def process_pkg(pkg_name, partialmaps = partial_vgmaps_default, overwrite = Fals
 
             for item in items:
                 print("Parsing {0}...".format(item))
-                parse_cluster(item, None, storage_media, pkg_name[:-4], partialmaps = partialmaps)
+                parse_cluster(item, None, storage_media, pkg_name[:-4], partialmaps = partialmaps, allbuffers = allbuffers)
 
             build_items = []
             def list_build_items_callback(item):
@@ -3321,6 +3323,7 @@ if __name__ == '__main__':
             parser.add_argument('-p', '--partialmaps', help="Provide vgmaps with non-empty groups only", action="store_true")
         else:
             parser.add_argument('-c', '--completemaps', help="Provide vgmaps with entire skeleton", action="store_false")
+        parser.add_argument('-a', '--allbuffers', help="Dump all buffers (default is no more than 3 texcoord/tangent/binormal)", action="store_true")
         parser.add_argument('-o', '--overwrite', help="Overwrite existing files", action="store_true")
         parser.add_argument('pkg_filename', help="Name of pkg file to export from (required).")
         args = parser.parse_args()
@@ -3329,7 +3332,7 @@ if __name__ == '__main__':
         else:
             partialmaps = args.completemaps
         if os.path.exists(args.pkg_filename) and args.pkg_filename[-4:].lower() == '.pkg':
-            process_pkg(args.pkg_filename, partialmaps = partialmaps, overwrite = args.overwrite)
+            process_pkg(args.pkg_filename, partialmaps = partialmaps, allbuffers = args.allbuffers, overwrite = args.overwrite)
     else:
         pkg_files = glob.glob('*.pkg')
         for i in range(len(pkg_files)):
