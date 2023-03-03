@@ -646,16 +646,17 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         if meshname == '':
             meshname = submesh["name"]
         parent_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == meshname]
-        if len(parent_node) > 0:
-            mesh_node = parent_node[0]
-        else:
-            mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
         if 'BLENDWEIGHTS' in semantics_list and 'BLENDINDICES' in semantics_list:
+            if len(parent_node) > 0:
+                mesh_node = parent_node[0]
+            else:
+                mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
             instance_geom_controller = ET.SubElement(mesh_node, 'instance_controller')
             instance_geom_controller.set('url', '#' + submesh["name"] + '-skin')
             controller_skeleton = ET.SubElement(instance_geom_controller, 'skeleton')
             controller_skeleton.text = '#' + skeleton_name # Should always be 'up_point' or its equivalent!
         else:
+            mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
             instance_geom_controller = ET.SubElement(mesh_node, 'instance_geometry')
             instance_geom_controller.set('url', '#' + submesh["name"])
         bind_material = ET.SubElement(instance_geom_controller, 'bind_material')
