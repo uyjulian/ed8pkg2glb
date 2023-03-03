@@ -372,7 +372,7 @@ def get_children (parent_node, i, metadata):
                 get_children(node, metadata['heirarchy'][i]['children'][j], metadata)
     extra = ET.SubElement(node, 'extra')
     technique = ET.SubElement(extra, 'technique')
-    if metadata['heirarchy'][i]['name'] in metadata['locators']:
+    if 'locators' in metadata.keys() and metadata['heirarchy'][i]['name'] in metadata['locators']:
         technique.set('profile', 'PHYRE')
         locator = ET.SubElement(technique, 'locator')
         locator.text = '1'
