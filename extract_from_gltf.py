@@ -12,39 +12,6 @@ from lib_fmtibvb import *
 # This script outputs non-empty vgmaps by default, change the following line to True to change
 complete_vgmaps_default = False
 
-def process_nodes (gltf):
-    identity = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
-    heirarchy = []
-    for i in range(len(gltf.nodes)):
-        new_node = {}
-        new_node['name'] = gltf.nodes[i].name
-        if gltf.nodes[i].matrix is not None:
-            matrix = numpy.array([gltf.nodes[i].matrix[0:4],\
-                gltf.nodes[i].matrix[4:8], gltf.nodes[i].matrix[8:12], gltf.nodes[i].matrix[12:16]]).transpose()
-        elif gltf.nodes[i].translation is not None or gltf.nodes[i].rotation is not None or gltf.nodes[i].scale is not None:
-            if gltf.nodes[i].translation is not None:
-                t = numpy.array([[1,0,0,gltf.nodes[i].translation[0]],[0,1,0,gltf.nodes[i].translation[1]],[0,0,1,gltf.nodes[i].translation[2]],[0,0,0,1]])
-            else:
-                t = numpy.array(identity)
-            if gltf.nodes[i].rotation is not None:
-                r = Quaternion(w=gltf.nodes[i].rotation[3], x=gltf.nodes[i].rotation[0],\
-                    y=gltf.nodes[i].rotation[1], z=gltf.nodes[i].rotation[2]).transformation_matrix
-            else:
-                r = numpy.array(identity)
-            if gltf.nodes[i].scale is not None:
-                s = numpy.array([[gltf.nodes[i].scale[0],0,0,0],[0,gltf.nodes[i].scale[1],0,0],\
-                    [0,0,gltf.nodes[i].scale[2],0],[0,0,0,1]])
-            else:
-                s = numpy.array(identity)
-            matrix = numpy.dot(numpy.dot(t, r), s)
-        else:
-            matrix = numpy.array(identity)
-        new_node['matrix'] = matrix.flatten('F').tolist()
-        if gltf.nodes[i].children is not None:
-            new_node['children'] = gltf.nodes[i].children
-        heirarchy.append(new_node)
-    return(heirarchy)
-
 def accessor_stride(gltf, accessor_num):
     accessor = gltf.accessors[accessor_num]
     componentSize = {5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4}
@@ -233,6 +200,11 @@ def get_texture_details (gltf, texture_num):
 
 def build_materials (gltf):
     materials = [x for x in gltf.materials if 'Skinned' not in x.name]
+    # If exported from Blender etc, the non-skinned materials will be gone, so will attempt to extract the skinned ones instead
+    if len(materials) == 0:
+        materials = [x for x in gltf.materials]
+        for material in materials:
+            material.name = material.name.split('-Skinned')[0]
     material_struct = {}
     for material in materials:
         name = material.name
@@ -267,7 +239,8 @@ def process_gltf(filename, complete_maps = complete_vgmaps_default, overwrite = 
             os.mkdir(model_name)
         if not os.path.exists(model_name + '/meshes'):
             os.mkdir(model_name + '/meshes')
-        heirarchy = process_nodes(gltf)
+        with open(filename, 'rb') as f:
+            heirarchy = json.loads(f.read())['nodes']
         joint_nodes = [gltf.nodes[i].name for i in list(set([x for y in [x.joints for x in gltf.skins] for x in y]))]
         locators = [x.name for x in gltf.nodes if x.mesh is None and x.skin is None and x.name not in joint_nodes]
         mesh_nodes = [x for x in gltf.nodes if x.mesh is not None]
