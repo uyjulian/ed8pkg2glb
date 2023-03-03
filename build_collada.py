@@ -503,10 +503,10 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         if 'BLENDWEIGHTS' in semantics_list and 'BLENDINDICES' in semantics_list:
             blendweights = [x['Buffer'] for x in submesh["vb"] if x['SemanticName'] == 'BLENDWEIGHTS'][0]
             blendindices = [x['Buffer'] for x in submesh["vb"] if x['SemanticName'] == 'BLENDINDICES'][0]
-            blendjoints = joint_list
+            blendjoints = dict(joint_list)
             new_weights = []
             new_indices = []
-            local_to_global_joints = {v:joint_list[k] for (k,v) in submesh['vgmap'].items()}
+            local_to_global_joints = {v:blendjoints[k] for (k,v) in submesh['vgmap'].items()}
             for i in range(len(blendweights)):
                 new_weight = []
                 new_index = []
@@ -689,35 +689,36 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
 def write_shader (materials):
     if not os.path.exists("shaders"):
         os.mkdir("shaders")
-    filename = materials[list(materials.keys())[0]]['shader'].split('#')[0]
-    shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
-    added_shaders = []
-    for material in materials:
-        shader_switch = 'SHADER_{0}'.format(materials[material]['shader'].split('#')[1][0:4])
-        if shader_switch not in added_shaders:
-            added_shaders.append(shader_switch)
-            shaderfx += '#ifdef {0}\r\n'.format(shader_switch)
-            for parameter in materials[material]['shaderParameters']:
-                if len(materials[material]['shaderParameters'][parameter]) == 1:
-                    valuetype = 'half'
-                    value = "{0:.3f}".format(materials[material]['shaderParameters'][parameter][0])
-                else:
-                    valuetype = 'half{0}'.format(len(materials[material]['shaderParameters'][parameter]))
-                    value = "float{0}({1})".format(len(materials[material]['shaderParameters'][parameter]),\
-                        ", ".join(["{0:.3f}".format(x) for x in materials[material]['shaderParameters'][parameter]]))
-                shaderfx += '{0} {1} : {1} = {2};\r\n'.format(valuetype, parameter, value)
-            for parameter in materials[material]['shaderSamplerDefs']:
-                shaderfx += 'sampler {0} : {0};\r\n'.format(parameter)
-            for parameter in materials[material]['shaderTextures']:
-                shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
-            shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
-    shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'
-    shaderfx += '#ifdef SUBDIV_SCALAR_DISPLACEMENT\r\nTexture2D<half> DisplacementScalar;\r\n#endif // SUBDIV_SCALAR_DISPLACEMENT\r\n\r\n'
-    shaderfx += '#ifdef SUBDIV_VECTOR_DISPLACEMENT\r\nTexture2D<half4> DisplacementVector;\r\n#define USE_TANGENTS\r\n#endif // SUBDIV_VECTOR_DISPLACEMENT\r\n\r\n'
-    shaderfx += '#if defined(SUBDIV_SCALAR_DISPLACEMENT) || defined(SUBDIV_VECTOR_DISPLACEMENT)\r\nhalf DisplacementScale = 1.0f;\r\n'
-    shaderfx += '#define USE_UVS\r\n#endif // defined(SUBDIV_SCALAR_DISPLACEMENT) || defined(SUBDIV_VECTOR_DISPLACEMENT)'
-    with open(filename, 'wb') as f:
-        f.write(shaderfx.encode('utf-8'))
+    filenames = list(set([materials[x]['shader'].split('#')[0] for x in materials]))
+    for filename in filenames:
+        shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
+        added_shaders = []
+        for material in materials:
+            shader_switch = 'SHADER_{0}'.format(materials[material]['shader'].split('#')[1][0:4])
+            if shader_switch not in added_shaders and materials[material]['shader'].split('#')[0] == filename:
+                added_shaders.append(shader_switch)
+                shaderfx += '#ifdef {0}\r\n'.format(shader_switch)
+                for parameter in materials[material]['shaderParameters']:
+                    if len(materials[material]['shaderParameters'][parameter]) == 1:
+                        valuetype = 'half'
+                        value = "{0:.3f}".format(materials[material]['shaderParameters'][parameter][0])
+                    else:
+                        valuetype = 'half{0}'.format(len(materials[material]['shaderParameters'][parameter]))
+                        value = "float{0}({1})".format(len(materials[material]['shaderParameters'][parameter]),\
+                            ", ".join(["{0:.3f}".format(x) for x in materials[material]['shaderParameters'][parameter]]))
+                    shaderfx += '{0} {1} : {1} = {2};\r\n'.format(valuetype, parameter, value)
+                for parameter in materials[material]['shaderSamplerDefs']:
+                    shaderfx += 'sampler {0} : {0};\r\n'.format(parameter)
+                for parameter in materials[material]['shaderTextures']:
+                    shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
+                shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
+        shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'
+        shaderfx += '#ifdef SUBDIV_SCALAR_DISPLACEMENT\r\nTexture2D<half> DisplacementScalar;\r\n#endif // SUBDIV_SCALAR_DISPLACEMENT\r\n\r\n'
+        shaderfx += '#ifdef SUBDIV_VECTOR_DISPLACEMENT\r\nTexture2D<half4> DisplacementVector;\r\n#define USE_TANGENTS\r\n#endif // SUBDIV_VECTOR_DISPLACEMENT\r\n\r\n'
+        shaderfx += '#if defined(SUBDIV_SCALAR_DISPLACEMENT) || defined(SUBDIV_VECTOR_DISPLACEMENT)\r\nhalf DisplacementScale = 1.0f;\r\n'
+        shaderfx += '#define USE_UVS\r\n#endif // defined(SUBDIV_SCALAR_DISPLACEMENT) || defined(SUBDIV_VECTOR_DISPLACEMENT)'
+        with open(filename, 'wb') as f:
+            f.write(shaderfx.encode('utf-8'))
     return
 
 def write_asset_xml (metadata, dae_path, has_skeleton = True):
@@ -754,7 +755,6 @@ def write_processing_batch_file (metadata, dae_path):
     if len(image_folders) > 0:
         for folder in image_folders:
             image_copy_text += '\r\ncopy D3D11\{0}\*.* {1}'.format(folder, metadata['pkg_name'])
-    image_copy_text += '\r\npython write_pkg.py {0}'.format(metadata['pkg_name'])
     batch_file = '''@ECHO OFF
 set "SCE_PHYRE=%cd%"
 CSIVAssetImportTool.exe -fi="{0}\{1}.dae" -platform="D3D11" -write=all
@@ -764,6 +764,7 @@ python replace_shader_references.py
 del {1}.dae.phyre.bak
 {2}
 move {1}.dae.phyre {3}
+python write_pkg.py {3}
 del *.fx
 del *.cgfx
 '''.format(dae_path.replace('/','\\'), metadata['name'], image_copy_text, metadata['pkg_name'])
