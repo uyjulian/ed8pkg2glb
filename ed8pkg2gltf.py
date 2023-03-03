@@ -2809,8 +2809,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
     bytesize = {5120:'8', 5121: '8', 5122: '16', 5123: '16', 5125: '32', 5126: '32'}
     elementtype = {5120: 'SINT', 5121: 'UINT', 5122: 'SINT', 5123: 'UINT', 5125: 'UINT', 5126: 'FLOAT'}
     numelements = {'SCALAR':1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
-    semantics = {'SkinnableVertex': 'POSITION', 'SkinnableNormal': 'NORMAL', 'ST': 'TEXCOORD', 'SkinnableTangent': 'TANGENT',\
-        'SkinnableBinormal': 'BINORMAL', 'Color': 'COLOR', 'SkinWeights': 'BLENDWEIGHTS', 'SkinIndices': 'BLENDINDICES'}
+    semantics = {'Vertex': 'POSITION', 'Normal': 'NORMAL', 'ST': 'TEXCOORD', 'Tangent': 'TANGENT',\
+        'Binormal': 'BINORMAL', 'Color': 'COLOR', 'SkinWeights': 'BLENDWEIGHTS', 'SkinIndices': 'BLENDINDICES'}
     if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
         mesh_instances = cluster_mesh_info.data_instances_by_class['PMeshInstance']
     for t in mesh_instances:
@@ -2830,7 +2830,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 attributes = {}
                 colorCount = 0
                 tangentCount = 0
-                uvTangentBinormalCount = {'ST':0,'SkinnableTangent':0,'SkinnableBinormal':0, 'Color':0}
+                uvTangentBinormalCount = {'ST':0,'Tangent':0,'Binormal':0, 'Color':0}
                 AlignedByteOffset = 0
                 for i in range(len(m['m_vertexData'])):
                     vertexData = m['m_vertexData'][i]
@@ -2845,19 +2845,19 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         dxgi_format = "".join([RGBAD[i]+'16' for i in range(numelements[accType])]) + '_UINT'
                         vertexBuffer = vertexData['mu_remappedVertBufferSkeleton']
                         stride = numelements[accType] * 2
-                    if streamInfo['m_renderDataType'] in ['ST', 'SkinnableTangent', 'SkinnableBinormal', 'Color']:
-                        semantic_index = uvTangentBinormalCount[streamInfo['m_renderDataType']]
-                        uvTangentBinormalCount[streamInfo['m_renderDataType']] += 1
+                    if streamInfo['m_renderDataType'].replace('Skinnable','') in ['ST', 'Tangent', 'Binormal', 'Color']:
+                        semantic_index = uvTangentBinormalCount[streamInfo['m_renderDataType'].replace('Skinnable','')]
+                        uvTangentBinormalCount[streamInfo['m_renderDataType'].replace('Skinnable','')] += 1
                     else:
                         semantic_index = 0
                     if semantic_index > 2 and allbuffers == False:
                         continue
-                    element = {'id': str(i), 'SemanticName': semantics[streamInfo['m_renderDataType']],\
+                    element = {'id': str(i), 'SemanticName': semantics[streamInfo['m_renderDataType'].replace('Skinnable','')],\
                         'SemanticIndex': str(semantic_index), 'Format': dxgi_format, 'InputSlot': '0',\
                         'AlignedByteOffset': str(AlignedByteOffset),\
                         'InputSlotClass': 'per-vertex', 'InstanceDataStepRate': '0'}
                     with io.BytesIO(vertexBuffer) as vertBufferStream:
-                        vb.append({'SemanticName': semantics[streamInfo['m_renderDataType']],\
+                        vb.append({'SemanticName': semantics[streamInfo['m_renderDataType'].replace('Skinnable','')],\
                             'SemanticIndex': str(semantic_index),\
                             'Buffer': [unpack_dxgi_vector(vertBufferStream, stride, dxgi_format, e = '<')\
                                 for x in range(accessors[vertexData['mu_gltfAccessorIndex']]['count'])]})
