@@ -9,7 +9,7 @@ from lib_fmtibvb import *
 
 # Create the basic COLLADA XML document, with values that do not change from model to model (I think)
 # TODO: Are units, gravity and time step constant?
-def basic_collada ():
+def basic_collada (has_skeleton = True):
     collada = ET.Element('COLLADA')
     collada.set("xmlns", "http://www.collada.org/2005/11/COLLADASchema")
     collada.set("version", "1.4.1")
@@ -31,7 +31,8 @@ def basic_collada ():
     library_materials = ET.SubElement(collada, 'library_materials')
     library_effects = ET.SubElement(collada, 'library_effects')
     library_geometries = ET.SubElement(collada, 'library_geometries')
-    library_controllers = ET.SubElement(collada, 'library_controllers')
+    if has_skeleton == True:
+        library_controllers = ET.SubElement(collada, 'library_controllers')
     library_visual_scenes = ET.SubElement(collada, 'library_visual_scenes')
     scene = ET.SubElement(collada, 'scene')
     instance_physics_scene = ET.SubElement(scene, 'instance_physics_scene')
@@ -39,7 +40,7 @@ def basic_collada ():
     return(collada)
 
 # Add image URIs
-def add_images (collada, images):
+def add_images (collada, images, relative_path = '../../..'):
     library_images = collada.find('library_images')
     for image in images:
         image_name = image.replace('.DDS','.dds').split('.dds')[0]
@@ -47,7 +48,7 @@ def add_images (collada, images):
         image_element.set("id", os.path.basename(image_name))
         image_element.set("name", os.path.basename(image_name))
         image_element_init_from = ET.SubElement(image_element, 'init_from')
-        image_element_init_from.text = '../../../' + image
+        image_element_init_from.text = relative_path + '/' + image
         image_element_extra = ET.SubElement(image_element, 'extra')
         image_element_extra_technique = ET.SubElement(image_element_extra, 'technique')
         image_element_extra_technique.set("profile", "MAYA")
@@ -58,7 +59,7 @@ def add_images (collada, images):
     return(collada)
 
 # Build the materials section
-def add_materials (collada, materials):
+def add_materials (collada, materials, relative_path = '../../..'):
     # Materials and effects can be done in parallel
     library_materials = collada.find('library_materials')
     library_effects = collada.find('library_effects')
@@ -80,7 +81,7 @@ def add_materials (collada, materials):
         profile_HLSL.set('platform', 'PC-DX')
         include = ET.SubElement(profile_HLSL, 'include')
         include.set('sid','include')
-        include.set('url','../../../shaders/ed8_chr.fx')
+        include.set('url', relative_path + '/' + materials[material]['shader'].split('#')[0])
         # Float parameters - I haven't seen anything that isn't float, so I set everything here to float for now
         for parameter in materials[material]['shaderParameters']:
             #Material
@@ -437,18 +438,19 @@ def add_skeleton (collada, metadata):
     return(collada)
 
 # Add geometries and skin them.  Needs a base node tree to build links to.
-def add_geometries_and_controllers (collada, submeshes, skeleton, materials):
+def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has_skeleton = True):
     library_geometries = collada.find('library_geometries')
-    library_controllers = collada.find('library_controllers')
-    library_visual_scenes = collada.find('library_visual_scenes')
-    top_node_children = [x['children'] for x in skeleton if x['name'] == library_visual_scenes[0].attrib['id']][0] # Children of top node
-    # I know this results in some overwriting but it does not matter, we are just trying to identify the child of the top node that is the skeleton
-    num_kids = {skeleton[x]['num_descendents']:x for x in top_node_children}
-    # Whichever child of the top node with the most descendents wins and is crowned the skeleton
-    skeleton_id = num_kids[sorted(num_kids.keys(), reverse=True)[0]]
-    skeleton_name = skeleton[skeleton_id]['name']
-    joint_list = get_joint_list(skeleton_id, [x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton_name], skeleton)
-    bone_dict = get_bone_dict(skeleton)
+    if has_skeleton == True:
+        library_controllers = collada.find('library_controllers')
+        library_visual_scenes = collada.find('library_visual_scenes')
+        top_node_children = [x['children'] for x in skeleton if x['name'] == library_visual_scenes[0].attrib['id']][0] # Children of top node
+        # I know this results in some overwriting but it does not matter, we are just trying to identify the child of the top node that is the skeleton
+        num_kids = {skeleton[x]['num_descendents']:x for x in top_node_children}
+        # Whichever child of the top node with the most descendents wins and is crowned the skeleton
+        skeleton_id = num_kids[sorted(num_kids.keys(), reverse=True)[0]]
+        skeleton_name = skeleton[skeleton_id]['name']
+        joint_list = get_joint_list(skeleton_id, [x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton_name], skeleton)
+        bone_dict = get_bone_dict(skeleton)
     for submesh in submeshes:
         semantics_list = [x['SemanticName'] for x in submesh["vb"]]
         geometry = ET.SubElement(library_geometries, 'geometry')
@@ -648,11 +650,15 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials):
             mesh_node = parent_node[0]
         else:
             mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
-        instance_controller = ET.SubElement(mesh_node, 'instance_controller')
-        instance_controller.set('url', '#' + submesh["name"] + '-skin')
-        controller_skeleton = ET.SubElement(instance_controller, 'skeleton')
-        controller_skeleton.text = '#' + skeleton_name # Should always be 'up_point' or its equivalent!
-        bind_material = ET.SubElement(instance_controller, 'bind_material')
+        if 'BLENDWEIGHTS' in semantics_list and 'BLENDINDICES' in semantics_list:
+            instance_geom_controller = ET.SubElement(mesh_node, 'instance_controller')
+            instance_geom_controller.set('url', '#' + submesh["name"] + '-skin')
+            controller_skeleton = ET.SubElement(instance_geom_controller, 'skeleton')
+            controller_skeleton.text = '#' + skeleton_name # Should always be 'up_point' or its equivalent!
+        else:
+            instance_geom_controller = ET.SubElement(mesh_node, 'instance_geometry')
+            instance_geom_controller.set('url', '#' + submesh["name"])
+        bind_material = ET.SubElement(instance_geom_controller, 'bind_material')
         technique_common = ET.SubElement(bind_material, 'technique_common')
         instance_material = ET.SubElement(technique_common, 'instance_material')
         instance_material.set('symbol', submesh['name'] + 'SG')
@@ -669,7 +675,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials):
             technique.set('profile', 'PSSG')
             param = ET.SubElement(technique, 'param')
             param.set("name", parameter)
-        extra = ET.SubElement(instance_controller, 'extra')
+        extra = ET.SubElement(instance_geom_controller, 'extra')
         technique = ET.SubElement(extra, 'technique')
         technique.set('profile', 'PHYRE')
         object_render_properties = ET.SubElement(technique, 'object_render_properties')
@@ -683,10 +689,8 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials):
 def write_shader (materials):
     if not os.path.exists("shaders"):
         os.mkdir("shaders")
-    filename = 'shaders/ed8_chr.fx'
+    filename = materials[list(materials.keys())[0]]['shader'].split('#')[0]
     shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
-    #shaderfx += ", ".join(['"SHADER_{0}"'.format(x['m_effectVariant']['m_id'].split('#')[1][0:4]) for x in materials]) + '\r\n'
-    #shaderfx += ", ".join(['"ed8_chr.fx#{0}"'.format(x['m_effectVariant']['m_id'].split('#')[1][0:6]) for x in materials]) + '\r\n'
     added_shaders = []
     for material in materials:
         shader_switch = 'SHADER_{0}'.format(materials[material]['shader'].split('#')[1][0:4])
@@ -701,12 +705,11 @@ def write_shader (materials):
                     valuetype = 'half{0}'.format(len(materials[material]['shaderParameters'][parameter]))
                     value = "float{0}({1})".format(len(materials[material]['shaderParameters'][parameter]),\
                         ", ".join(["{0:.3f}".format(x) for x in materials[material]['shaderParameters'][parameter]]))
-                shaderfx += '{0} {1} : {1} = {2};'.format(valuetype, parameter, value)
+                shaderfx += '{0} {1} : {1} = {2};\r\n'.format(valuetype, parameter, value)
             for parameter in materials[material]['shaderSamplerDefs']:
-                shaderfx += 'sampler {0} : {0};'.format(parameter)
+                shaderfx += 'sampler {0} : {0};\r\n'.format(parameter)
             for parameter in materials[material]['shaderTextures']:
-                shaderfx += 'Texture2D {0} : {0};'.format(parameter)
-                shaderfx += '\r\n'
+                shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
             shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
     shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'
     shaderfx += '#ifdef SUBDIV_SCALAR_DISPLACEMENT\r\nTexture2D<half> DisplacementScalar;\r\n#endif // SUBDIV_SCALAR_DISPLACEMENT\r\n\r\n'
@@ -717,7 +720,7 @@ def write_shader (materials):
         f.write(shaderfx.encode('utf-8'))
     return
 
-def write_asset_xml (metadata):
+def write_asset_xml (metadata, dae_path, has_skeleton = True):
     if not os.path.exists(metadata['pkg_name']):
         os.mkdir(metadata['pkg_name'])
     filename = '{0}/asset_D3D11.xml'.format(metadata['pkg_name'])
@@ -725,36 +728,45 @@ def write_asset_xml (metadata):
     for i in range(len(metadata['images'])):
         images.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_texture" />\r\n'.format(metadata['images'][i]['uri']))
     images.sort()
+    # For shaders, sometimes is type "p_fx" and sometimes is type "binary", will need testing to see if we can just use p_fx
     shaders = []
+    already_appended = []
     for material in metadata['materials']:
-        shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['shader']))
-        shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['skinned_shader']))
+        if metadata['materials'][material]['shader'] not in already_appended:
+            shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['shader']))
+            already_appended.append(metadata['materials'][material]['shader'])
+        if has_skeleton == True:
+            if metadata['materials'][material]['skinned_shader'] not in already_appended:
+                shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['skinned_shader']))
+                already_appended.append(metadata['materials'][material]['skinned_shader'])
     shaders.sort()
     asset_xml = '<?xml version="1.0" encoding="utf-8"?>\r\n<fassets>\r\n\t<asset symbol="{0}">\r\n'.format(metadata['pkg_name'])
-    asset_xml += '\t\t<cluster path="data/D3D11/chr/chr/{0}/{1}.dae.phyre" type="p_collada" />\r\n'.format(metadata['name'].split('_')[0], metadata['name'])
+    asset_xml += '\t\t<cluster path="data/D3D11/{0}/{1}.dae.phyre" type="p_collada" />\r\n'.format(dae_path, metadata['name'])
     asset_xml += ''.join(images) + ''.join(shaders)
     asset_xml +='\t</asset>\r\n</fassets>\r\n'
     with open(filename, 'wb') as f:
         f.write(asset_xml.encode('utf-8'))
     return
 
-def write_processing_batch_file (metadata):
-    batch_file = '''@ECHO OFF
-set "SCE_PHYRE=%cd%"
-CSIVAssetImportTool.exe -fi="chr\chr\{0}\{1}.dae" -platform="D3D11" -write=all
-PhyreDummyShaderCreator.exe D3D11\chr\chr\{0}\{1}.dae.phyre
-del *.fx
-del *.cgfx
-copy D3D11\chr\chr\{0}\{1}.dae.phyre .
-python replace_shader_references.py
-del {1}.dae.phyre.bak
-move {1}.dae.phyre {2}
-'''.format(metadata['name'].split('_')[0], metadata['name'], metadata['pkg_name'])
+def write_processing_batch_file (metadata, dae_path):
+    image_copy_text = ''
     image_folders = list(set([os.path.dirname(x['uri']).replace('/','\\') for x in metadata['images']]))
     if len(image_folders) > 0:
         for folder in image_folders:
-            batch_file += '\r\ncopy D3D11\{0}\*.* {1}'.format(folder, metadata['pkg_name'])
-    batch_file += '\r\npython write_pkg.py {0}'.format(metadata['pkg_name'])
+            image_copy_text += '\r\ncopy D3D11\{0}\*.* {1}'.format(folder, metadata['pkg_name'])
+    image_copy_text += '\r\npython write_pkg.py {0}'.format(metadata['pkg_name'])
+    batch_file = '''@ECHO OFF
+set "SCE_PHYRE=%cd%"
+CSIVAssetImportTool.exe -fi="{0}\{1}.dae" -platform="D3D11" -write=all
+PhyreDummyShaderCreator.exe D3D11\{0}\{1}.dae.phyre
+copy D3D11\{0}\{1}.dae.phyre .
+python replace_shader_references.py
+del {1}.dae.phyre.bak
+{2}
+move {1}.dae.phyre {3}
+del *.fx
+del *.cgfx
+'''.format(dae_path.replace('/','\\'), metadata['name'], image_copy_text, metadata['pkg_name'])
     with open('RunMe.bat', 'wb') as f:
         f.write(batch_file.encode('utf-8'))
     return
@@ -763,6 +775,15 @@ def build_collada():
     if os.path.exists('metadata.json'):
         metadata = read_struct_from_json('metadata.json')
         print("Processing {0}...".format(metadata['pkg_name']))
+        if os.path.exists(metadata['pkg_name']+'/asset_D3D11.xml'):
+            assetfile = ET.parse(metadata['pkg_name']+'/asset_D3D11.xml')
+            # Should always be just one dae file, I think?
+            dae_files = [x.attrib['path'] for x in assetfile.getroot()[0] if x.attrib['type'] == 'p_collada']
+            if len(dae_files) > 0:
+                dae_path = os.path.dirname(dae_files[0].replace('data/D3D11/',''))
+        else:
+            dae_path = 'chr/chr/{0}'.format(metadata['name'].split('_')[0])
+        relative_path = '/'.join(['..' for x in range(len(dae_path.split('/')))])
         submeshes = []
         meshes = [x.split('meshes\\')[1].split('.fmt')[0] for x in glob.glob('meshes/*.fmt')]
         for filename in meshes:
@@ -772,38 +793,42 @@ def build_collada():
                 submesh['fmt'] = read_fmt('meshes/'+filename+'.fmt')
                 submesh['ib'] = read_ib('meshes/'+filename+'.ib', submesh['fmt'])
                 submesh['vb'] = read_vb('meshes/'+filename+'.vb', submesh['fmt'])
-                submesh['vgmap'] = read_struct_from_json('meshes/'+filename+'.vgmap')
+                if os.path.exists('meshes/'+filename+'.vgmap'):
+                    submesh['vgmap'] = read_struct_from_json('meshes/'+filename+'.vgmap')
                 submesh['material'] = read_struct_from_json('meshes/'+filename+'.material')
                 submeshes.append(submesh)
             except FileNotFoundError:
                 print("Submesh {0} not found or corrupt, skipping...".format(filename))
-        collada = basic_collada()
+        has_skeleton = False
+        for i in range(len(submeshes)):
+            if 'vgmap' in submeshes[i].keys():
+                has_skeleton = True
+        collada = basic_collada(has_skeleton = has_skeleton)
         images_data = [x['uri'] for x in metadata['images']]
-        collada = add_images(collada, images_data)
+        collada = add_images(collada, images_data, relative_path)
         print("Adding materials...")
-        collada = add_materials(collada, metadata['materials'])
+        collada = add_materials(collada, metadata['materials'], relative_path)
         print("Adding skeleton...")
         skeleton = add_bone_info(metadata['heirarchy'])
         collada = add_skeleton(collada, metadata)
         print("Adding geometry...")
-        collada = add_geometries_and_controllers(collada, submeshes, skeleton, metadata['materials'])
+        collada = add_geometries_and_controllers(collada, submeshes, skeleton, metadata['materials'], has_skeleton = has_skeleton)
         print("Writing COLLADA file...")
         with io.BytesIO() as f:
             f.write(ET.tostring(collada, encoding='utf-8', xml_declaration=True))
             f.seek(0)
             dom = xml.dom.minidom.parse(f)
             pretty_xml_as_string = dom.toprettyxml(indent='  ')
-            pathname = 'chr/chr/{0}/'.format(metadata['name'].split('_')[0])
-            if not os.path.exists(pathname):
-                os.makedirs(pathname)
-            with open(pathname + metadata['name'] + ".dae", 'w') as f2:
+            if not os.path.exists(dae_path + '/'):
+                os.makedirs(dae_path  +'/')
+            with open(dae_path + '/' + metadata['name'] + ".dae", 'w') as f2:
                 f2.write(pretty_xml_as_string)
         print("Writing shader file...")
         write_shader(metadata['materials'])
         print("Writing asset_D3D11.xml...")
-        write_asset_xml(metadata)
+        write_asset_xml(metadata, dae_path, has_skeleton = has_skeleton)
         print("Writing RunMe.bat.")
-        write_processing_batch_file(metadata)
+        write_processing_batch_file(metadata, dae_path)
     return
 
 if __name__ == '__main__':

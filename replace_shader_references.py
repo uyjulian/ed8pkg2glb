@@ -10,7 +10,7 @@ import os, json, shutil
 def make_true_shader_dict(metadata):
     true_shader_dict = {}
     true_shader_dict.update({k:b'\x00'+v['shader'].encode() for (k,v) in metadata['materials'].items()})
-    true_shader_dict.update({k+'-Skinned':b'\x00'+v['skinned_shader'].encode() for (k,v) in metadata['materials'].items()})
+    true_shader_dict.update({k+'-Skinned':b'\x00'+v['skinned_shader'].encode() for (k,v) in metadata['materials'].items() if 'skinned_shader' in v.keys()})
     return(true_shader_dict)
 
 def make_fake_shader_dict():
