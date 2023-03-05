@@ -2850,7 +2850,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         uvTangentBinormalCount[streamInfo['m_renderDataType'].replace('Skinnable','')] += 1
                     else:
                         semantic_index = 0
-                    if semantic_index > 2 and allbuffers == False:
+                    if semantic_index > 7 and allbuffers == False:
                         continue
                     element = {'id': str(i), 'SemanticName': semantics[streamInfo['m_renderDataType'].replace('Skinnable','')],\
                         'SemanticIndex': str(semantic_index), 'Format': dxgi_format, 'InputSlot': '0',\
