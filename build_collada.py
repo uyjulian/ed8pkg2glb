@@ -365,7 +365,7 @@ def get_children (parent_node, i, metadata):
     node.set('type', 'NODE')
     if 'rel_matrix' in metadata['heirarchy'][i]:
         matrix = ET.SubElement(node, 'matrix')
-        matrix.text = " ".join(["{0:g}".format(x) for x in metadata['heirarchy'][i]['rel_matrix'].flatten('C')])
+        matrix.text = " ".join(["{0}".format(x) for x in metadata['heirarchy'][i]['rel_matrix'].flatten('C')])
     if 'children' in metadata['heirarchy'][i].keys():
         for j in range(len(metadata['heirarchy'][i]['children'])):
             if metadata['heirarchy'][i]['children'][j] < len(metadata['heirarchy']):
@@ -490,7 +490,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
                 float_array = ET.SubElement(source, 'float_array')
                 float_array.set("id", source_id + '-array')
                 float_array.set("count", str(len([x for y in vb['Buffer'] for x in y])))
-                float_array.text = " ".join(["{0:g}".format(x) for y in vb['Buffer'] for x in y])
+                float_array.text = " ".join(["{0}".format(x) for y in vb['Buffer'] for x in y])
                 technique_common = ET.SubElement(source, 'technique_common')
                 accessor = ET.SubElement(technique_common, 'accessor')
                 accessor.set('source', '#' + source_id + '-array')
@@ -552,7 +552,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
             inv_bind_mtx_array = ET.SubElement(inv_bind_mtx_source, 'float_array')
             inv_bind_mtx_array.set('id', submesh['name'] + '-skin-bind_poses-array')
             inv_bind_mtx_array.set('count', str(len(blendjoints) * 16))
-            inv_bind_mtx_array.text = " ".join(["{0:g}".format(x) for y in [skeleton[bone_dict[x]]['inv_matrix'].flatten('C')\
+            inv_bind_mtx_array.text = " ".join(["{0}".format(x) for y in [skeleton[bone_dict[x]]['inv_matrix'].flatten('C')\
                 for x in blendjoints.keys()] for x in y])
             technique_common = ET.SubElement(inv_bind_mtx_source, 'technique_common')
             accessor = ET.SubElement(technique_common, 'accessor')
@@ -568,7 +568,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
             float_array = ET.SubElement(blendweights_source, 'float_array')
             float_array.set("id", submesh['name'] + '-skin-weights-array')
             float_array.set("count", str(len([x for y in new_weights for x in y])))
-            float_array.text = " ".join(["{0:g}".format(x) for y in new_weights for x in y])
+            float_array.text = " ".join(["{0}".format(x) for y in new_weights for x in y])
             technique_common = ET.SubElement(blendweights_source, 'technique_common')
             accessor = ET.SubElement(technique_common, 'accessor')
             accessor.set('source', '#' + submesh['name'] + '-skin-weights-array')
@@ -646,17 +646,16 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         if meshname == '':
             meshname = submesh["name"]
         parent_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == meshname]
+        if len(parent_node) > 0:
+            mesh_node = parent_node[0]
+        else:
+            mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
         if 'BLENDWEIGHTS' in semantics_list and 'BLENDINDICES' in semantics_list:
-            if len(parent_node) > 0:
-                mesh_node = parent_node[0]
-            else:
-                mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
             instance_geom_controller = ET.SubElement(mesh_node, 'instance_controller')
             instance_geom_controller.set('url', '#' + submesh["name"] + '-skin')
             controller_skeleton = ET.SubElement(instance_geom_controller, 'skeleton')
             controller_skeleton.text = '#' + skeleton_name # Should always be 'up_point' or its equivalent!
         else:
-            mesh_node = add_empty_node (meshname, collada.find('library_visual_scenes')[0])
             instance_geom_controller = ET.SubElement(mesh_node, 'instance_geometry')
             instance_geom_controller.set('url', '#' + submesh["name"])
         bind_material = ET.SubElement(instance_geom_controller, 'bind_material')
