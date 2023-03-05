@@ -764,7 +764,7 @@ python replace_shader_references.py
 del {1}.dae.phyre.bak
 {2}
 move {1}.dae.phyre {3}
-python write_pkg.py {3}
+python write_pkg.py -l -o {3}
 del *.fx
 del *.cgfx
 '''.format(dae_path.replace('/','\\'), metadata['name'], image_copy_text, metadata['pkg_name'])
