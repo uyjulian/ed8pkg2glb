@@ -506,7 +506,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
             blendjoints = dict(joint_list)
             new_weights = []
             new_indices = []
-            local_to_global_joints = {v:blendjoints[k] for (k,v) in submesh['vgmap'].items()}
+            local_to_global_joints = {v:blendjoints[k] for (k,v) in submesh['vgmap'].items() if k in blendjoints}
             for i in range(len(blendweights)):
                 new_weight = []
                 new_index = []
