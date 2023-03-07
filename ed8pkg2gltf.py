@@ -2898,6 +2898,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     write_vb(vb, pkg_name + "/meshes/{0}_{1:02d}.vb".format(t['mu_name'], tt), fmt)
                     with open(pkg_name + "/meshes/{0}_{1:02d}.material".format(t['mu_name'], tt), "wb") as ff:
                         ff.write(json.dumps({'material': mat['mu_materialname'].split('-Skinned')[0]}, indent=4).encode("utf-8"))
+                    with open(pkg_name + "/meshes/{0}_{1:02d}.uvmap".format(t['mu_name'], tt), "wb") as ff:
+                        ff.write(json.dumps([{'m_name': x['m_name'], 'm_index': x['m_index'], 'm_inputSet': x['m_inputSet']}\
+                            for x in t['m_segmentContext'][tt]['m_streamBindings']['m_u']], indent=4).encode("utf-8"))
 
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']:
@@ -2977,7 +2980,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 primitive['mode'] = primitiveTypeForGltf
                 mesh = {}
                 mesh['primitives'] = [primitive]
-                mesh['name'] = "{0}_{1}".format(t['mu_name'],tt)
+                mesh['name'] = "{0}_{1:02d}".format(t['mu_name'],tt)
                 #t['mu_gltfMeshIndex'] = len(meshes)
                 t['mu_gltfMeshSegmentsIndicies'].append(len(meshes))
                 meshes.append(mesh)
@@ -3067,7 +3070,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             if mesh_node_indices is not None:
                 for vv in mesh_node_indices:
                     mesh_segment_node = {}
-                    mesh_segment_node['name'] = meshes[vv]['name'] + '_node'
+                    mesh_segment_node['name'] = meshes[vv]['name'] #+ '_node'
                     mesh_segment_node['mesh'] = vv
                     children.append(len(cluster_mesh_info.data_instances_by_class['PNode']) + len(mesh_segment_nodes))
                     mesh_segment_nodes.append(mesh_segment_node)

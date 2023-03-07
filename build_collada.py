@@ -3,7 +3,7 @@
 #
 # GitHub eArmada8/ed8pkg2gltf
 
-import os, glob, numpy, json, re, io, xml.dom.minidom
+import os, glob, numpy, json, io, xml.dom.minidom
 import xml.etree.ElementTree as ET
 from lib_fmtibvb import *
 
@@ -664,26 +664,9 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         instance_material.set('symbol', submesh['name'] + 'SG')
         instance_material.set('target', '#' + submesh['material']['material'])
         material = [v for (k,v) in materials.items() if k == submesh['material']['material']][0]
-        uv_layer_by_texture = {k:int(v)-1 for (k,v) in {k:'1' if v == '' else v for (k,v)\
-            in {x:re.sub('[a-zA-Z]+','',x) for x in material['shaderTextures']}.items()}.items()}
-        #texcount_per_layer = {i:list(uv_layer_by_texture.values()).count(i) for i in list(uv_layer_by_texture.values())}
-        valid_uv_layers =  [submesh["vb"][i]['SemanticIndex'] for i in range(len(submesh["vb"]))\
-            if submesh["vb"][i]['SemanticName'] == 'TEXCOORD' and len(set([x for y in submesh["vb"][i]['Buffer'] for x in y]))>2]
         for parameter in material['shaderTextures']:
             # Texture parameters - I think these are constant from texture to texture and model to model, variations are in the effects?
             texture_name = material['shaderTextures'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
-            #Determine texture layer
-            if re.sub('[a-zA-Z]+','',parameter) != '': # Above UV 0
-                current_layer = int(re.sub('[a-zA-Z]+','',parameter)) - 1 #DiffuseMap2Sampler is layer 1, etc
-                current_layer_textures = [x for x in uv_layer_by_texture if uv_layer_by_texture[x] == current_layer]
-                #This if statement should always be true, but skip bind_vertex_input if the above filtering fails
-                if parameter in current_layer_textures:
-                    # This might not be exactly precise, but it should always result in correct mapping (I hope)
-                    tex_semantic = "TEX{0}".format(current_layer_textures.index(parameter) + (3 * current_layer))
-                    bind_vertex_input = ET.SubElement(instance_material, 'bind_vertex_input')
-                    bind_vertex_input.set('semantic', tex_semantic)
-                    bind_vertex_input.set('input_semantic', "TEXCOORD")
-                    bind_vertex_input.set('input_set', valid_uv_layers[current_layer])
             bind = ET.SubElement(instance_material, 'bind')
             bind.set("semantic", parameter)
             bind.set("target", texture_name + '-lib/outColor')
@@ -692,6 +675,12 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
             technique.set('profile', 'PSSG')
             param = ET.SubElement(technique, 'param')
             param.set("name", parameter)
+        if 'uvmap' in submesh:
+            for i in range(len(submesh["uvmap"])):
+                bind_vertex_input = ET.SubElement(instance_material, 'bind_vertex_input')
+                bind_vertex_input.set('semantic', "TEX{0}".format(submesh["uvmap"][i]['m_index']))
+                bind_vertex_input.set('input_semantic', "TEXCOORD")
+                bind_vertex_input.set('input_set', "{0}".format(submesh["uvmap"][i]['m_inputSet']))
         extra = ET.SubElement(instance_geom_controller, 'extra')
         technique = ET.SubElement(extra, 'technique')
         technique.set('profile', 'PHYRE')
@@ -813,6 +802,8 @@ def build_collada():
                 submesh['vb'] = read_vb('meshes/'+filename+'.vb', submesh['fmt'])
                 if os.path.exists('meshes/'+filename+'.vgmap'):
                     submesh['vgmap'] = read_struct_from_json('meshes/'+filename+'.vgmap')
+                if os.path.exists('meshes/'+filename+'.uvmap'):
+                    submesh['uvmap'] = read_struct_from_json('meshes/'+filename+'.uvmap')
                 submesh['material'] = read_struct_from_json('meshes/'+filename+'.material')
                 submeshes.append(submesh)
             except FileNotFoundError:
