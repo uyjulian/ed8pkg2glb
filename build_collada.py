@@ -664,9 +664,14 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         instance_material.set('symbol', submesh['name'] + 'SG')
         instance_material.set('target', '#' + submesh['material']['material'])
         material = [v for (k,v) in materials.items() if k == submesh['material']['material']][0]
+        texture_count = 0
         for parameter in material['shaderTextures']:
             # Texture parameters - I think these are constant from texture to texture and model to model, variations are in the effects?
             texture_name = material['shaderTextures'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
+            bind_vertex_input = ET.SubElement(instance_material, 'bind_vertex_input')
+            bind_vertex_input.set('semantic', "TEX{0}".format(texture_count))
+            bind_vertex_input.set('input_semantic', "TEXCOORD")
+            bind_vertex_input.set('input_set', str(texture_count))
             bind = ET.SubElement(instance_material, 'bind')
             bind.set("semantic", parameter)
             bind.set("target", texture_name + '-lib/outColor')
@@ -675,6 +680,7 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
             technique.set('profile', 'PSSG')
             param = ET.SubElement(technique, 'param')
             param.set("name", parameter)
+            texture_count += 1
         extra = ET.SubElement(instance_geom_controller, 'extra')
         technique = ET.SubElement(extra, 'technique')
         technique.set('profile', 'PHYRE')
