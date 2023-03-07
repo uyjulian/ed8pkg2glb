@@ -2831,6 +2831,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 colorCount = 0
                 tangentCount = 0
                 uvTangentBinormalCount = {'ST':0,'Tangent':0,'Binormal':0, 'Color':0}
+                valid_uvs = list(set([x['m_inputSet'] for x in t['m_segmentContext'][tt]['m_streamBindings']['m_u']]))
                 AlignedByteOffset = 0
                 for i in range(len(m['m_vertexData'])):
                     vertexData = m['m_vertexData'][i]
@@ -2961,8 +2962,11 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     if uvDataRemapped[i] is None:
                         uvDataRemapped[i] = uvDataLowest
 
+                texcoord_num = 0
                 for i in range(len(uvDataRemapped)):
-                    attributes['TEXCOORD_' + str(i)] = uvDataRemapped[i]['mu_gltfAccessorIndex']
+                    if i in valid_uvs or i == 0:
+                        attributes['TEXCOORD_' + str(texcoord_num)] = uvDataRemapped[i]['mu_gltfAccessorIndex']
+                        texcoord_num += 1
 
                 primitive['attributes'] = attributes
                 primitive['indices'] = m['mu_gltfAccessorIndex']

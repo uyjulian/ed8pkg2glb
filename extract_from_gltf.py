@@ -170,6 +170,7 @@ def dump_meshes (mesh_node, gltf, complete_maps = False):
             submesh['vgmap'] = {k:v for (k,v) in vgmap.items() if v in used_vgs }
         else:
             submesh['vgmap'] = dict(vgmap)
+        submesh['uvmap'] = [{'m_index':i*3, 'm_inputSet':i} for i in range(len([x for x in elements if x['SemanticName']=='TEXCOORD']))]
         if mesh.primitives[i].material is not None:
             submesh['material'] = gltf.materials[mesh.primitives[i].material].name.split('-Skinned')[0]
         else:
@@ -253,6 +254,8 @@ def process_gltf(filename, complete_maps = complete_vgmaps_default, overwrite = 
                 write_vb(submeshes[i]['vb'], '{0}/meshes/{1}.vb'.format(model_name, submeshes[i]['name']), submeshes[i]['fmt'])
                 with open('{0}/meshes/{1}.vgmap'.format(model_name, submeshes[i]['name']), 'wb') as f:
                     f.write(json.dumps(submeshes[i]['vgmap'], indent=4).encode("utf-8"))
+                with open('{0}/meshes/{1}.uvmap'.format(model_name, submeshes[i]['name']), 'wb') as f:
+                    f.write(json.dumps(submeshes[i]['uvmap'], indent=4).encode("utf-8"))
                 with open('{0}/meshes/{1}.material'.format(model_name, submeshes[i]['name']), 'wb') as f:
                     f.write(json.dumps({'material': submeshes[i]['material']}, indent=4).encode("utf-8"))
         metadata = {'name': model_name, 'pkg_name': model_name.upper(),\
