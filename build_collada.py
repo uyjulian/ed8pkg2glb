@@ -3,7 +3,7 @@
 #
 # GitHub eArmada8/ed8pkg2gltf
 
-import os, glob, numpy, json, io, xml.dom.minidom
+import os, glob, numpy, json, io, sys, xml.dom.minidom
 import xml.etree.ElementTree as ET
 from lib_fmtibvb import *
 
@@ -59,7 +59,8 @@ def add_images (collada, images, relative_path = '../../..'):
     return(collada)
 
 # Build the materials section
-def add_materials (collada, materials, relative_path = '../../..'):
+def add_materials (collada, metadata, relative_path = '../../..'):
+    materials = metadata['materials']
     # Materials and effects can be done in parallel
     library_materials = collada.find('library_materials')
     library_effects = collada.find('library_effects')
@@ -143,10 +144,17 @@ def add_materials (collada, materials, relative_path = '../../..'):
         for parameter in materials[material]['shaderTextures']:
             texture_name = materials[material]['shaderTextures'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
             sampler_name = parameter + 'Sampler'
+            texture_entry = [x for x in metadata['images'] if x['uri'] == materials[material]['shaderTextures'][parameter]][0]
+            if 'm_targetAssetType' in texture_entry and texture_entry['m_targetAssetType'] == 'PTextureCubeMap':
+                sampler_type = 'samplerCUBE'
+                tex_type = 'CUBE'
+            else:
+                sampler_type = 'sampler2D' # Use as default, should be PTexture2D
+                tex_type = '2D'
             #Material
             setparam = ET.SubElement(instance_effect, 'setparam')
             setparam.set("ref", material + parameter)
-            sampler = ET.SubElement(setparam, 'sampler2D')
+            sampler = ET.SubElement(setparam, sampler_type)
             source = ET.SubElement(sampler, 'source')
             source.text = texture_name + "Surface"
             wrap_s = ET.SubElement(sampler, 'wrap_s')
@@ -171,7 +179,7 @@ def add_materials (collada, materials, relative_path = '../../..'):
             setparam2 = ET.SubElement(instance_effect, 'setparam')
             setparam2.set("ref", texture_name + "Surface")
             surface = ET.SubElement(setparam2, 'surface')
-            surface.set('type', '2D')
+            surface.set('type', tex_type)
             init_from = ET.SubElement(surface, 'init_from')
             init_from.set("mip", "0")
             init_from.set("slice", "0")
@@ -692,32 +700,36 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         object_render_properties.set('motionBlurEnabled', '1')
     return(collada)
 
-def write_shader (materials):
+def write_shader (materials_list):
     if not os.path.exists("shaders"):
         os.mkdir("shaders")
-    filenames = list(set([materials[x]['shader'].split('#')[0] for x in materials]))
+    filelists = []
+    for i in range(len(materials_list)):
+        filelists.append(list(set([materials_list[i][x]['shader'].split('#')[0] for x in materials_list[i]])))
+    filenames = list(set([x for y in filelists for x in y]))
     for filename in filenames:
         shaderfx = '/*This dummy shader is used to add the correct shader parameters to the .dae.phyre*/\r\n\r\n'
         added_shaders = []
-        for material in materials:
-            shader_switch = 'SHADER_{0}'.format(materials[material]['shader'].split('#')[1][0:4])
-            if shader_switch not in added_shaders and materials[material]['shader'].split('#')[0] == filename:
-                added_shaders.append(shader_switch)
-                shaderfx += '#ifdef {0}\r\n'.format(shader_switch)
-                for parameter in materials[material]['shaderParameters']:
-                    if len(materials[material]['shaderParameters'][parameter]) == 1:
-                        valuetype = 'half'
-                        value = "{0:.3f}".format(materials[material]['shaderParameters'][parameter][0])
-                    else:
-                        valuetype = 'half{0}'.format(len(materials[material]['shaderParameters'][parameter]))
-                        value = "float{0}({1})".format(len(materials[material]['shaderParameters'][parameter]),\
-                            ", ".join(["{0:.3f}".format(x) for x in materials[material]['shaderParameters'][parameter]]))
-                    shaderfx += '{0} {1} : {1} = {2};\r\n'.format(valuetype, parameter, value)
-                for parameter in materials[material]['shaderSamplerDefs']:
-                    shaderfx += 'sampler {0} : {0};\r\n'.format(parameter)
-                for parameter in materials[material]['shaderTextures']:
-                    shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
-                shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
+        for i in range(len(materials_list)):
+            for material in materials_list[i]:
+                shader_switch = 'SHADER_{0}'.format(materials_list[i][material]['shader'].split('#')[-1][0:4])
+                if shader_switch not in added_shaders and materials_list[i][material]['shader'].split('#')[0] == filename:
+                    added_shaders.append(shader_switch)
+                    shaderfx += '#ifdef {0}\r\n'.format(shader_switch)
+                    for parameter in materials_list[i][material]['shaderParameters']:
+                        if len(materials_list[i][material]['shaderParameters'][parameter]) == 1:
+                            valuetype = 'half'
+                            value = "{0:.3f}".format(materials_list[i][material]['shaderParameters'][parameter][0])
+                        else:
+                            valuetype = 'half{0}'.format(len(materials_list[i][material]['shaderParameters'][parameter]))
+                            value = "float{0}({1})".format(len(materials_list[i][material]['shaderParameters'][parameter]),\
+                                ", ".join(["{0:.3f}".format(x) for x in materials_list[i][material]['shaderParameters'][parameter]]))
+                        shaderfx += '{0} {1} : {1} = {2};\r\n'.format(valuetype, parameter, value)
+                    for parameter in materials_list[i][material]['shaderSamplerDefs']:
+                        shaderfx += 'sampler {0} : {0};\r\n'.format(parameter)
+                    for parameter in materials_list[i][material]['shaderTextures']:
+                        shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
+                    shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
         shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'
         shaderfx += '#ifdef SUBDIV_SCALAR_DISPLACEMENT\r\nTexture2D<half> DisplacementScalar;\r\n#endif // SUBDIV_SCALAR_DISPLACEMENT\r\n\r\n'
         shaderfx += '#ifdef SUBDIV_VECTOR_DISPLACEMENT\r\nTexture2D<half4> DisplacementVector;\r\n#define USE_TANGENTS\r\n#endif // SUBDIV_VECTOR_DISPLACEMENT\r\n\r\n'
@@ -727,84 +739,104 @@ def write_shader (materials):
             f.write(shaderfx.encode('utf-8'))
     return
 
-def write_asset_xml (metadata, dae_path, has_skeleton = True):
-    if not os.path.exists(metadata['pkg_name']):
-        os.mkdir(metadata['pkg_name'])
-    filename = '{0}/asset_D3D11.xml'.format(metadata['pkg_name'])
-    images = []
-    for i in range(len(metadata['images'])):
-        images.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_texture" />\r\n'.format(metadata['images'][i]['uri']))
-    images.sort()
-    # For shaders, sometimes is type "p_fx" and sometimes is type "binary", will need testing to see if we can just use p_fx
-    shaders = []
+def asset_info_from_xml(filename):
+    assetfile = ET.parse(filename)
+    daes = {}
+    for i in range(len(assetfile.getroot())):
+        asset_symbol = assetfile.getroot()[i].attrib['symbol']
+        dae_files = [x.attrib['path'] for x in assetfile.getroot()[i] if x.attrib['type'] == 'p_collada']
+        if len(dae_files) > 0:
+            for j in range(len(dae_files)):
+                daes[dae_files[j].split('/')[-1].split('.dae')[0]] =\
+                    {'asset_symbol': asset_symbol, 'dae_path': os.path.dirname(dae_files[j].replace('data/D3D11/',''))}
+    return(daes)
+
+def write_asset_xml (metadata_list):
+    xml_info = asset_info_from_xml(metadata_list[0]['pkg_name']+'/asset_D3D11.xml')
+    if not os.path.exists(metadata_list[0]['pkg_name']):
+        os.mkdir(metadata_list[0]['pkg_name'])
+    filename = '{0}/asset_D3D11.xml'.format(metadata_list[0]['pkg_name'])
     already_appended = []
-    for material in metadata['materials']:
-        if metadata['materials'][material]['shader'] not in already_appended:
-            shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['shader']))
-            already_appended.append(metadata['materials'][material]['shader'])
-        if has_skeleton == True:
-            if metadata['materials'][material]['skinned_shader'] not in already_appended:
-                shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(metadata['materials'][material]['skinned_shader']))
-                already_appended.append(metadata['materials'][material]['skinned_shader'])
-    shaders.sort()
-    asset_xml = '<?xml version="1.0" encoding="utf-8"?>\r\n<fassets>\r\n\t<asset symbol="{0}">\r\n'.format(metadata['pkg_name'])
-    asset_xml += '\t\t<cluster path="data/D3D11/{0}/{1}.dae.phyre" type="p_collada" />\r\n'.format(dae_path, metadata['name'])
-    asset_xml += ''.join(images) + ''.join(shaders)
-    asset_xml +='\t</asset>\r\n</fassets>\r\n'
+    asset_xml = '<?xml version="1.0" encoding="utf-8"?>\r\n<fassets>\r\n'
+    for i in range(len(metadata_list)):
+        images = []
+        for j in range(len(metadata_list[i]['images'])):
+            if metadata_list[i]['images'][j]['uri'] not in already_appended:
+                images.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_texture" />\r\n'.format(metadata_list[i]['images'][j]['uri']))
+                already_appended.append(metadata_list[i]['images'][j]['uri'])
+        images.sort()
+        shaders = []
+        for material in metadata_list[i]['materials']:
+            for shader_type in ['shader','skinned_shader']:
+                if shader_type in metadata_list[i]['materials'][material] and metadata_list[i]['materials'][material][shader_type] not in already_appended:
+                    shader_name = metadata_list[i]['materials'][material][shader_type]
+                    if len(shader_name.split('#')) == 1:
+                        shader_name += '#00000000000000000000000000000000'
+                    shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(shader_name))
+                    already_appended.append(metadata_list[i]['materials'][material]['shader'])
+        shaders.sort()
+        asset_xml += '\t<asset symbol="{0}">\r\n'.format(xml_info[metadata_list[i]['name']]['asset_symbol'])
+        asset_xml += '\t\t<cluster path="data/D3D11/{0}/{1}.dae.phyre" type="p_collada" />\r\n'.format(xml_info[metadata_list[i]['name']]['dae_path'], metadata_list[i]['name'])
+        asset_xml += ''.join(images) + ''.join(shaders)
+        asset_xml += '\t</asset>\r\n'
+    asset_xml += '</fassets>\r\n'
     with open(filename, 'wb') as f:
         f.write(asset_xml.encode('utf-8'))
     return
 
-def write_processing_batch_file (metadata, dae_path):
+def rename_hashless_shaders(metadata_list):
+    hashless_shaders = glob.glob(metadata_list[0]['pkg_name']+'/*.fx.phyre')
+    for i in range(len(hashless_shaders)):
+        os.rename(hashless_shaders[i], 'fx#00000000000000000000000000000000.phyre'.join(hashless_shaders[i].split('fx.phyre')))
+    return
+
+def write_processing_batch_file (models):
+    metadata_list = [read_struct_from_json(x) for x in models] # A little inefficient but safer
+    xml_info = asset_info_from_xml(metadata_list[0]['pkg_name']+'/asset_D3D11.xml')
     image_copy_text = ''
-    image_folders = list(set([os.path.dirname(x['uri']).replace('/','\\') for x in metadata['images']]))
+    image_folders = list(set([os.path.dirname(x['uri']).replace('/','\\') for y in metadata_list for x in y['images']]))
     if len(image_folders) > 0:
         for folder in image_folders:
-            image_copy_text += '\r\ncopy D3D11\{0}\*.* {1}'.format(folder, metadata['pkg_name'])
-    batch_file = '''@ECHO OFF
-set "SCE_PHYRE=%cd%"
-CSIVAssetImportTool.exe -fi="{0}\{1}.dae" -platform="D3D11" -write=all
+            image_copy_text += 'copy D3D11\{0}\*.* {1}\r\n'.format(folder, metadata_list[0]['pkg_name'])
+    batch_file = '@ECHO OFF\r\nset "SCE_PHYRE=%cd%"\r\n'
+    for i in range(len(metadata_list)):
+        batch_file += '''CSIVAssetImportTool.exe -fi="{0}\{1}.dae" -platform="D3D11" -write=all
 PhyreDummyShaderCreator.exe D3D11\{0}\{1}.dae.phyre
 copy D3D11\{0}\{1}.dae.phyre .
-python replace_shader_references.py
+python replace_shader_references.py {2}
 del {1}.dae.phyre.bak
-{2}
-move {1}.dae.phyre {3}
-python write_pkg.py -l -o {3}
-del *.fx
-del *.cgfx
-'''.format(dae_path.replace('/','\\'), metadata['name'], image_copy_text, metadata['pkg_name'])
+move {1}.dae.phyre {3}'''.format(xml_info[metadata_list[i]['name']]['dae_path'].replace('/','\\'),\
+        metadata_list[i]['name'], models[i], metadata_list[0]['pkg_name']) + '\r\n'
+    batch_file += image_copy_text + 'python write_pkg.py -l -o {0}\r\ndel *.fx\r\ndel *.cgfx\r\n'.format(metadata_list[0]['pkg_name'])
     with open('RunMe.bat', 'wb') as f:
         f.write(batch_file.encode('utf-8'))
     return
 
-def build_collada():
-    if os.path.exists('metadata.json'):
-        metadata = read_struct_from_json('metadata.json')
+def build_collada(metadata_name):
+    if os.path.exists(metadata_name):
+        metadata = read_struct_from_json(metadata_name)
         print("Processing {0}...".format(metadata['pkg_name']))
+        dae_path = 'chr/chr/{0}'.format(metadata['name'].split('_')[0]) # Default name, to be overwritten by value in asset_D3D11.xml
         if os.path.exists(metadata['pkg_name']+'/asset_D3D11.xml'):
-            assetfile = ET.parse(metadata['pkg_name']+'/asset_D3D11.xml')
-            # Should always be just one dae file, I think?
-            dae_files = [x.attrib['path'] for x in assetfile.getroot()[0] if x.attrib['type'] == 'p_collada']
-            if len(dae_files) > 0:
-                dae_path = os.path.dirname(dae_files[0].replace('data/D3D11/',''))
-        else:
-            dae_path = 'chr/chr/{0}'.format(metadata['name'].split('_')[0])
+            xml_info = asset_info_from_xml(metadata['pkg_name']+'/asset_D3D11.xml')
+            if metadata['name'] in xml_info:
+                dae_path = xml_info[metadata['name']]['dae_path']
         relative_path = '/'.join(['..' for x in range(len(dae_path.split('/')))])
+        meshes_path = 'meshes' + metadata_name.split('.json')[0].split('metadata')[-1]
         submeshes = []
-        meshes = [x.split('meshes\\')[1].split('.fmt')[0] for x in glob.glob('meshes/*.fmt')]
+        meshes = [x.split(meshes_path+'\\')[1].split('.fmt')[0] for x in glob.glob(meshes_path+'/*.fmt')]
         for filename in meshes:
             try:
                 print("Reading submesh {0}...".format(filename))
                 submesh = {'name': filename}
-                submesh['fmt'] = read_fmt('meshes/'+filename+'.fmt')
-                submesh['ib'] = read_ib('meshes/'+filename+'.ib', submesh['fmt'])
-                submesh['vb'] = read_vb('meshes/'+filename+'.vb', submesh['fmt'])
-                if os.path.exists('meshes/'+filename+'.vgmap'):
-                    submesh['vgmap'] = read_struct_from_json('meshes/'+filename+'.vgmap')
-                if os.path.exists('meshes/'+filename+'.uvmap'):
-                    submesh['uvmap'] = read_struct_from_json('meshes/'+filename+'.uvmap')
-                submesh['material'] = read_struct_from_json('meshes/'+filename+'.material')
+                submesh['fmt'] = read_fmt(meshes_path+'/'+filename+'.fmt')
+                submesh['ib'] = read_ib(meshes_path+'/'+filename+'.ib', submesh['fmt'])
+                submesh['vb'] = read_vb(meshes_path+'/'+filename+'.vb', submesh['fmt'])
+                if os.path.exists(meshes_path+'/'+filename+'.vgmap'):
+                    submesh['vgmap'] = read_struct_from_json(meshes_path+'/'+filename+'.vgmap')
+                if os.path.exists(meshes_path+'/'+filename+'.uvmap'):
+                    submesh['uvmap'] = read_struct_from_json(meshes_path+'/'+filename+'.uvmap')
+                submesh['material'] = read_struct_from_json(meshes_path+'/'+filename+'.material')
                 submeshes.append(submesh)
             except FileNotFoundError:
                 print("Submesh {0} not found or corrupt, skipping...".format(filename))
@@ -816,7 +848,7 @@ def build_collada():
         images_data = [x['uri'] for x in metadata['images']]
         collada = add_images(collada, images_data, relative_path)
         print("Adding materials...")
-        collada = add_materials(collada, metadata['materials'], relative_path)
+        collada = add_materials(collada, metadata, relative_path)
         print("Adding skeleton...")
         skeleton = add_bone_info(metadata['heirarchy'])
         collada = add_skeleton(collada, metadata)
@@ -832,15 +864,23 @@ def build_collada():
                 os.makedirs(dae_path  +'/')
             with open(dae_path + '/' + metadata['name'] + ".dae", 'w') as f2:
                 f2.write(pretty_xml_as_string)
-        print("Writing shader file...")
-        write_shader(metadata['materials'])
-        print("Writing asset_D3D11.xml...")
-        write_asset_xml(metadata, dae_path, has_skeleton = has_skeleton)
-        print("Writing RunMe.bat.")
-        write_processing_batch_file(metadata, dae_path)
     return
 
 if __name__ == '__main__':
     # Set current directory
-    os.chdir(os.path.abspath(os.path.dirname(__file__)))
-    build_collada()
+    if getattr(sys, 'frozen', False):
+        os.chdir(os.path.dirname(sys.executable))
+    else:
+        os.chdir(os.path.abspath(os.path.dirname(__file__)))
+    models = glob.glob("metadata*.json")
+    for i in range(len(models)):
+        build_collada(models[i])
+    metadata_list = [read_struct_from_json(x) for x in models]
+    print("Writing shader file...")
+    write_shader([x['materials'] for x in metadata_list])
+    print("Writing asset_D3D11.xml...")
+    write_asset_xml(metadata_list)
+    print("Renaming any hashless shaders...")
+    rename_hashless_shaders(metadata_list)
+    print("Writing RunMe.bat.")
+    write_processing_batch_file(models)
