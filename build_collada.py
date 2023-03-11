@@ -234,42 +234,43 @@ def add_materials (collada, metadata, relative_path = '../../..'):
         extra = ET.SubElement(material_element, 'extra')
         technique = ET.SubElement(extra, 'technique')
         technique.set("profile", "PHYRE")
-        material_switches = ET.SubElement(technique, 'material_switches')
-        current_shader_switch = 'SHADER_' + materials[material]['shader'].split('#')[-1][0:4]
-        shader = ET.SubElement(material_switches, current_shader_switch)
-        material_switch_list = ET.SubElement(technique, 'material_switch_list')
-        ## Switches are taken from the shader files themselves
-        #for material_switch in materials[material]['shaderSwitches']:
+        if 'shaderSwitches' in materials[material]:
+            material_switches = ET.SubElement(technique, 'material_switches')
+            current_shader_switch = 'SHADER_' + materials[material]['shader'].split('#')[-1][0:4]
+            shader = ET.SubElement(material_switches, current_shader_switch)
+            material_switch_list = ET.SubElement(technique, 'material_switch_list')
+            # Switches are taken from the shader files themselves
+            for material_switch in materials[material]['shaderSwitches']:
+                material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
+                material_switch_entry.set("name", material_switch)
+                material_switch_entry.set("material_switch_value", materials[material]['shaderSwitches'][material_switch])
+        #for material_switch in ['BLOOM_INTENSITY', 'SAMPLER_TOGGLE', 'VERTEX_COLOR_ENABLED', 'LIGHTING_ENABLED',\
+                #'DIFFUSE_ENABLED', 'DIFFUSE2_ENABLED', 'DIFFUSE3_ENABLED', 'ALPHA_BLENDING_ENABLED', 'NORMAL_MAPPING_ENABLED',\
+                #'WRAP_DIFFUSE_LIGHTING', 'SPECULAR_ENABLED', 'CASTS_SHADOWS', 'RECEIVE_SHADOWS', 'DOUBLE_SIDED', 'MOTION_BLUR_ENABLED',\
+                #'GENERATE_LIGHTS', 'SHININESS', 'RENDER_AS_LOW_RES', 'LIGHTMAP_OCCLUSION', 'SUBDIV', 'SUBDIV_SCALAR_DISPLACEMENT',\
+                #'SUBDIV_VECTOR_DISPLACEMENT', 'FOR_EFFECT', 'FOR_SHADOW', 'USE_OUTLINE', 'USE_OUTLINE_COLOR', 'ALPHA_TESTING_ENABLED',\
+                #'ADDITIVE_BLENDING_ENABLED', 'SUBTRACT_BLENDING_ENABLED', 'MULTIPLICATIVE_BLENDING_ENABLED', 'TRANSPARENT_DELAY_ENABLED',\
+                #'PORTRAIT_GLASS_FIX', 'FOG_ENABLED', 'NO_ALL_LIGHTING_ENABLED', 'NO_MAIN_LIGHT_SHADING_ENABLED',\
+                #'FORCE_CHAR_LIGHT_DIRECTION_ENABLED', 'PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED', 'SHADOW_COLOR_SHIFT_ENABLED',\
+                #'CARTOON_SHADING_ENABLED', 'SPECULAR_COLOR_ENABLED', 'SPECULAR_MAPPING_ENABLED', 'RIM_LIGHTING_ENABLED',\
+                #'RIM_TRANSPARENCY_ENABLED', 'NORMAL_MAPP_DXT5_NM_ENABLED', 'EMISSION_MAPPING_ENABLED', 'SPHERE_MAPPING_ENABLED',\
+                #'SPHERE_RECEIVE_OFFSET_ENABLED', 'SPHERE_MAPPING_HAIRCUTICLE_ENABLED', 'CUBE_MAPPING_ENABLED', 'DUDV_MAPPING_ENABLED',\
+                #'GLARE_ENABLED', 'MULTI_UV_ENANLED', 'MULTI_UV_PROJTEXCOORD', 'MULTI_UV_ADDITIVE_BLENDING_ENANLED', 'MULTI_UV_DUDV_ENANLED',\
+                #'MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED', 'MULTI_UV_FACE_ENANLED',\
+                #'MULTI_UV_NORMAL_MAPPING_ENABLED', 'MULTI_UV_SPECULAR_MAPPING_ENABLED', 'MULTI_UV_GLARE_MAPPING_ENABLED',\
+                #'MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED', 'MULTI_UV2_ENANLED', 'MULTI_UV2_ADDITIVE_BLENDING_ENANLED',\
+                #'MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED',\
+                #'MULTI_UV2_SPECULAR_MAPPING_ENABLED', 'GAME_MATERIAL_ID', 'GAME_MATERIAL_TEXCOORD', 'GLARE_INTENSITY']:
             #material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
             #material_switch_entry.set("name", material_switch)
-            #material_switch_entry.set("material_switch_value", materials[material]['shaderSwitches'][material_switch])
-        for material_switch in ['BLOOM_INTENSITY', 'SAMPLER_TOGGLE', 'VERTEX_COLOR_ENABLED', 'LIGHTING_ENABLED',\
-                'DIFFUSE_ENABLED', 'DIFFUSE2_ENABLED', 'DIFFUSE3_ENABLED', 'ALPHA_BLENDING_ENABLED', 'NORMAL_MAPPING_ENABLED',\
-                'WRAP_DIFFUSE_LIGHTING', 'SPECULAR_ENABLED', 'CASTS_SHADOWS', 'RECEIVE_SHADOWS', 'DOUBLE_SIDED', 'MOTION_BLUR_ENABLED',\
-                'GENERATE_LIGHTS', 'SHININESS', 'RENDER_AS_LOW_RES', 'LIGHTMAP_OCCLUSION', 'SUBDIV', 'SUBDIV_SCALAR_DISPLACEMENT',\
-                'SUBDIV_VECTOR_DISPLACEMENT', 'FOR_EFFECT', 'FOR_SHADOW', 'USE_OUTLINE', 'USE_OUTLINE_COLOR', 'ALPHA_TESTING_ENABLED',\
-                'ADDITIVE_BLENDING_ENABLED', 'SUBTRACT_BLENDING_ENABLED', 'MULTIPLICATIVE_BLENDING_ENABLED', 'TRANSPARENT_DELAY_ENABLED',\
-                'PORTRAIT_GLASS_FIX', 'FOG_ENABLED', 'NO_ALL_LIGHTING_ENABLED', 'NO_MAIN_LIGHT_SHADING_ENABLED',\
-                'FORCE_CHAR_LIGHT_DIRECTION_ENABLED', 'PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED', 'SHADOW_COLOR_SHIFT_ENABLED',\
-                'CARTOON_SHADING_ENABLED', 'SPECULAR_COLOR_ENABLED', 'SPECULAR_MAPPING_ENABLED', 'RIM_LIGHTING_ENABLED',\
-                'RIM_TRANSPARENCY_ENABLED', 'NORMAL_MAPP_DXT5_NM_ENABLED', 'EMISSION_MAPPING_ENABLED', 'SPHERE_MAPPING_ENABLED',\
-                'SPHERE_RECEIVE_OFFSET_ENABLED', 'SPHERE_MAPPING_HAIRCUTICLE_ENABLED', 'CUBE_MAPPING_ENABLED', 'DUDV_MAPPING_ENABLED',\
-                'GLARE_ENABLED', 'MULTI_UV_ENANLED', 'MULTI_UV_PROJTEXCOORD', 'MULTI_UV_ADDITIVE_BLENDING_ENANLED', 'MULTI_UV_DUDV_ENANLED',\
-                'MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED', 'MULTI_UV_FACE_ENANLED',\
-                'MULTI_UV_NORMAL_MAPPING_ENABLED', 'MULTI_UV_SPECULAR_MAPPING_ENABLED', 'MULTI_UV_GLARE_MAPPING_ENABLED',\
-                'MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED', 'MULTI_UV2_ENANLED', 'MULTI_UV2_ADDITIVE_BLENDING_ENANLED',\
-                'MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED',\
-                'MULTI_UV2_SPECULAR_MAPPING_ENABLED', 'GAME_MATERIAL_ID', 'GAME_MATERIAL_TEXCOORD', 'GLARE_INTENSITY']:
-            material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
-            material_switch_entry.set("name", material_switch)
-            material_switch_entry.set("material_switch_value", '0')
-        for i in range(len(all_shader_switches)):
-            material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
-            material_switch_entry.set("name", all_shader_switches[i])
-            if all_shader_switches[i] == current_shader_switch:
-                material_switch_entry.set("material_switch_value", "1")
-            else:
-                material_switch_entry.set("material_switch_value", "0")
+            #material_switch_entry.set("material_switch_value", '0')
+            for i in range(len(all_shader_switches)):
+                material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
+                material_switch_entry.set("name", all_shader_switches[i])
+                if all_shader_switches[i] == current_shader_switch:
+                    material_switch_entry.set("material_switch_value", "1")
+                else:
+                    material_switch_entry.set("material_switch_value", "0")
         forwardrendertechnique = ET.SubElement(profile_HLSL, 'technique')
         forwardrendertechnique.set('sid','ForwardRender')
         renderpass = ET.SubElement(forwardrendertechnique, 'pass')
@@ -770,8 +771,6 @@ def write_asset_xml (metadata_list):
             for shader_type in ['shader','skinned_shader']:
                 if shader_type in metadata_list[i]['materials'][material] and metadata_list[i]['materials'][material][shader_type] not in already_appended:
                     shader_name = metadata_list[i]['materials'][material][shader_type]
-                    if len(shader_name.split('#')) == 1:
-                        shader_name += '#00000000000000000000000000000000'
                     shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(shader_name))
                     already_appended.append(metadata_list[i]['materials'][material]['shader'])
         shaders.sort()
@@ -782,12 +781,6 @@ def write_asset_xml (metadata_list):
     asset_xml += '</fassets>\r\n'
     with open(filename, 'wb') as f:
         f.write(asset_xml.encode('utf-8'))
-    return
-
-def rename_hashless_shaders(metadata_list):
-    hashless_shaders = glob.glob(metadata_list[0]['pkg_name']+'/*.fx.phyre')
-    for i in range(len(hashless_shaders)):
-        os.rename(hashless_shaders[i], 'fx#00000000000000000000000000000000.phyre'.join(hashless_shaders[i].split('fx.phyre')))
     return
 
 def write_processing_batch_file (models):
@@ -880,7 +873,5 @@ if __name__ == '__main__':
     write_shader([x['materials'] for x in metadata_list])
     print("Writing asset_D3D11.xml...")
     write_asset_xml(metadata_list)
-    print("Renaming any hashless shaders...")
-    rename_hashless_shaders(metadata_list)
     print("Writing RunMe.bat.")
     write_processing_batch_file(models)

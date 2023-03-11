@@ -9,10 +9,8 @@ import os, json, shutil, glob, sys
 
 def make_true_shader_dict(metadata):
     true_shader_dict = {}
-    true_shader_dict.update({k:b'\x00'+v['shader'].encode() if len(v['shader'].split('#'))>1\
-        else b'\x00'+(v['shader']+'#00000000000000000000000000000000').encode() for (k,v) in metadata['materials'].items()})
-    true_shader_dict.update({k+'-Skinned':b'\x00'+v['skinned_shader'].encode() if len(v['skinned_shader'].split('#'))>1\
-        else b'\x00'+(v['skinned_shader']+'#00000000000000000000000000000000').encode() for (k,v) in metadata['materials'].items() if 'skinned_shader' in v.keys()})
+    true_shader_dict.update({k:b'\x00'+v['shader'].encode() for (k,v) in metadata['materials'].items()})
+    true_shader_dict.update({k+'-Skinned':b'\x00'+v['skinned_shader'].encode() for (k,v) in metadata['materials'].items() if 'skinned_shader' in v.keys()})
     return(true_shader_dict)
 
 def make_fake_shader_dict():
@@ -33,8 +31,12 @@ def replace_shader_references(filedata, true_shader_dict, fake_shader_dict):
         shader_loc = filedata.find(b'\x00shader', 1)
         new_phyre = filedata[0:shader_loc]
         while shader_loc > 0:
-            shader_key = filedata[filedata.find(b'.fx#', shader_loc)+4:filedata.find(b'.fx#', shader_loc)+36].decode()
-            new_phyre += true_shader_dict[fake_shader_dict[shader_key]]
+            shader_filename = filedata[shader_loc+1:filedata.find(b'\x00', shader_loc+1)].decode()
+            if '#' in shader_filename:
+                shader_key = shader_filename.split('#')[-1]
+                new_phyre += true_shader_dict[fake_shader_dict[shader_key]]
+            else:
+                new_phyre += b'\x00' + shader_filename.encode()
             end_key = filedata.find(b'\x00', shader_loc + 1)
             shader_loc = filedata.find(b'\x00shader', shader_loc + 1)
         new_phyre += filedata[end_key:]
