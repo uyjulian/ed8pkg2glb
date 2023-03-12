@@ -449,6 +449,8 @@ def add_skeleton (collada, metadata):
 # Add geometries and skin them.  Needs a base node tree to build links to.
 def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has_skeleton = True):
     library_geometries = collada.find('library_geometries')
+    #Find mesh instances with saved inverted bind matrices
+    mesh_instances = list(set([x.split('_imtx')[0] for i in range(len(skeleton)) for x in skeleton[i].keys() if '_imtx' in x]))
     if has_skeleton == True:
         library_controllers = collada.find('library_controllers')
         library_visual_scenes = collada.find('library_visual_scenes')
@@ -461,8 +463,11 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         joint_list = get_joint_list(skeleton_id, [x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton_name], skeleton)
         bone_dict = get_bone_dict(skeleton)
     for submesh in submeshes:
-        meshname = "_".join(submesh["name"].split("_")[:-1])
-        if meshname == '':
+        if "_".join(submesh["name"].split("_")[:-1]) in mesh_instances:
+            meshname = "_".join(submesh["name"].split("_")[:-1])
+        elif "_".join(submesh["name"].split("_")[:-2]) in mesh_instances:
+            meshname = "_".join(submesh["name"].split("_")[:-2])
+        else:
             meshname = submesh["name"]
         semantics_list = [x['SemanticName'] for x in submesh["vb"]]
         geometry = ET.SubElement(library_geometries, 'geometry')
