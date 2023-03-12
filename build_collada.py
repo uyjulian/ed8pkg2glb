@@ -461,6 +461,9 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         joint_list = get_joint_list(skeleton_id, [x for y in [x['vgmap'].keys() for x in submeshes] for x in y]+[skeleton_name], skeleton)
         bone_dict = get_bone_dict(skeleton)
     for submesh in submeshes:
+        meshname = "_".join(submesh["name"].split("_")[:-1])
+        if meshname == '':
+            meshname = submesh["name"]
         semantics_list = [x['SemanticName'] for x in submesh["vb"]]
         geometry = ET.SubElement(library_geometries, 'geometry')
         geometry.set("id", submesh['name'])
@@ -561,7 +564,10 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
             inv_bind_mtx_array = ET.SubElement(inv_bind_mtx_source, 'float_array')
             inv_bind_mtx_array.set('id', submesh['name'] + '-skin-bind_poses-array')
             inv_bind_mtx_array.set('count', str(len(blendjoints) * 16))
-            inv_bind_mtx_array.text = " ".join(["{0}".format(x) for y in [skeleton[bone_dict[x]]['inv_matrix'].flatten('C')\
+            inv_bind_mtx_array.text = " ".join(["{0}".format(x) for y in\
+                [numpy.array([skeleton[bone_dict[x]][meshname+'_imtx'][0:4], skeleton[bone_dict[x]][meshname+'_imtx'][4:8],\
+                skeleton[bone_dict[x]][meshname+'_imtx'][8:12], skeleton[bone_dict[x]][meshname+'_imtx'][12:16]]).transpose().flatten('C')\
+                if meshname+'_imtx' in skeleton[bone_dict[x]].keys() else skeleton[bone_dict[x]]['inv_matrix'].flatten('C')\
                 for x in blendjoints.keys()] for x in y])
             technique_common = ET.SubElement(inv_bind_mtx_source, 'technique_common')
             accessor = ET.SubElement(technique_common, 'accessor')
@@ -651,9 +657,6 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
         double_sided = ET.SubElement(technique, 'double_sided')
         double_sided.text = '1'
         # Create geometry node
-        meshname = "_".join(submesh["name"].split("_")[:-1])
-        if meshname == '':
-            meshname = submesh["name"]
         parent_node = [x for x in collada.iter() if 'sid' in x.attrib and x.attrib['sid'] == meshname]
         if len(parent_node) > 0:
             mesh_node = parent_node[0]
