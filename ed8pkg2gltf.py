@@ -2948,13 +2948,13 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                                             uvIndex = 5
                                         elif xx['m_nameHash'] == 41522:
                                             uvIndex = 4
-                                        elif xx['m_nameHash'] == 41521:
+                                        elif xx['m_nameHash'] == 41521 or xx['m_nameHash'] == 59967:
                                             uvIndex = 3
-                                        elif xx['m_nameHash'] == 41520:
+                                        elif xx['m_nameHash'] == 41520 or xx['m_nameHash'] == 59964:
                                             uvIndex = 2
-                                        elif xx['m_nameHash'] == 41519:
+                                        elif xx['m_nameHash'] == 41519 or xx['m_nameHash'] == 59961:
                                             uvIndex = 1
-                                        elif xx['m_nameHash'] == 21117 or xx['m_nameHash'] == 50588 or xx['m_nameHash'] == 41517:
+                                        elif xx['m_nameHash'] == 21117 or xx['m_nameHash'] == 50588 or xx['m_nameHash'] == 41517 or xx['m_nameHash'] == 59958:
                                             uvIndex = 0
                                         else:
                                             print('Unknown how to handle ' + xx['m_name'])

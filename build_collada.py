@@ -347,11 +347,12 @@ def add_bone_info (skeleton):
 
 # Ordered_list should be empty when calling
 def order_nodes_by_heirarchy (node, filter_list, skeleton, ordered_list = []):
-    if skeleton[node]['name'] in filter_list:
-        ordered_list.append(skeleton[node]['name'])
-    if 'children' in skeleton[node].keys():
-        for child in skeleton[node]['children']:
-            ordered_list = order_nodes_by_heirarchy (child, filter_list, skeleton, ordered_list)
+    if node < len(skeleton):
+        if skeleton[node]['name'] in filter_list:
+            ordered_list.append(skeleton[node]['name'])
+        if 'children' in skeleton[node].keys():
+            for child in skeleton[node]['children']:
+                ordered_list = order_nodes_by_heirarchy (child, filter_list, skeleton, ordered_list)
     return(ordered_list)
 
 # Needs to be ordered by heirarchy, phyre Engine seems very sensitive to this
