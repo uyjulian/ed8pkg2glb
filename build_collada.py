@@ -768,6 +768,12 @@ def write_asset_xml (metadata_list):
     already_appended = []
     asset_xml = '<?xml version="1.0" encoding="utf-8"?>\r\n<fassets>\r\n'
     for i in range(len(metadata_list)):
+        if metadata_list[i]['name'] in xml_info:
+            current_xml_asset = xml_info[metadata_list[i]['name']]['asset_symbol']
+            current_dae_path = xml_info[metadata_list[i]['name']]['dae_path']
+        else:
+            current_xml_asset = metadata_list[i]['pkg_name']
+            current_dae_path = xml_info[list(xml_info.keys())[0]]['dae_path'] # If asset does not exist, use first entry as it is likely the xml is a template
         images = []
         for j in range(len(metadata_list[i]['images'])):
             if metadata_list[i]['images'][j]['uri'] not in already_appended:
@@ -782,8 +788,8 @@ def write_asset_xml (metadata_list):
                     shaders.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_fx" />\r\n'.format(shader_name))
                     already_appended.append(metadata_list[i]['materials'][material]['shader'])
         shaders.sort()
-        asset_xml += '\t<asset symbol="{0}">\r\n'.format(xml_info[metadata_list[i]['name']]['asset_symbol'])
-        asset_xml += '\t\t<cluster path="data/D3D11/{0}/{1}.dae.phyre" type="p_collada" />\r\n'.format(xml_info[metadata_list[i]['name']]['dae_path'], metadata_list[i]['name'])
+        asset_xml += '\t<asset symbol="{0}">\r\n'.format(current_xml_asset)
+        asset_xml += '\t\t<cluster path="data/D3D11/{0}/{1}.dae.phyre" type="p_collada" />\r\n'.format(current_dae_path, metadata_list[i]['name'])
         asset_xml += ''.join(images) + ''.join(shaders)
         asset_xml += '\t</asset>\r\n'
     asset_xml += '</fassets>\r\n'
