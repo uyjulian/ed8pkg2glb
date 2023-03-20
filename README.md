@@ -44,7 +44,7 @@ For this step, put build_collada.py, lib_fmtibvb.py, replace_shader_references.p
 
 ## Notes
 
-** Weight Painting**
+**Weight Painting**
 If you would like to weight paint the meshes, you will want to parent to the armature so you can see the results of your painting in Blender.  Import your raw meshes **and** the glTF.  Delete all the meshes from the glTF.  Select all your raw buffers in object mode, then shift-click on the bones (or ctrl-click up_point in the outliner window).  Go to Object menu -> Parent -> Armature Deform (do not select any of the "With" options).  Your meshes are now parented, but still can be exported as .fmt/.ib/.vb.  Note that this is necessary to keep all the original data of the buffers, since the glTF meshes are missing a lot of data and also cannot be exported directly as .fmt/.ib/.vb.  If you want to work with the glTF meshs without going through this parenting process, you can use the glTF extractor (see below).
 
 **Command line arguments for ed8pkg2gltf.py:**
