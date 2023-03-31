@@ -2,6 +2,10 @@
 
 Converts model data and texture data contained in ED8 `.pkg` files to GLTF binary format.
 
+## Modding help and resources
+
+See [Trails Research Group](https://github.com/Trails-Research-Group) for more resources to assist in modding the game.  
+
 ## Usage
 
 First, download and extract the [Win32 version](https://github.com/uyjulian/ed8pkg2glb/releases/latest/download/ed8pkg2glb-win32.zip).  
