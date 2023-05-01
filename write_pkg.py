@@ -47,8 +47,8 @@ def processFolder(pkg_folder, include_all = False, lz4_compress = False, overwri
         if include_all == False and os.path.exists(pkg_folder + '/asset_D3D11.xml'):
             xmlfile = parse(pkg_folder + '/asset_D3D11.xml')
             files = [x for x in glob.glob(pkg_folder+'/*.*')\
-                if os.path.basename(x) in [os.path.basename(x.getAttribute("path")) for x\
-                in xmlfile.getElementsByTagName("cluster")]+['asset_D3D11.xml']]
+                if os.path.basename(x).lower() in [os.path.basename(x.getAttribute("path")).lower() for x\
+                in xmlfile.getElementsByTagName("cluster")]+['asset_d3d11.xml']]
         else:
             files = glob.glob(pkg_folder+'/*.*')
         f = io.BytesIO()
