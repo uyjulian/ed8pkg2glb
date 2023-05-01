@@ -831,7 +831,7 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
      'PSkinBoneRemap',
      'PString',
      'PTexture2D',
-     'PTextureCubeMap',
+     #'PTextureCubeMap',
      'PVertexStream',
      'PWorldMatrix']
     member_location = g.tell()
@@ -2164,14 +2164,14 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header, pkg_name='',
         for v in cluster_mesh_info.data_instances_by_class['PTexture2D']:
             create_texture(g, v, cluster_mesh_info, cluster_header, False, pkg_name)
 
-    if 'PTextureCubeMap' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PTextureCubeMap']:
-            create_texture(g, v, cluster_mesh_info, cluster_header, True, pkg_name)
+    #if 'PTextureCubeMap' in cluster_mesh_info.data_instances_by_class:
+        #for v in cluster_mesh_info.data_instances_by_class['PTextureCubeMap']:
+            #create_texture(g, v, cluster_mesh_info, cluster_header, True, pkg_name)
 
     if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
             if not v['m_targetAssetType'] == 'PTexture2D':
-                if v['m_targetAssetType'] == 'PTextureCubeMap':
+                #if v['m_targetAssetType'] == 'PTextureCubeMap':
                     pass
             load_texture(v, cluster_mesh_info, pkg_name)
 
@@ -2665,7 +2665,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             bufferviews.append(bufferview)
 
     images = []
-    images_meta = []
+    #images_meta = []
     if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
         for v in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
             if v['m_targetAssetType'] == 'PTexture2D':
@@ -2674,9 +2674,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 image['uri'] = v['m_id'] #image_name
                 v['mu_gltfImageIndex'] = len(images)
                 images.append(image)
-            if v['m_targetAssetType'] in ['PTexture2D', 'PTextureCubeMap']:
-                images_meta.append({'uri': v['m_id'], 'm_targetAssetType': v['m_targetAssetType']})
-        metadata_json['images'] = images_meta
+            #if v['m_targetAssetType'] in ['PTexture2D', 'PTextureCubeMap']:
+                #images_meta.append({'uri': v['m_id'], 'm_targetAssetType': v['m_targetAssetType']})
+        #metadata_json['images'] = images_meta
 
     cluster_mesh_info.gltf_data['images'] = images
     samplers = []

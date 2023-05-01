@@ -144,13 +144,8 @@ def add_materials (collada, metadata, relative_path = '../../..'):
         for parameter in materials[material]['shaderTextures']:
             texture_name = materials[material]['shaderTextures'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
             sampler_name = parameter + 'Sampler'
-            texture_entry = [x for x in metadata['images'] if x['uri'] == materials[material]['shaderTextures'][parameter]][0]
-            if 'm_targetAssetType' in texture_entry and texture_entry['m_targetAssetType'] == 'PTextureCubeMap':
-                sampler_type = 'samplerCUBE'
-                tex_type = 'CUBE'
-            else:
-                sampler_type = 'sampler2D' # Use as default, should be PTexture2D
-                tex_type = '2D'
+            sampler_type = 'sampler2D' # Use as default, should be PTexture2D
+            tex_type = '2D'
             #Material
             setparam = ET.SubElement(instance_effect, 'setparam')
             setparam.set("ref", material + parameter)
@@ -777,10 +772,11 @@ def write_asset_xml (metadata_list):
             current_xml_asset = metadata_list[i]['pkg_name']
             current_dae_path = xml_info[list(xml_info.keys())[0]]['dae_path'] # If asset does not exist, use first entry as it is likely the xml is a template
         images = []
-        for j in range(len(metadata_list[i]['images'])):
-            if metadata_list[i]['images'][j]['uri'] not in already_appended:
-                images.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_texture" />\r\n'.format(metadata_list[i]['images'][j]['uri']))
-                already_appended.append(metadata_list[i]['images'][j]['uri'])
+        metadata_images = sorted(list(set([x for y in metadata_list[i]['materials'] for x in metadata_list[i]['materials'][y]['shaderTextures'].values()])))
+        for j in range(len(metadata_images)):
+            if metadata_images[j] not in already_appended:
+                images.append('\t\t<cluster path="data/D3D11/{0}.phyre" type="p_texture" />\r\n'.format(metadata_images[j]))
+                already_appended.append(metadata_images[j])
         images.sort()
         shaders = []
         for material in metadata_list[i]['materials']:
@@ -803,7 +799,8 @@ def write_processing_batch_file (models):
     metadata_list = [read_struct_from_json(x) for x in models] # A little inefficient but safer
     xml_info = asset_info_from_xml(metadata_list[0]['pkg_name']+'/asset_D3D11.xml')
     image_copy_text = ''
-    image_folders = list(set([os.path.dirname(x['uri']).replace('/','\\') for y in metadata_list for x in y['images']]))
+    image_folders = sorted(list(set([os.path.dirname(x).replace('/','\\') for y in [x['shaderTextures']\
+        for y in metadata_list for x in y['materials'].values()] for x in y.values()])))
     if len(image_folders) > 0:
         for folder in image_folders:
             image_copy_text += 'copy D3D11\{0}\*.* {1}\r\n'.format(folder, metadata_list[0]['pkg_name'])
@@ -854,7 +851,7 @@ def build_collada(metadata_name):
             if 'vgmap' in submeshes[i].keys():
                 has_skeleton = True
         collada = basic_collada(has_skeleton = has_skeleton)
-        images_data = [x['uri'] for x in metadata['images']]
+        images_data = sorted(list(set([x for y in metadata['materials'] for x in metadata['materials'][y]['shaderTextures'].values()])))
         collada = add_images(collada, images_data, relative_path)
         print("Adding materials...")
         collada = add_materials(collada, metadata, relative_path)
