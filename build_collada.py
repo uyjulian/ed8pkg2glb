@@ -15,7 +15,7 @@ def basic_collada (has_skeleton = True):
     collada.set("version", "1.4.1")
     asset = ET.SubElement(collada, 'asset')
     asset_unit = ET.SubElement(asset, 'unit')
-    asset_unit.set("meter", "0.0099999997764825")
+    asset_unit.set("meter", "0.01")
     asset_unit.set("name", "centimeter")
     asset_up_axis = ET.SubElement(asset, 'up_axis')
     asset_up_axis.text = "Y_UP"
@@ -26,7 +26,7 @@ def basic_collada (has_skeleton = True):
     library_physics_scenes_ps_tc_gravity = ET.SubElement(library_physics_scenes_ps_tc, 'gravity')
     library_physics_scenes_ps_tc_gravity.text = "0 -980 0"
     library_physics_scenes_ps_tc_time_step = ET.SubElement(library_physics_scenes_ps_tc, 'time_step')
-    library_physics_scenes_ps_tc_time_step.text = "0.0829999968409538"
+    library_physics_scenes_ps_tc_time_step.text = "0.083"
     library_images = ET.SubElement(collada, 'library_images')
     library_materials = ET.SubElement(collada, 'library_materials')
     library_effects = ET.SubElement(collada, 'library_effects')
@@ -64,7 +64,7 @@ def add_materials (collada, metadata, relative_path = '../../..'):
     # Materials and effects can be done in parallel
     library_materials = collada.find('library_materials')
     library_effects = collada.find('library_effects')
-    all_shader_switches = ['SHADER_'+v['shader'].split('#')[-1][0:4] for (k,v) in materials.items()]
+    all_shader_switches = ['SHADER_'+v['shader'].split('#')[-1] for (k,v) in materials.items()]
     for material in materials:
         #Materials
         material_element = ET.SubElement(library_materials, 'material')
@@ -74,7 +74,7 @@ def add_materials (collada, metadata, relative_path = '../../..'):
         instance_effect.set("url", "#{0}-fx".format(material))
         technique_hint = ET.SubElement(instance_effect, 'technique_hint')
         technique_hint.set("platform", "PC-DX")
-        technique_hint.set("ref", "ForwardRender")
+        technique_hint.set("ref", "Default")
         #Effects
         effect_element = ET.SubElement(library_effects, 'effect')
         effect_element.set("id", material + '-fx')
@@ -135,9 +135,9 @@ def add_materials (collada, metadata, relative_path = '../../..'):
             max_anisotropy = ET.SubElement(samplerDX, 'max_anisotropy')
             max_anisotropy.text = "{0:g}".format(materials[material]['shaderSamplerDefs'][parameter]['m_maxAnisotropy'])
             lod_min_distance = ET.SubElement(samplerDX, 'lod_min_distance')
-            lod_min_distance.text = '-3402823466385289'
+            lod_min_distance.text = "{0}".format(materials[material]['shaderSamplerDefs'][parameter]['m_baseLevel'])
             lod_max_distance = ET.SubElement(samplerDX, 'lod_max_distance')
-            lod_max_distance.text = '3402823466385289'
+            lod_max_distance.text = "{0}".format(materials[material]['shaderSamplerDefs'][parameter]['m_maxLevel'])
             border_color = ET.SubElement(samplerDX, 'border_color')
             border_color.text = '0 0 0 0' # In the example it's always this, and in the phyre file it's a single 0.  I dunno.
         # Texture parameters - only support for 2D currently
@@ -231,7 +231,7 @@ def add_materials (collada, metadata, relative_path = '../../..'):
         technique.set("profile", "PHYRE")
         if 'shaderSwitches' in materials[material]:
             material_switches = ET.SubElement(technique, 'material_switches')
-            current_shader_switch = 'SHADER_' + materials[material]['shader'].split('#')[-1][0:4]
+            current_shader_switch = 'SHADER_' + materials[material]['shader'].split('#')[-1]
             shader = ET.SubElement(material_switches, current_shader_switch)
             material_switch_list = ET.SubElement(technique, 'material_switch_list')
             # Switches are taken from the shader files themselves
@@ -239,26 +239,6 @@ def add_materials (collada, metadata, relative_path = '../../..'):
                 material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
                 material_switch_entry.set("name", material_switch)
                 material_switch_entry.set("material_switch_value", materials[material]['shaderSwitches'][material_switch])
-        #for material_switch in ['BLOOM_INTENSITY', 'SAMPLER_TOGGLE', 'VERTEX_COLOR_ENABLED', 'LIGHTING_ENABLED',\
-                #'DIFFUSE_ENABLED', 'DIFFUSE2_ENABLED', 'DIFFUSE3_ENABLED', 'ALPHA_BLENDING_ENABLED', 'NORMAL_MAPPING_ENABLED',\
-                #'WRAP_DIFFUSE_LIGHTING', 'SPECULAR_ENABLED', 'CASTS_SHADOWS', 'RECEIVE_SHADOWS', 'DOUBLE_SIDED', 'MOTION_BLUR_ENABLED',\
-                #'GENERATE_LIGHTS', 'SHININESS', 'RENDER_AS_LOW_RES', 'LIGHTMAP_OCCLUSION', 'SUBDIV', 'SUBDIV_SCALAR_DISPLACEMENT',\
-                #'SUBDIV_VECTOR_DISPLACEMENT', 'FOR_EFFECT', 'FOR_SHADOW', 'USE_OUTLINE', 'USE_OUTLINE_COLOR', 'ALPHA_TESTING_ENABLED',\
-                #'ADDITIVE_BLENDING_ENABLED', 'SUBTRACT_BLENDING_ENABLED', 'MULTIPLICATIVE_BLENDING_ENABLED', 'TRANSPARENT_DELAY_ENABLED',\
-                #'PORTRAIT_GLASS_FIX', 'FOG_ENABLED', 'NO_ALL_LIGHTING_ENABLED', 'NO_MAIN_LIGHT_SHADING_ENABLED',\
-                #'FORCE_CHAR_LIGHT_DIRECTION_ENABLED', 'PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED', 'SHADOW_COLOR_SHIFT_ENABLED',\
-                #'CARTOON_SHADING_ENABLED', 'SPECULAR_COLOR_ENABLED', 'SPECULAR_MAPPING_ENABLED', 'RIM_LIGHTING_ENABLED',\
-                #'RIM_TRANSPARENCY_ENABLED', 'NORMAL_MAPP_DXT5_NM_ENABLED', 'EMISSION_MAPPING_ENABLED', 'SPHERE_MAPPING_ENABLED',\
-                #'SPHERE_RECEIVE_OFFSET_ENABLED', 'SPHERE_MAPPING_HAIRCUTICLE_ENABLED', 'CUBE_MAPPING_ENABLED', 'DUDV_MAPPING_ENABLED',\
-                #'GLARE_ENABLED', 'MULTI_UV_ENANLED', 'MULTI_UV_PROJTEXCOORD', 'MULTI_UV_ADDITIVE_BLENDING_ENANLED', 'MULTI_UV_DUDV_ENANLED',\
-                #'MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED', 'MULTI_UV_FACE_ENANLED',\
-                #'MULTI_UV_NORMAL_MAPPING_ENABLED', 'MULTI_UV_SPECULAR_MAPPING_ENABLED', 'MULTI_UV_GLARE_MAPPING_ENABLED',\
-                #'MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED', 'MULTI_UV2_ENANLED', 'MULTI_UV2_ADDITIVE_BLENDING_ENANLED',\
-                #'MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED', 'MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED',\
-                #'MULTI_UV2_SPECULAR_MAPPING_ENABLED', 'GAME_MATERIAL_ID', 'GAME_MATERIAL_TEXCOORD', 'GLARE_INTENSITY']:
-            #material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
-            #material_switch_entry.set("name", material_switch)
-            #material_switch_entry.set("material_switch_value", '0')
             for i in range(len(all_shader_switches)):
                 material_switch_entry = ET.SubElement(material_switch_list, 'material_switch')
                 material_switch_entry.set("name", all_shader_switches[i])
@@ -267,7 +247,7 @@ def add_materials (collada, metadata, relative_path = '../../..'):
                 else:
                     material_switch_entry.set("material_switch_value", "0")
         forwardrendertechnique = ET.SubElement(profile_HLSL, 'technique')
-        forwardrendertechnique.set('sid','ForwardRender')
+        forwardrendertechnique.set('sid','Default')
         renderpass = ET.SubElement(forwardrendertechnique, 'pass')
         shader = ET.SubElement(renderpass, 'shader')
         shader.set('stage','VERTEX')
@@ -718,7 +698,7 @@ def write_shader (materials_list):
         added_shaders = []
         for i in range(len(materials_list)):
             for material in materials_list[i]:
-                shader_switch = 'SHADER_{0}'.format(materials_list[i][material]['shader'].split('#')[-1][0:4])
+                shader_switch = 'SHADER_{0}'.format(materials_list[i][material]['shader'].split('#')[-1])
                 if shader_switch not in added_shaders and materials_list[i][material]['shader'].split('#')[0] == filename:
                     added_shaders.append(shader_switch)
                     shaderfx += '#ifdef {0}\r\n'.format(shader_switch)
@@ -732,7 +712,7 @@ def write_shader (materials_list):
                                 ", ".join(["{0:.3f}".format(x) for x in materials_list[i][material]['shaderParameters'][parameter]]))
                         shaderfx += '{0} {1} : {1} = {2};\r\n'.format(valuetype, parameter, value)
                     for parameter in materials_list[i][material]['shaderSamplerDefs']:
-                        shaderfx += 'sampler {0} : {0};\r\n'.format(parameter)
+                        shaderfx += 'sampler {0}{{\r\n\tFilter = {1};\r\n}};\r\n'.format(parameter,{0: 21, 64: 148}[materials_list[i][material]['shaderSamplerDefs'][parameter]['m_flags'] & 0x40])
                     for parameter in materials_list[i][material]['shaderTextures']:
                         shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
                     shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
