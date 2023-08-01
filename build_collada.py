@@ -505,8 +505,14 @@ def add_geometries_and_controllers (collada, submeshes, skeleton, materials, has
                 new_index = []
                 for j in range(len(blendweights[i])):
                     if blendweights[i][j] > 0.000001:
-                        new_weight.append(blendweights[i][j])
-                        new_index.append(local_to_global_joints[blendindices[i][j]])
+                        try:
+                            new_weight.append(blendweights[i][j])
+                            new_index.append(local_to_global_joints[blendindices[i][j]])
+                        except KeyError:
+                            missing_bone = [x for x in submesh['vgmap'].keys() if submesh['vgmap'][x] == blendindices[i][j]][0]
+                            print("KeyError: Attempted to map {1} to skeleton while adding submesh {0} to COLLADA, but {1} does not exist in the heirachy!".format(submesh["name"], missing_bone))
+                            input("Press Enter to abort.")
+                            raise
                 new_weights.append(new_weight)
                 new_indices.append(new_index)
             #Uncomment the next 3 lines to force local bones instead of global bones
