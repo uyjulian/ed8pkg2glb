@@ -144,8 +144,13 @@ def add_materials (collada, metadata, relative_path = '../../..'):
         for parameter in materials[material]['shaderTextures']:
             texture_name = materials[material]['shaderTextures'][parameter].replace('.DDS','.dds').split('/')[-1].split('.dds')[0]
             sampler_name = parameter + 'Sampler'
-            sampler_type = 'sampler2D' # Use as default, should be PTexture2D
-            tex_type = '2D'
+            if 'non2Dtextures' in materials[material].keys() and parameter in materials[material]['non2Dtextures'].keys() \
+                and materials[material]['non2Dtextures'][parameter] == 'PTextureCubeMap':
+                sampler_type = 'samplerCUBE'
+                tex_type = 'CUBE'
+            else:
+                sampler_type = 'sampler2D' # Use as default, should be PTexture2D
+                tex_type = '2D'
             #Material
             setparam = ET.SubElement(instance_effect, 'setparam')
             setparam.set("ref", material + parameter)
