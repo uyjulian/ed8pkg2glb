@@ -266,9 +266,16 @@ def add_materials (collada, metadata, relative_path = '../../..'):
         supported_shadows = ET.SubElement(context_switches, 'supported_shadows')
     return(collada)
 
-def calc_abs_matrix(node, skeleton):
+def calc_abs_matrix(node, skeleton, skeletal_bones = []):
     skeleton[node]['abs_matrix'] = numpy.dot(skeleton[skeleton[node]['parent']]['abs_matrix'], skeleton[node]['rel_matrix'])
-    skeleton[node]['inv_matrix'] = numpy.linalg.inv(skeleton[node]['abs_matrix'])
+    try:
+        skeleton[node]['inv_matrix'] = numpy.linalg.inv(skeleton[node]['abs_matrix'])
+    except numpy.linalg.LinAlgError:
+        if skeleton[node]['name'] not in skeletal_bones:
+            pass
+        else:
+            print("LinAlgError: {0} has an invalid matrix and is part of the skeleton.".format(skeleton[node]['name']))
+            raise
     if 'children' in skeleton[node].keys():
         for child in skeleton[node]['children']:
             if child < len(skeleton):
@@ -277,7 +284,7 @@ def calc_abs_matrix(node, skeleton):
     return(skeleton)
 
 # Change matrices to numpy arrays, add parent bone ID, world space matrix, inverse bind matrix
-def add_bone_info (skeleton):
+def add_bone_info (skeleton, skeletal_bones = []):
     children_list = [{i:skeleton[i]['children'] if 'children' in skeleton[i].keys() else []} for i in range(len(skeleton))]
     parent_dict = {x:list(y.keys())[0] for y in children_list for x in list(y.values())[0]}
     top_nodes = [i for i in range(len(skeleton)) if i not in parent_dict.keys()]
@@ -316,7 +323,7 @@ def add_bone_info (skeleton):
         skeleton[node]['abs_matrix'] = skeleton[node]['rel_matrix']
         if 'children' in skeleton[node].keys():
             for child in skeleton[node]['children']:
-                skeleton = calc_abs_matrix(child, skeleton)
+                skeleton = calc_abs_matrix(child, skeleton, skeletal_bones = skeletal_bones)
                 skeleton[node]['num_descendents'] += skeleton[child]['num_descendents'] + 1
     return(skeleton)
 
@@ -833,16 +840,19 @@ def build_collada(metadata_name):
             except FileNotFoundError:
                 print("Submesh {0} not found or corrupt, skipping...".format(filename))
         has_skeleton = False
+        skeletal_bones = []
         for i in range(len(submeshes)):
             if 'vgmap' in submeshes[i].keys():
                 has_skeleton = True
+                skeletal_bones.extend(list(submeshes[i]['vgmap'].keys()))
+        skeletal_bones = list(set(skeletal_bones))
         collada = basic_collada(has_skeleton = has_skeleton)
         images_data = sorted(list(set([x for y in metadata['materials'] for x in metadata['materials'][y]['shaderTextures'].values()])))
         collada = add_images(collada, images_data, relative_path)
         print("Adding materials...")
         collada = add_materials(collada, metadata, relative_path)
         print("Adding skeleton...")
-        skeleton = add_bone_info(metadata['heirarchy'])
+        skeleton = add_bone_info(metadata['heirarchy'], skeletal_bones = skeletal_bones)
         collada = add_skeleton(collada, metadata)
         print("Adding geometry...")
         collada = add_geometries_and_controllers(collada, submeshes, skeleton, metadata['materials'], has_skeleton = has_skeleton)
