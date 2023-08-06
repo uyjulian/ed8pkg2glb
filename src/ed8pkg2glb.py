@@ -626,8 +626,8 @@ def decode_block_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
     block_size = 8 if dxgiFormat == 71 else 16
     blocks_height = (dwHeight + 3) // 4
     blocks_width = (dwWidth + 3) // 4
-    line_pitch = blocks_height * block_size
-    size_in_bytes = line_pitch * blocks_width
+    line_pitch = blocks_width * block_size
+    size_in_bytes = line_pitch * blocks_height
     in_data = f.read(size_in_bytes)
     if len(in_data) != size_in_bytes:
         raise Exception('Data read incomplete')
