@@ -732,7 +732,11 @@ def write_shader (materials_list):
                     for parameter in materials_list[i][material]['shaderSamplerDefs']:
                         shaderfx += 'sampler {0}{{\r\n\tFilter = {1};\r\n}};\r\n'.format(parameter,{0: 21, 64: 148}[materials_list[i][material]['shaderSamplerDefs'][parameter]['m_flags'] & 0x40])
                     for parameter in materials_list[i][material]['shaderTextures']:
-                        shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
+                        if 'non2Dtextures' in materials_list[i][material].keys() and parameter in materials_list[i][material]['non2Dtextures'].keys() \
+                            and materials_list[i][material]['non2Dtextures'][parameter] == 'PTextureCubeMap':
+                            shaderfx += 'TextureCube {0} : {0};\r\n'.format(parameter)
+                        else:
+                            shaderfx += 'Texture2D {0} : {0};\r\n'.format(parameter)
                     shaderfx  += '#endif //! {0}\r\n\r\n\r\n'.format(shader_switch)
         shaderfx += '#ifdef SUBDIV\r\n#undef SKINNING_ENABLED\r\n#undef INSTANCING_ENABLED\r\n#endif // SUBDIV\r\n\r\n'
         shaderfx += '#ifdef SUBDIV_SCALAR_DISPLACEMENT\r\nTexture2D<half> DisplacementScalar;\r\n#endif // SUBDIV_SCALAR_DISPLACEMENT\r\n\r\n'
