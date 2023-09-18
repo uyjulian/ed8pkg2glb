@@ -1183,7 +1183,7 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                                         pointer_info_offset_needed -= 8
                                         if value_this['m_bufferLoc']['m_offset'] == pointer_info_offset_needed:
                                             if len(cluster_info.classes_strings) > pointer_info.destination_object.object_list and pointer_info.destination_object.object_list in data_instances_by_class:
-                                                shader_object_dict[value_this['m_name']] = data_instances_by_class[pointer_info.destination_object.object_list][pointer_info.destination_object.object_id]
+                                                shader_object_dict[value_this['m_name']['m_buffer']] = data_instances_by_class[pointer_info.destination_object.object_list][pointer_info.destination_object.object_id]
                                     elif value_this['m_parameterType'] == 66 or value_this['m_parameterType'] == 68:
                                         if value_this['m_bufferLoc']['m_size'] == 24:
                                             pointer_info_offset_needed -= 16
@@ -1192,7 +1192,7 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                                         if value_this['m_bufferLoc']['m_offset'] == pointer_info_offset_needed:
                                             user_fix_id = pointer_info.user_fixup_id
                                             if user_fix_id != None and user_fix_id < len(cluster_info.user_fixes) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_info.user_fixes[user_fix_id].data) == int) and (cluster_info.user_fixes[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport'])):
-                                                shader_object_dict[value_this['m_name']] = data_instances_by_class['PAssetReferenceImport'][cluster_info.user_fixes[user_fix_id].data]
+                                                shader_object_dict[value_this['m_name']['m_buffer']] = data_instances_by_class['PAssetReferenceImport'][cluster_info.user_fixes[user_fix_id].data]
                         dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'] = shader_object_dict
                 elif (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and variable_text == 'm_u' and (type_text not in ['PSharray<PUInt32>', 'PSharray<PInt32>', 'PSharray<float>', 'PSharray<PUInt8>']):
                     array_count = dict_data['m_count']
@@ -1264,7 +1264,7 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                         try:
                             val = read_null_ending_string(g)
                         except:
-                            val = ''
+                            pass
                         g.seek(old_position)
                         break
                 if expected_size == 4:
@@ -1272,15 +1272,16 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                 elif expected_size == 1:
                     g.seek(1, io.SEEK_CUR)
             elif type_text in ['PString'] and class_name in ['PNode']:
-                val = ''
+                val = {}
+                val['m_buffer'] = ''
                 for array_info in array_infos:
                     if array_info.som + 4 == value_offset or array_info.som == value_offset:
                         old_position = g.tell()
                         g.seek(array_location + array_info.offset)
                         try:
-                            val = read_null_ending_string(g)
+                            val['m_buffer'] = read_null_ending_string(g)
                         except:
-                            val = ''
+                            pass
                         g.seek(old_position)
                         break
                 if expected_size == 4:
@@ -1288,15 +1289,16 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                 elif expected_size == 1:
                     g.seek(1, io.SEEK_CUR)
             elif type_text in ['PString']:
-                val = ''
+                val = {}
+                val['m_buffer'] = ''
                 for array_info in array_infos:
                     if array_info.som == value_offset:
                         old_position = g.tell()
                         g.seek(array_location + array_info.offset)
                         try:
-                            val = read_null_ending_string(g)
+                            val['m_buffer'] = read_null_ending_string(g)
                         except:
-                            val = ''
+                            pass
                         g.seek(old_position)
                         break
                 if expected_size == 4:
@@ -1389,7 +1391,7 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
         for assetReference in data_instances:
             if not assetReference['m_assetType'] in cluster_info.list_for_class_descriptors:
                 cluster_info.list_for_class_descriptors[assetReference['m_assetType']] = []
-            cluster_info.list_for_class_descriptors[assetReference['m_assetType']].append(assetReference['m_id'])
+            cluster_info.list_for_class_descriptors[assetReference['m_assetType']].append(assetReference['m_id']['m_buffer'])
     if class_name == 'PAssetReferenceImport':
         for assetReference in data_instances:
             cluster_info.import_classes_strings.append(assetReference['m_targetAssetType'])
@@ -2292,7 +2294,7 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
                 write_png_chunk(f, b'IEND', b'')
 
 def load_texture(dict_data, cluster_mesh_info):
-    dds_basename = os.path.basename(dict_data['m_id'])
+    dds_basename = os.path.basename(dict_data['m_id']['m_buffer'])
     found_basename = []
 
     def list_callback(item):
@@ -2307,7 +2309,7 @@ def load_texture(dict_data, cluster_mesh_info):
 
 def load_materials_with_actual_name(dict_data, cluster_mesh_info):
     if type(dict_data['m_effectVariant']) == dict and 'm_id' in dict_data['m_effectVariant']:
-        dict_data['mu_compiledShaderName'] = dict_data['m_effectVariant']['m_id']
+        dict_data['mu_compiledShaderName'] = dict_data['m_effectVariant']['m_id']['m_buffer']
 
 def load_shader_parameters(g, dict_data, cluster_header):
     if 'mu_shaderParameters' in dict_data:
@@ -2325,27 +2327,27 @@ def load_shader_parameters(g, dict_data, cluster_header):
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'I')
-            shader_parameters[shaderParameterDefinition['m_name']] = arr
-            if shaderParameterDefinition['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
-                shader_parameters[shaderParameterDefinition['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']]['m_id']
+            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
+            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
+                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']['m_buffer']]['m_id']['m_buffer']
         elif shaderParameterDefinition['m_parameterType'] == 71:
             arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'I')
-            shader_parameters[shaderParameterDefinition['m_name']] = arr
-            if shaderParameterDefinition['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
-                shader_parameters[shaderParameterDefinition['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']]
+            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
+            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
+                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']['m_buffer']]
         elif parameter_size == 24:
-            shader_parameters[shaderParameterDefinition['m_name']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
         elif parameter_size % 4 == 0:
             arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'f')
-            shader_parameters[shaderParameterDefinition['m_name']] = arr
+            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
         else:
-            shader_parameters[shaderParameterDefinition['m_name']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
+            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
     dict_data['mu_shaderParameters'] = shader_parameters
 
 def multiply_array_as_4x4_matrix(arra, arrb):
@@ -2747,7 +2749,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
 
     def map_all_node_children(deposit_dict, in_list):
         for node in in_list:
-            deposit_dict[node['m_name']] = node
+            deposit_dict[node['m_name']['m_buffer']] = node
     if 'PNode' in cluster_mesh_info.data_instances_by_class:
         for node in cluster_mesh_info.data_instances_by_class['PNode']:
             derive_matrix_44(node, node['mu_matrixToUse'])
@@ -3029,7 +3031,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
                 if assetReferenceImport['m_targetAssetType'] == 'PTexture2D':
                     image = {}
-                    image_path = os.path.basename(assetReferenceImport['m_id'])
+                    image_path = os.path.basename(assetReferenceImport['m_id']['m_buffer'])
                     image_name = image_path.rsplit('.', maxsplit=2)[0]
                     if True:
                         image_name += '.png'
@@ -3083,7 +3085,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             if 'DiffuseMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['DiffuseMapSampler']) == str:
                                 if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
                                     for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                        if assetReferenceImport['m_id'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
+                                        if assetReferenceImport['m_id']['m_buffer'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
                                             if samplerstate != None:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
@@ -3100,7 +3102,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             if 'NormalMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['NormalMapSampler']) == str:
                                 if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
                                     for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                        if assetReferenceImport['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
+                                        if assetReferenceImport['m_id']['m_buffer'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
                                             if samplerstate != None:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
@@ -3117,7 +3119,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             if 'SpecularMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['SpecularMapSampler']) == str:
                                 if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
                                     for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                        if assetReferenceImport['m_id'] == parameter_buffer['mu_shaderParameters']['SpecularMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
+                                        if assetReferenceImport['m_id']['m_buffer'] == parameter_buffer['mu_shaderParameters']['SpecularMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
                                             if samplerstate != None:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
@@ -3206,7 +3208,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         if type(segmentcontext['m_streamBindings']) == dict:
                             for streamBinding in segmentcontext['m_streamBindings']['m_u']:
                                 if streamBinding['m_renderDataType'] == 'ST' and streamBinding['m_inputSet'] == streamInfo['m_streamSet']:
-                                    name_lower = streamBinding['m_name'].lower()
+                                    name_lower = streamBinding['m_name']['m_buffer'].lower()
                                     name_to_uv_index_map = {'texcoord7': 6, 'texcoord6': 5, 'texcoord5': 4, 'texcoord4': 3, 'texcoord3': 2, 'texcoord2': 1, 'texcoord': 0, 'vitexcoord': 0, 'texcoord0': 0}
                                     if name_lower in name_to_uv_index_map:
                                         uvIndex = name_to_uv_index_map[name_lower]
@@ -3277,7 +3279,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 node_extensions = {}
                 if True:
                     node_obj['matrix'] = node['mu_matrixToUse'].tolist()
-                name = node['m_name']
+                name = node['m_name']['m_buffer']
                 if name == '':
                     if 'mu_name' in node:
                         name = node['mu_name']
@@ -3406,11 +3408,11 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         if animationChannel['m_instanceObjectType'] == 'PNode':
                             if 'PNode' in cluster_mesh_info.data_instances_by_class:
                                 for node in cluster_mesh_info.data_instances_by_class['PNode']:
-                                    if node['mu_gltfNodeName'] == animationChannel['m_name']:
+                                    if node['mu_gltfNodeName'] == animationChannel['m_name']['m_buffer']:
                                         target['node'] = node['mu_gltfNodeIndex']
                                         break
                         elif animationChannel['m_instanceObjectType'] == 'PMeshInstance':
-                            if animationChannel['m_name'] == 'm_currentPose':
+                            if animationChannel['m_name']['m_buffer'] == 'm_currentPose':
                                 instance_obj = animationChannel['m_instanceObject']
                                 if instance_obj != None:
                                     if 'mu_gltfSkinMatrixIndexToNode' in instance_obj:
@@ -3434,7 +3436,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         target['path'] = targetMap[animationConstantChannel['m_keyType']]
                         if 'PNode' in cluster_mesh_info.data_instances_by_class:
                             for node in cluster_mesh_info.data_instances_by_class['PNode']:
-                                if node['mu_gltfNodeName'] == animationConstantChannel['m_name']:
+                                if node['mu_gltfNodeName'] == animationConstantChannel['m_name']['m_buffer']:
                                     target['node'] = node['mu_gltfNodeIndex']
                                     break
                         channel['target'] = target
