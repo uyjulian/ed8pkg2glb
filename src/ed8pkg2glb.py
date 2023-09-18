@@ -1189,7 +1189,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                                             user_fix_id = pointer_fixup.user_fixup_id
                                             if user_fix_id != None and user_fix_id < len(cluster_list_fixup_info.user_fixup_results) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_list_fixup_info.user_fixup_results[user_fix_id].data) == int) and (cluster_list_fixup_info.user_fixup_results[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport'])):
                                                 shader_object_dict[value_this['m_name']['m_buffer']] = data_instances_by_class['PAssetReferenceImport'][cluster_list_fixup_info.user_fixup_results[user_fix_id].data]
-                        dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'] = shader_object_dict
+                        val['mu_object_references'] = shader_object_dict
                 elif (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and variable_text == 'm_u' and (type_text not in ['PSharray<PUInt32>', 'PSharray<PInt32>', 'PSharray<float>', 'PSharray<PUInt8>']):
                     array_count = dict_data['m_count']
                     current_count = 0
@@ -2317,16 +2317,16 @@ def load_shader_parameters(g, dict_data, cluster_header):
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'I')
             shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
-            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
-                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']['m_buffer']]['m_id']['m_buffer']
+            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references']:
+                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references'][shaderParameterDefinition['m_name']['m_buffer']]['m_id']['m_buffer']
         elif shaderParameterDefinition['m_parameterType'] == 71:
             arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'I')
             shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
-            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
-                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']['m_buffer']]
+            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references']:
+                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references'][shaderParameterDefinition['m_name']['m_buffer']]
         elif parameter_size == 24:
             shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
         elif parameter_size % 4 == 0:
