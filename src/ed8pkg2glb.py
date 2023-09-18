@@ -1131,10 +1131,10 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                                 val = cast_memoryview(memoryview(val), datatype_pystructtype)
                                 g.seek(old_position)
                                 break
-                elif type_text[0:7] == 'PArray<' and type_text[-1:] == '>' and (type(dict_data[variable_text]) == dict) and (type_text not in ['PArray<PUInt32>', 'PArray<PInt32>', 'PArray<float>', 'PArray<PUInt8>', 'PArray<PUInt8,4>']):
-                    array_count = dict_data[variable_text]['m_count']
+                elif class_name[0:7] == 'PArray<' and class_name[-1:] == '>' and (variable_text in ['m_els']):
+                    array_count = dict_data['m_count']
                     current_count = 0
-                    type_value = type_text[7:-1]
+                    type_value = class_name[7:-1]
                     is_pointer = False
                     if not type_value in data_instances_by_class:
                         if type_value[0:10] == 'PDataBlock':
@@ -1142,38 +1142,37 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                         if type_value[-2:] == ' *':
                             type_value = type_value[:-2]
                             is_pointer = True
-                    arr = None
+                    val = None
                     if array_count == 0:
-                        arr = []
+                        val = []
                     elif type_value in data_instances_by_class:
                         for pointer_fixup in pointer_fixup_list:
-                            if (is_pointer == True or (is_pointer == False and pointer_fixup.som == value_offset + 4)) and (not pointer_fixup.is_class_data_member()) and (len(cluster_type_info.classes_strings) > pointer_fixup.destination_object.object_list) and (cluster_type_info.classes_strings[pointer_fixup.destination_object.object_list] == type_value) and (pointer_fixup.destination_object.object_list in data_instances_by_class):
+                            if (is_pointer == True or (is_pointer == False and pointer_fixup.som == offset_from_parent + value_offset)) and (not pointer_fixup.is_class_data_member()) and (len(cluster_type_info.classes_strings) > pointer_fixup.destination_object.object_list) and (cluster_type_info.classes_strings[pointer_fixup.destination_object.object_list] == type_value) and (pointer_fixup.destination_object.object_list in data_instances_by_class):
                                 data_instances_by_class_this = data_instances_by_class[pointer_fixup.destination_object.object_list]
                                 if is_pointer == True:
                                     if current_count == 0:
-                                        arr = [None] * array_count
+                                        val = [None] * array_count
                                     offset_calculation = pointer_fixup.destination_object.object_id
                                     if len(data_instances_by_class_this) > offset_calculation:
-                                        arr[pointer_fixup.array_index] = data_instances_by_class_this[offset_calculation]
+                                        val[pointer_fixup.array_index] = data_instances_by_class_this[offset_calculation]
                                     current_count += 1
                                 else:
-                                    arr = [data_instances_by_class_this[pointer_fixup.destination_object.object_id + i] for i in range(pointer_fixup.array_index)]
+                                    val = [data_instances_by_class_this[pointer_fixup.destination_object.object_id + i] for i in range(pointer_fixup.array_index)]
                     else:
                         for pointer_fixup in pointer_fixup_list:
-                            if pointer_fixup.som == value_offset + 4 and (not pointer_fixup.is_class_data_member()):
+                            if pointer_fixup.som == offset_from_parent + value_offset and (not pointer_fixup.is_class_data_member()):
                                 user_fix_id = pointer_fixup.user_fixup_id
                                 if user_fix_id != None and user_fix_id < len(cluster_list_fixup_info.user_fixup_results) and (type(cluster_list_fixup_info.user_fixup_results[user_fix_id].data) == str):
                                     if current_count == 0:
-                                        arr = [None] * array_count
-                                    arr[pointer_fixup.array_index] = cluster_list_fixup_info.user_fixup_results[user_fix_id].data
+                                        val = [None] * array_count
+                                    val[pointer_fixup.array_index] = cluster_list_fixup_info.user_fixup_results[user_fix_id].data
                                     current_count += 1
-                    val = {'m_els': arr, 'm_count': array_count}
-                    if type_value in ['PShaderParameterDefinition'] and arr != None:
+                    if type_value in ['PShaderParameterDefinition'] and val != None:
                         shader_object_dict = {}
                         for pointer_fixup in pointer_fixup_list:
                             if not pointer_fixup.is_class_data_member():
-                                for arr_index in range(len(arr)):
-                                    value_this = arr[arr_index]
+                                for arr_index in range(len(val)):
+                                    value_this = val[arr_index]
                                     pointer_fixup_list_offset_needed = pointer_fixup.som
                                     if value_this['m_parameterType'] == 71:
                                         pointer_fixup_list_offset_needed -= 8
@@ -1189,8 +1188,8 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                                             user_fix_id = pointer_fixup.user_fixup_id
                                             if user_fix_id != None and user_fix_id < len(cluster_list_fixup_info.user_fixup_results) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_list_fixup_info.user_fixup_results[user_fix_id].data) == int) and (cluster_list_fixup_info.user_fixup_results[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport'])):
                                                 shader_object_dict[value_this['m_name']['m_buffer']] = data_instances_by_class['PAssetReferenceImport'][cluster_list_fixup_info.user_fixup_results[user_fix_id].data]
-                        val['mu_object_references'] = shader_object_dict
-                elif (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and variable_text == 'm_u' and (type_text not in ['PSharray<PUInt32>', 'PSharray<PInt32>', 'PSharray<float>', 'PSharray<PUInt8>']):
+                        dict_data['mu_object_references'] = shader_object_dict
+                elif (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and variable_text in ['m_u']:
                     array_count = dict_data['m_count']
                     current_count = 0
                     val = [None] * array_count
@@ -1198,7 +1197,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                         if current_count >= array_count:
                             break
                         pointer_fixup = cluster_list_fixup_info.pointer_fixups[b + cluster_list_fixup_info.pointer_fixup_offset]
-                        if pointer_fixup.source_object_id == class_element and pointer_fixup.som == offset_from_parent + 4 and (not pointer_fixup.is_class_data_member()) and (pointer_fixup.destination_object.object_list in data_instances_by_class):
+                        if pointer_fixup.source_object_id == class_element and pointer_fixup.som == offset_from_parent + value_offset and (not pointer_fixup.is_class_data_member()) and (pointer_fixup.destination_object.object_list in data_instances_by_class):
                             offset_calculation = pointer_fixup.destination_object.object_id
                             data_instances_by_class_this = data_instances_by_class[pointer_fixup.destination_object.object_list]
                             if len(data_instances_by_class_this) > offset_calculation:
@@ -1225,7 +1224,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                             if user_fix_id != None and user_fix_id < len(cluster_list_fixup_info.user_fixup_results) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_list_fixup_info.user_fixup_results[user_fix_id].data) == int) and (cluster_list_fixup_info.user_fixup_results[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport'])):
                                 val = data_instances_by_class['PAssetReferenceImport'][cluster_list_fixup_info.user_fixup_results[user_fix_id].data]
                                 break
-                elif class_type_descriptor != None and type(dict_data[variable_text]) == dict and (class_type_descriptor.get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size) == expected_size):
+                elif class_type_descriptor != None and (type(dict_data[variable_text]) == dict and class_type_descriptor.get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size) == expected_size or (type_text[0:7] == 'PArray<' and type_text[-1:] == '>') or (type_text[0:9] == 'PSharray<' and type_text[-1:] == '>')):
                     if data_member.fixed_array_size > 0:
                         val = dict_data[variable_text]
                         structsize = class_type_descriptor.get_size_in_bytes()
@@ -1327,7 +1326,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                         else:
                             val = pointer_fixup.destination_object.object_list
                         break
-            elif class_type_descriptor != None and class_type_descriptor.get_size_in_bytes() == expected_size and (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and (variable_text == 'm_u') and (class_name not in ['PSharray<PUInt32>', 'PSharray<PInt32>', 'PSharray<float>', 'PSharray<PUInt8>']):
+            elif class_type_descriptor != None and class_type_descriptor.get_size_in_bytes() == expected_size and (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and (variable_text in ['m_u']):
                 val = {}
                 process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, member_id)
             elif class_type_descriptor != None and (class_type_descriptor.get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size) == expected_size or (type_text[0:7] == 'PArray<' and type_text[-1:] == '>') or (type_text[0:9] == 'PSharray<' and type_text[-1:] == '>')):
