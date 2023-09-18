@@ -212,7 +212,7 @@ def imageUntileVita(buffer, width, height, bpb, pitch=0):
         out = crop
     return out
 
-def Unswizzle(data, width, height, imgFmt, IsSwizzled, platform_id, pitch=0):
+def Unswizzle(data, width, height, imgFmt, cb, pitch=0):
     TexParams = (('DXT1', 1, 8), ('DXT3', 1, 16), ('DXT5', 1, 16), ('BC5', 1, 16), ('BC7', 1, 16), ('RGBA8', 0, 4), ('ARGB8', 0, 4), ('L8', 0, 1), ('A8', 0, 1), ('LA88', 0, 2), ('RGBA16F', 0, 8), ('ARGB1555', 0, 2), ('ARGB4444', 0, 2), ('RGB565', 0, 2), ('ARGB8_SRGB', 0, 4))
     TexParams = tuple((tuple((TexParams[j][i] for j in range(len(TexParams)))) for i in range(len(TexParams[0]))))
     IsBlockCompressed = TexParams[1][TexParams[0].index(imgFmt)]
@@ -221,12 +221,9 @@ def Unswizzle(data, width, height, imgFmt, IsSwizzled, platform_id, pitch=0):
         width >>= 2
         height >>= 2
         pitch >>= 2
-    if platform_id == GNM_PLATFORM:
-        data = imageUntilePS4(data, width, height, BytesPerBlock, pitch)
-    elif platform_id == GXM_PLATFORM:
-        data = imageUntileVita(data, width, height, BytesPerBlock, pitch)
-    else:
-        data = imageUntileMorton(data, width, height, BytesPerBlock, pitch)
+    if imgFmt == 'DXT5' and cb == imageUntileVita:
+        BytesPerBlock = 8
+    data = cb(data, width, height, BytesPerBlock, pitch)
     return data
 
 def GetInfo(val, sh1, sh2):
@@ -947,10 +944,6 @@ def uncompress_zstd(src, decompressed_size, compressed_size):
     return uncompressed
 NOEPY_HEADER_BE = 1381582928
 NOEPY_HEADER_LE = 1346918738
-GCM_PLATFORM = 1195592960
-GXM_PLATFORM = 1196969217
-GNM_PLATFORM = 1196313858
-DX11_PLATFORM = 1146630449
 
 def get_type(id_, type_strings, class_descriptors):
     total_types = len(type_strings) + 1
@@ -1308,8 +1301,6 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                     g.seek(4, io.SEEK_CUR)
                 elif expected_size == 1:
                     g.seek(1, io.SEEK_CUR)
-            elif type_text in ['PTextureStateGNM']:
-                val = g.read(expected_size)
             elif type_text in ['PCgParameterInfoGCM', 'PCgCodebookGCM', 'PCgBindingParameterInfoGXM', 'PCgBindingSceneConstantsGXM']:
                 val = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
             elif type_text in ['Vector4'] and expected_size == 4:
@@ -2214,35 +2205,34 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
     else:
         image_width = dict_data['m_width']
         image_height = dict_data['m_height']
-    if cluster_header.platform_id == GNM_PLATFORM:
-        image_data = g.read(cluster_mesh_info.cluster_header['m_sharedVideoMemoryBufferSize'])
-    elif cluster_header.platform_id == GXM_PLATFORM:
+    image_data = None
+    texture_size = 0
+    is_gxt = 'm_mainTextureBufferSize' in cluster_mesh_info.cluster_header or 'm_textureBufferSize' in cluster_mesh_info.cluster_header
+    if is_gxt:
         g.seek(64, io.SEEK_CUR)
-        texture_size = 0
-        if 'm_mainTextureBufferSize' in cluster_mesh_info.cluster_header:
-            texture_size = cluster_mesh_info.cluster_header['m_mainTextureBufferSize']
-        elif 'm_textureBufferSize' in cluster_mesh_info.cluster_header:
-            texture_size = cluster_mesh_info.cluster_header['m_textureBufferSize']
-        image_data = g.read(texture_size - 64)
-        block_read = 4
-        if dict_data['m_format'] == 'DXT5':
-            block_read = 8
-        image_data = Unswizzle(image_data, image_width >> 1, image_height >> 2, dict_data['m_format'], True, cluster_header.platform_id, 0)
-    elif cluster_header.platform_id == DX11_PLATFORM:
-        image_data = g.read(cluster_mesh_info.cluster_header['m_maxTextureBufferSize'])
-    elif cluster_header.platform_id == GCM_PLATFORM:
-        image_data = g.read(cluster_mesh_info.cluster_header['m_vramBufferSize'])
+    for attribute in ['m_sharedVideoMemoryBufferSize', 'm_maxTextureBufferSize', 'm_vramBufferSize', 'm_mainTextureBufferSize', 'm_textureBufferSize']:
+        if attribute in cluster_mesh_info.cluster_header:
+            texture_size = cluster_mesh_info.cluster_header[attribute]
+            break
+    if is_gxt:
+        if texture_size != 0:
+            texture_size -= 64
+    if texture_size == 0:
+        raise Exception('Unknown cluster header format')
+    image_data = g.read(texture_size)
+    if len(image_data) != texture_size:
+        raise Exception('Unable to read whole data')
     pitch = 0
-    if cluster_header.platform_id == GNM_PLATFORM:
-        temporary_pitch = GetInfo(struct.unpack('<I', dict_data['m_texState'][24:28])[0], 26, 13) + 1
+    if 'm_sharedVideoMemoryBufferSize' in cluster_mesh_info.cluster_header:
+        temporary_pitch = GetInfo(struct.unpack('<I', bytes(dict_data['m_texState']['m_buffers']['m_u'][0]['m_gnmTexture']['m_elements'])[16:20])[0], 26, 13) + 1
         if image_width != temporary_pitch:
             pitch = temporary_pitch
-    if cluster_header.platform_id == GNM_PLATFORM or cluster_header.platform_id == GXM_PLATFORM:
-        image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], True, cluster_header.platform_id, pitch)
-    elif cluster_header.platform_id == GCM_PLATFORM:
+    if 'm_sharedVideoMemoryBufferSize' in cluster_mesh_info.cluster_header or is_gxt:
+        image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], imageUntileVita if is_gxt else imageUntilePS4, pitch)
+    elif 'm_vramBufferSize' in cluster_mesh_info.cluster_header:
         size_map = {'ARGB8': 4, 'RGBA8': 4, 'ARGB4444': 2, 'L8': 1, 'LA8': 2}
         if dict_data['m_format'] in size_map:
-            image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], True, cluster_header.platform_id, pitch)
+            image_data = Unswizzle(image_data, image_width, image_height, dict_data['m_format'], imageUntileMorton, pitch)
     if True:
         png_output_path = cluster_mesh_info.filename.rsplit('.', maxsplit=2)[0] + '.png'
         if True:
@@ -2575,7 +2565,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                 indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[meshSegment['mu_indBufferPosition']:meshSegment['mu_indBufferPosition'] + meshSegment['mu_indBufferSize']], 'B'))
             meshSegment['mu_indBuffer'] = indvertbuffercache[cachekey]
     vertex_buffer_base_position = 0
-    if cluster_header.platform_id == GXM_PLATFORM:
+    if 'm_mainIndexBufferSize' in cluster_mesh_info.cluster_header or 'm_indexBufferSize' in cluster_mesh_info.cluster_header:
         indice_size = 0
         align_size = 0
         if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
