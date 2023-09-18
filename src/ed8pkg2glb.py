@@ -1198,6 +1198,9 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                     array_count = dict_data['m_count']
                     current_count = 0
                     val = [None] * array_count
+                    if array_count > 0:
+                        val[0] = dict_data[variable_text]
+                        process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val[0], cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_info_map, object_member_array_info_map, member_id)
                     for b in range(pointer_fixup_count):
                         if current_count >= array_count:
                             break
@@ -1330,6 +1333,9 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                         else:
                             val = pointer_info.destination_object.object_list
                         break
+            elif class_type_id != None and cluster_info.class_descriptors[class_type_id - 1].get_size_in_bytes() == expected_size and (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and (variable_text == 'm_u') and (class_name not in ['PSharray<PUInt32>', 'PSharray<PInt32>', 'PSharray<float>', 'PSharray<PUInt8>']):
+                val = {}
+                process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_info_map, object_member_array_info_map, member_id)
             elif class_type_id != None and (cluster_info.class_descriptors[class_type_id - 1].get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size) == expected_size or (type_text[0:7] == 'PArray<' and type_text[-1:] == '>') or (type_text[0:9] == 'PSharray<' and type_text[-1:] == '>')):
                 if data_member.fixed_array_size > 0:
                     val = []
