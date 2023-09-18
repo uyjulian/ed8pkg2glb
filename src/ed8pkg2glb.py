@@ -2562,20 +2562,10 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
             if cachekey not in indvertbuffercache:
                 indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[meshSegment['mu_indBufferPosition']:meshSegment['mu_indBufferPosition'] + meshSegment['mu_indBufferSize']], 'B'))
             meshSegment['mu_indBuffer'] = indvertbuffercache[cachekey]
-    vertex_buffer_base_position = 0
-    if 'm_mainIndexBufferSize' in cluster_mesh_info.cluster_header or 'm_indexBufferSize' in cluster_mesh_info.cluster_header:
-        indice_size = 0
-        align_size = 0
-        if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
-            for meshSegment in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
-                indice_size += meshSegment['mu_indBufferSize']
-                align_size += meshSegment['mu_indBufferSize'] % 4
-        indice_size += align_size
-        vertex_buffer_base_position = indice_size
     for vertexData in pdatablock_list:
         for streamInfo in vertexData['m_streams']['m_els']:
             if 'm_mappableBuffers' in vertexData:
-                streamInfo['mu_vertBufferPosition'] = vertex_buffer_base_position + vertexData['m_mappableBuffers']['m_offsetInAllocatedBuffer'] + streamInfo['m_offset']
+                streamInfo['mu_vertBufferPosition'] = vertexData['m_mappableBuffers']['m_offsetInAllocatedBuffer'] + streamInfo['m_offset']
                 streamInfo['mu_vertBufferSize'] = vertexData['m_mappableBuffers']['m_strideInAllocatedBuffer']
             elif 'm_indexBufferSize' in cluster_mesh_info.cluster_header:
                 streamInfo['mu_vertBufferPosition'] = cluster_mesh_info.cluster_header['m_indexBufferSize'] + vertexData['m_offsetInVertexBuffer'] + streamInfo['m_offset']
