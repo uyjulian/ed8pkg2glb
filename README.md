@@ -22,13 +22,42 @@ The `.png` file is always output in compressed RGBA format. It is loadable in [B
 
 ## Compatibility
 
+### Game support
+
 The following games are known to be compatible with this program:  
-* 英雄伝説: 閃の軌跡 / Eiyuu Densetsu: Sen no Kiseki / The Legend of Heroes: Trails of Cold Steel (Vita, PS3, PC, PS4)
-* 英雄伝説: 閃の軌跡 II / Eiyuu Densetsu: Sen no Kiseki II / The Legend of Heroes: Trails of Cold Steel II (Vita, PS3, PC, PS4)
-* 英雄伝説: 閃の軌跡 III / Eiyuu Densetsu: Sen no Kiseki III / The Legend of Heroes: Trails of Cold Steel III (PC, PS4, Switch)
-* 英雄伝説: 閃の軌跡 IV / Eiyuu Densetsu: Sen no Kiseki IV / The Legend of Heroes: Trails of Cold Steel IV (PC, PS4, Switch)
-* 英雄伝説: 創の軌跡 / Eiyuu Densetsu: Hajimari no Kiseki (PC, PS4)
-* 東亰ザナドゥ / Tokyo Xanadu (Vita, PC, PS4)
+* 英雄伝説: 閃の軌跡 / Eiyuu Densetsu: Sen no Kiseki / The Legend of Heroes: Trails of Cold Steel / ED81
+* 英雄伝説: 閃の軌跡 II / Eiyuu Densetsu: Sen no Kiseki II / The Legend of Heroes: Trails of Cold Steel II / ED82
+* 英雄伝説: 閃の軌跡 III / Eiyuu Densetsu: Sen no Kiseki III / The Legend of Heroes: Trails of Cold Steel III / ED83
+* 英雄伝説: 閃の軌跡 IV / Eiyuu Densetsu: Sen no Kiseki IV / The Legend of Heroes: Trails of Cold Steel IV / ED84
+* 英雄伝説: 創の軌跡 / Eiyuu Densetsu: Hajimari no Kiseki / The Legend of Heroes: Trails into Reverie / ED85
+* 東亰ザナドゥ / Tokyo Xanadu / TX
+
+### Platform support
+
+|      | Vita | PS3 | PS4 | PS5 | PC | Switch |
+|------|:----:|:---:|:---:|:---:|:--:|:------:|
+| ED81 | 4    | 2   | 2   |     | 1  | 3      |
+| ED82 | 4    | 2   | 2   |     | 1  | 3      |
+| ED83 |      |     | 2   |     | 1  | 3      |
+| ED84 |      |     | 2   |     | 1  | 3      |
+| ED85 |      |     | 2   |     | 1  | 3      |
+| TX   | 4    |     | 2   |     | 1  | 3      |
+
+#### Tier 1
+
+The files from this platform are tested before each release and are known working and produce the correct output.
+
+#### Tier 2
+
+The files from this platform are known working and produce the correct output.
+
+#### Tier 3
+
+The files from this platform are known working, but may not produce the correct output.
+
+#### Tier 4
+
+Some or all files from this platform are known to not work.
 
 ## Extracting a .pkg file from an outer archive
 
