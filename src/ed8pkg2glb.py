@@ -1940,7 +1940,7 @@ def parse_cluster(filename='', noesis_model=None, storage_media=None):
         process_cluster_instance_list_header(instance_list_header, g, count_list, header_processor, cluster_mesh_info, cluster_header, filename, data_instances_by_class)
         class_location += instance_list_header.size
         count_list += 1
-    render_mesh(g, cluster_mesh_info, header_processor, cluster_header)
+    render_mesh(g, cluster_mesh_info, cluster_header)
     return cluster_mesh_info
 
 def file_is_ed8_pkg(path):
@@ -2509,7 +2509,7 @@ dataTypeMappingNormalizationMultiplier = {20: 65535, 24: 255, 40: 32767, 44: 127
 dataTypeMappingPrimitiveRemap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 4, 5: 4, 6: 4, 7: 4, 8: 8, 9: 8, 10: 8, 11: 8, 12: 12, 13: 12, 14: 12, 15: 12, 16: 16, 17: 16, 18: 16, 19: 16, 20: 20, 21: 20, 22: 20, 23: 20, 24: 24, 25: 24, 26: 24, 27: 24, 28: 28, 29: 28, 30: 28, 31: 28, 32: 32, 33: 32, 34: 32, 35: 32, 36: 36, 37: 36, 38: 36, 39: 36, 40: 40, 41: 40, 42: 40, 43: 40, 44: 44, 45: 44, 46: 44, 47: 44}
 dataTypeCountMappingForGltf = {0: 'SCALAR', 1: 'VEC2', 2: 'VEC3', 3: 'VEC4'}
 
-def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
+def render_mesh(g, cluster_mesh_info, cluster_header):
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
         for texture2d in cluster_mesh_info.data_instances_by_class['PTexture2D']:
             create_texture(g, texture2d, cluster_mesh_info, cluster_header, False)
@@ -2743,10 +2743,10 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
         for node in cluster_mesh_info.data_instances_by_class['PNode']:
             derive_matrix_44(node, node['mu_matrixToUse'])
     if True:
-        gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list)
+        gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list)
         return
 
-def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list):
+def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
     if True:
         asset = {}
         asset['generator'] = 'ed8pkg2glb'
