@@ -1256,45 +1256,11 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
             elif type_text in ['PChar']:
                 val = ''
                 for array_fixup in array_fixup_list:
-                    if True:
+                    if array_fixup.som == offset_from_parent + value_offset or len(array_fixup_list) == 1:
                         old_position = g.tell()
                         g.seek(array_location + array_fixup.offset)
                         try:
                             val = read_null_ending_string(g)
-                        except:
-                            pass
-                        g.seek(old_position)
-                        break
-                if expected_size == 4:
-                    g.seek(4, io.SEEK_CUR)
-                elif expected_size == 1:
-                    g.seek(1, io.SEEK_CUR)
-            elif type_text in ['PString'] and class_name in ['PNode']:
-                val = {}
-                val['m_buffer'] = ''
-                for array_fixup in array_fixup_list:
-                    if array_fixup.som + 4 == value_offset or array_fixup.som == value_offset:
-                        old_position = g.tell()
-                        g.seek(array_location + array_fixup.offset)
-                        try:
-                            val['m_buffer'] = read_null_ending_string(g)
-                        except:
-                            pass
-                        g.seek(old_position)
-                        break
-                if expected_size == 4:
-                    g.seek(4, io.SEEK_CUR)
-                elif expected_size == 1:
-                    g.seek(1, io.SEEK_CUR)
-            elif type_text in ['PString']:
-                val = {}
-                val['m_buffer'] = ''
-                for array_fixup in array_fixup_list:
-                    if array_fixup.som == value_offset:
-                        old_position = g.tell()
-                        g.seek(array_location + array_fixup.offset)
-                        try:
-                            val['m_buffer'] = read_null_ending_string(g)
                         except:
                             pass
                         g.seek(old_position)
