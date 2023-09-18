@@ -1074,6 +1074,9 @@ clusterPrimitiveToPythonStructTypeMapping = {'PUInt8': 'B', 'PInt8': 'b', 'PUInt
 
 def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, root_member_id):
     if id_ > 0:
+
+        def process_data_members_recursive(id_=id_, member_location=member_location, class_name=class_name, dict_data=dict_data, offset_from_parent=offset_from_parent, root_member_id=root_member_id):
+            process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, root_member_id)
         class_id = id_ - 1
         class_descriptor = cluster_type_info.class_descriptors[class_id]
         member_id_to_pointer_fixup_list = {}
@@ -1205,7 +1208,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                             current_count += 1
                     if array_count > 0 and current_count == 0:
                         val[0] = dict_data[variable_text]
-                        process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val[0], cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, member_id)
+                        process_data_members_recursive(id_=class_type_id, member_location=data_offset, class_name=type_text, dict_data=val[0], offset_from_parent=offset_from_parent + value_offset, root_member_id=member_id)
                 elif type_text in data_instances_by_class or type_text in ['PBase']:
                     for pointer_fixup in pointer_fixup_list:
                         if pointer_fixup.is_class_data_member():
@@ -1230,10 +1233,10 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                         structsize = class_type_descriptor.get_size_in_bytes()
                         for i in range(data_member.fixed_array_size):
                             val2 = val[i]
-                            process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_type_id, data_offset + structsize * i, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val2, cluster_header, data_instances_by_class, offset_from_parent + value_offset + structsize * i, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, member_id)
+                            process_data_members_recursive(id_=class_type_id, member_location=data_offset + structsize * i, class_name=type_text, dict_data=val2, offset_from_parent=offset_from_parent + value_offset + structsize * i, root_member_id=member_id)
                     else:
                         val = dict_data[variable_text]
-                        process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, member_id)
+                        process_data_members_recursive(id_=class_type_id, member_location=data_offset, class_name=type_text, dict_data=val, offset_from_parent=offset_from_parent + value_offset, root_member_id=member_id)
             elif type_text in clusterPrimitiveToPythonStructTypeMapping:
                 datatype_pystructtype = clusterPrimitiveToPythonStructTypeMapping[type_text]
                 datatype_size_single = struct.calcsize(datatype_pystructtype)
@@ -1294,21 +1297,21 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                         break
             elif class_type_descriptor != None and class_type_descriptor.get_size_in_bytes() == expected_size and (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and (variable_text in ['m_u']):
                 val = {}
-                process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, member_id)
+                process_data_members_recursive(id_=class_type_id, member_location=data_offset, class_name=type_text, dict_data=val, offset_from_parent=offset_from_parent + value_offset, root_member_id=member_id)
             elif class_type_descriptor != None and (class_type_descriptor.get_size_in_bytes() * (1 if data_member.fixed_array_size == 0 else data_member.fixed_array_size) == expected_size or (type_text[0:7] == 'PArray<' and type_text[-1:] == '>') or (type_text[0:9] == 'PSharray<' and type_text[-1:] == '>')):
                 if data_member.fixed_array_size > 0:
                     val = []
                     structsize = class_type_descriptor.get_size_in_bytes()
                     for i in range(data_member.fixed_array_size):
                         val2 = {}
-                        process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_type_id, data_offset + structsize * i, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val2, cluster_header, data_instances_by_class, offset_from_parent + value_offset + structsize * i, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, member_id)
+                        process_data_members_recursive(id_=class_type_id, member_location=data_offset + structsize * i, class_name=type_text, dict_data=val2, offset_from_parent=offset_from_parent + value_offset + structsize * i, root_member_id=member_id)
                         val.append(val2)
                 else:
                     val = {}
-                    process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, member_id)
+                    process_data_members_recursive(id_=class_type_id, member_location=data_offset, class_name=type_text, dict_data=val, offset_from_parent=offset_from_parent + value_offset, root_member_id=member_id)
             if data_instances_by_class != None and val != None or data_instances_by_class == None:
                 dict_data[variable_text] = val
-        process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_descriptor.super_class_id, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, None)
+        process_data_members_recursive(id_=class_descriptor.super_class_id, root_member_id=None)
         return dict_data
 cluster_classes_to_handle = ['PAnimationChannel', 'PAnimationChannelTimes', 'PAnimationClip', 'PAnimationConstantChannel', 'PAnimationSet', 'PAssetReference', 'PAssetReferenceImport', 'PCgParameterInfoGCM', 'PContextVariantFoldingTable', 'PDataBlock', 'PDataBlockD3D11', 'PDataBlockGCM', 'PDataBlockGL', 'PDataBlockGNM', 'PDataBlockGXM', 'PEffect', 'PEffectVariant', 'PLight', 'PMaterial', 'PMaterialSwitch', 'PMatrix4', 'PMesh', 'PMeshInstance', 'PMeshInstanceBounds', 'PMeshInstanceSegmentContext', 'PMeshInstanceSegmentStreamBinding', 'PMeshSegment', 'PNode', 'PNodeContext', 'PParameterBuffer', 'PSamplerState', 'PSceneRenderPass', 'PShader', 'PShaderComputeProgram', 'PShaderFragmentProgram', 'PShaderGeometryProgram', 'PShaderParameterCaptureBufferLocation', 'PShaderParameterCaptureBufferLocationTypeConstantBuffer', 'PShaderParameterDefinition', 'PShaderPass', 'PShaderPassInfo', 'PShaderStreamDefinition', 'PShaderVertexProgram', 'PSkeletonJointBounds', 'PSkinBoneRemap', 'PString', 'PTexture2D', 'PTextureCubeMap', 'PVertexStream', 'PWorldMatrix']
 
