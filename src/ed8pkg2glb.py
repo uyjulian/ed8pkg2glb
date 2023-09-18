@@ -256,7 +256,7 @@ def decode_bc7_block(src):
 
     def bc7_mode_to_dict(mode_arr):
         return {'ns': mode_arr[0], 'pb': mode_arr[1], 'rb': mode_arr[2], 'isb': mode_arr[3], 'cb': mode_arr[4], 'ab': mode_arr[5], 'epb': mode_arr[6], 'spb': mode_arr[7], 'ib': mode_arr[8], 'ib2': mode_arr[9]}
-    bc7_modes[:] = [bc7_mode_to_dict(x) for x in bc7_modes]
+    bc7_modes[:] = [bc7_mode_to_dict(mode) for mode in bc7_modes]
     bc7_si2 = [52428, 34952, 61166, 60616, 51328, 65260, 65224, 60544, 51200, 65516, 65152, 59392, 65512, 65280, 65520, 61440, 63248, 142, 28928, 2254, 140, 29456, 12544, 36046, 2188, 12560, 26214, 13932, 6120, 4080, 29070, 14748, 43690, 61680, 23130, 13260, 15420, 21930, 38550, 42330, 29646, 5064, 12876, 15324, 27030, 49980, 39270, 1632, 626, 1252, 20032, 10016, 51510, 37740, 14790, 25500, 37686, 40134, 33150, 59160, 52464, 4044, 30532, 60962]
     bc7_si3 = [2858963024, 1784303680, 1515864576, 1414570152, 2779054080, 2694860880, 1431675040, 1515868240, 2857697280, 2857719040, 2863289600, 2425393296, 2492765332, 2762253476, 2846200912, 705315408, 2777960512, 172118100, 2779096320, 1436590240, 2829603924, 1785348160, 2762231808, 437912832, 5285028, 2862977168, 342452500, 1768494080, 2693105056, 2860651540, 1352967248, 1784283648, 2846195712, 1351655592, 2829094992, 606348324, 11162880, 613566756, 608801316, 1352993360, 1342874960, 2863285316, 1717960704, 2778768800, 1352683680, 1764256040, 1152035396, 1717986816, 2856600644, 1420317864, 2508232064, 2526451200, 2824098984, 2157286784, 2853442580, 2526412800, 2863272980, 2689618080, 2695210400, 2516582400, 1082146944, 2846402984, 2863311428, 709513812]
     bc7_ai0 = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 2, 8, 2, 2, 8, 8, 15, 2, 8, 2, 2, 8, 8, 2, 2, 15, 15, 6, 8, 2, 8, 15, 15, 2, 8, 2, 2, 2, 15, 15, 6, 6, 2, 6, 8, 15, 15, 2, 2, 15, 15, 15, 15, 15, 2, 2, 15]
@@ -1025,10 +1025,10 @@ def get_object_member_pointer_info_map(cluster_info, cluster_instance_list_heade
         if pointer_info.is_class_data_member():
             member_id = pointer_info.som
         elif not pointer_info.is_class_data_member():
-            for x in object_value_offset_to_member_id_sorted_keys:
-                if x > pointer_info.som:
+            for key in object_value_offset_to_member_id_sorted_keys:
+                if key > pointer_info.som:
                     break
-                member_id = object_value_offset_to_member_id[x]
+                member_id = object_value_offset_to_member_id[key]
         if member_id != None:
             if not member_id in obj_source_object_id:
                 obj_source_object_id[member_id] = []
@@ -1055,10 +1055,10 @@ def get_object_member_array_info_map(cluster_info, cluster_instance_list_header)
         if array_info.is_class_data_member():
             member_id = array_info.som
         elif not array_info.is_class_data_member():
-            for x in object_value_offset_to_member_id_sorted_keys:
-                if x > array_info.som:
+            for key in object_value_offset_to_member_id_sorted_keys:
+                if key > array_info.som:
                     break
-                member_id = object_value_offset_to_member_id[x]
+                member_id = object_value_offset_to_member_id[key]
         if member_id != None:
             if not member_id in obj_source_object_id:
                 obj_source_object_id[member_id] = []
@@ -1067,10 +1067,10 @@ def get_object_member_array_info_map(cluster_info, cluster_instance_list_header)
         if array_info.is_class_data_member():
             member_id = array_info.som
         elif not array_info.is_class_data_member():
-            for x in object_value_offset_to_member_id_sorted_keys:
-                if x > array_info.som + 4:
+            for key in object_value_offset_to_member_id_sorted_keys:
+                if key > array_info.som + 4:
                     break
-                member_id = object_value_offset_to_member_id[x]
+                member_id = object_value_offset_to_member_id[key]
         if member_id != None:
             if not member_id in obj_source_object_id:
                 obj_source_object_id[member_id] = []
@@ -1176,8 +1176,8 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                         shader_object_dict = {}
                         for pointer_info in pointer_infos:
                             if not pointer_info.is_class_data_member():
-                                for x in range(len(arr)):
-                                    value_this = arr[x]
+                                for arr_index in range(len(arr)):
+                                    value_this = arr[arr_index]
                                     pointer_info_offset_needed = pointer_info.som
                                     if value_this['m_parameterType'] == 71:
                                         pointer_info_offset_needed -= 8
@@ -1386,13 +1386,13 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
     if data_instances_by_class != None:
         return None
     if class_name == 'PAssetReference':
-        for v in data_instances:
-            if not v['m_assetType'] in cluster_info.list_for_class_descriptors:
-                cluster_info.list_for_class_descriptors[v['m_assetType']] = []
-            cluster_info.list_for_class_descriptors[v['m_assetType']].append(v['m_id'])
+        for assetReference in data_instances:
+            if not assetReference['m_assetType'] in cluster_info.list_for_class_descriptors:
+                cluster_info.list_for_class_descriptors[assetReference['m_assetType']] = []
+            cluster_info.list_for_class_descriptors[assetReference['m_assetType']].append(assetReference['m_id'])
     if class_name == 'PAssetReferenceImport':
-        for v in data_instances:
-            cluster_info.import_classes_strings.append(v['m_targetAssetType'])
+        for assetReference in data_instances:
+            cluster_info.import_classes_strings.append(assetReference['m_targetAssetType'])
     if should_handle_class:
         return data_instances
     else:
@@ -2145,8 +2145,8 @@ class TSpecialOverlayMedia(IStorageMedia):
         if 'w' in flags:
             has_passthrough_extension = False
             if self.allowed_write_extensions != None:
-                for x in self.allowed_write_extensions:
-                    if name.endswith(x):
+                for ext in self.allowed_write_extensions:
+                    if name.endswith(ext):
                         has_passthrough_extension = True
                         break
             if has_passthrough_extension:
@@ -2317,35 +2317,35 @@ def load_shader_parameters(g, dict_data, cluster_header):
     parameter_buffer = g.read(dict_data['m_parameterBufferSize'])
     g.seek(old_position)
     shader_parameters = {}
-    for x in dict_data['m_tweakableShaderParameterDefinitions']['m_els']:
-        parameter_offset = x['m_bufferLoc']['m_offset']
-        parameter_size = x['m_bufferLoc']['m_size']
-        if x['m_parameterType'] == 66 or x['m_parameterType'] == 68:
+    for shaderParameterDefinition in dict_data['m_tweakableShaderParameterDefinitions']['m_els']:
+        parameter_offset = shaderParameterDefinition['m_bufferLoc']['m_offset']
+        parameter_size = shaderParameterDefinition['m_bufferLoc']['m_size']
+        if shaderParameterDefinition['m_parameterType'] == 66 or shaderParameterDefinition['m_parameterType'] == 68:
             arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'I')
-            shader_parameters[x['m_name']] = arr
-            if x['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
-                shader_parameters[x['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][x['m_name']]['m_id']
-        elif x['m_parameterType'] == 71:
+            shader_parameters[shaderParameterDefinition['m_name']] = arr
+            if shaderParameterDefinition['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
+                shader_parameters[shaderParameterDefinition['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']]['m_id']
+        elif shaderParameterDefinition['m_parameterType'] == 71:
             arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'I')
-            shader_parameters[x['m_name']] = arr
-            if x['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
-                shader_parameters[x['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][x['m_name']]
+            shader_parameters[shaderParameterDefinition['m_name']] = arr
+            if shaderParameterDefinition['m_name'] in dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences']:
+                shader_parameters[shaderParameterDefinition['m_name']] = dict_data['mu_tweakableShaderParameterDefinitionsObjectReferences'][shaderParameterDefinition['m_name']]
         elif parameter_size == 24:
-            shader_parameters[x['m_name']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+            shader_parameters[shaderParameterDefinition['m_name']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
         elif parameter_size % 4 == 0:
             arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'f')
-            shader_parameters[x['m_name']] = arr
+            shader_parameters[shaderParameterDefinition['m_name']] = arr
         else:
-            shader_parameters[x['m_name']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
+            shader_parameters[shaderParameterDefinition['m_name']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
     dict_data['mu_shaderParameters'] = shader_parameters
 
 def multiply_array_as_4x4_matrix(arra, arrb):
@@ -2494,16 +2494,16 @@ def decompose_matrix_44(mat, translation, rotation, scale):
         rotation[2] = 0.0
         rotation[3] = 1.0
 
-def derive_matrix_44(v, mat):
+def derive_matrix_44(dic, mat):
     translation = array.array('f')
     translation.extend([0, 0, 0])
-    v['mu_translation'] = translation
+    dic['mu_translation'] = translation
     rotation = array.array('f')
     rotation.extend([0, 0, 0, 0])
-    v['mu_rotation'] = rotation
+    dic['mu_rotation'] = rotation
     scale = array.array('f')
     scale.extend([0, 0, 0])
-    v['mu_scale'] = scale
+    dic['mu_scale'] = scale
     decompose_matrix_44(mat, translation, rotation, scale)
 indiceTypeLengthMapping = {8: 5125, 12: 5123, 16: 5121, 20: 5123, 24: 5121, 28: 5125, 32: 5122, 36: 5121, 40: 5123, 44: 5121}
 indiceTypeLengthMappingPython = {8: 'I', 12: 'H', 16: 'B', 20: 'H', 24: 'B', 28: 'i', 32: 'h', 36: 'b', 40: 'h', 44: 'b'}
@@ -2515,15 +2515,15 @@ dataTypeCountMappingForGltf = {0: 'SCALAR', 1: 'VEC2', 2: 'VEC3', 3: 'VEC4'}
 
 def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
     if 'PTexture2D' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PTexture2D']:
-            create_texture(g, v, cluster_mesh_info, cluster_header, False)
+        for texture2d in cluster_mesh_info.data_instances_by_class['PTexture2D']:
+            create_texture(g, texture2d, cluster_mesh_info, cluster_header, False)
     if 'PTextureCubeMap' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PTextureCubeMap']:
-            create_texture(g, v, cluster_mesh_info, cluster_header, True)
+        for textureCubeMap in cluster_mesh_info.data_instances_by_class['PTextureCubeMap']:
+            create_texture(g, textureCubeMap, cluster_mesh_info, cluster_header, True)
     if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-            if v['m_targetAssetType'] == 'PTexture2D' or v['m_targetAssetType'] == 'PTextureCubeMap':
-                load_texture(v, cluster_mesh_info)
+        for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+            if assetReferenceImport['m_targetAssetType'] == 'PTexture2D' or assetReferenceImport['m_targetAssetType'] == 'PTextureCubeMap':
+                load_texture(assetReferenceImport, cluster_mesh_info)
     if 'PParameterBuffer' in cluster_mesh_info.data_instances_by_class:
         for k in cluster_mesh_info.data_instances_by_class.keys():
             has_key = False
@@ -2533,15 +2533,15 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                     if data_instances[0]['mu_memberClass'] == 'PParameterBuffer':
                         has_key = True
             if has_key == True:
-                for v in cluster_mesh_info.data_instances_by_class[k]:
-                    load_shader_parameters(g, v, cluster_header)
+                for parameterBuffer in cluster_mesh_info.data_instances_by_class[k]:
+                    load_shader_parameters(g, parameterBuffer, cluster_header)
     clsuter_basename_noext = cluster_mesh_info.filename.split('.', 1)[0]
     if 'PMaterial' in cluster_mesh_info.data_instances_by_class:
         import hashlib
-        for v in cluster_mesh_info.data_instances_by_class['PMaterial']:
-            load_materials_with_actual_name(v, cluster_mesh_info)
-            if 'mu_name' in v:
-                v['mu_materialname'] = v['mu_name']
+        for material in cluster_mesh_info.data_instances_by_class['PMaterial']:
+            load_materials_with_actual_name(material, cluster_mesh_info)
+            if 'mu_name' in material:
+                material['mu_materialname'] = material['mu_name']
     pdatablock_list = []
     if 'PDataBlock' in cluster_mesh_info.data_instances_by_class:
         pdatablock_list = cluster_mesh_info.data_instances_by_class['PDataBlock']
@@ -2555,70 +2555,70 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
     indvertbuffer = memoryview(g.read())
     indvertbuffercache = {}
     if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
-            if 'm_mappableBuffers' in v['m_indexData']:
-                v['mu_indBufferPosition'] = v['m_indexData']['m_mappableBuffers']['m_offsetInAllocatedBuffer']
-                v['mu_indBufferSize'] = v['m_indexData']['m_dataSize']
+        for meshSegment in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
+            if 'm_mappableBuffers' in meshSegment['m_indexData']:
+                meshSegment['mu_indBufferPosition'] = meshSegment['m_indexData']['m_mappableBuffers']['m_offsetInAllocatedBuffer']
+                meshSegment['mu_indBufferSize'] = meshSegment['m_indexData']['m_dataSize']
             else:
-                v['mu_indBufferPosition'] = v['m_indexData']['m_offsetInIndexBuffer']
-                v['mu_indBufferSize'] = v['m_indexData']['m_dataSize']
-            cachekey = v['mu_indBufferPosition'].to_bytes(4, byteorder='little') + v['mu_indBufferSize'].to_bytes(4, byteorder='little')
+                meshSegment['mu_indBufferPosition'] = meshSegment['m_indexData']['m_offsetInIndexBuffer']
+                meshSegment['mu_indBufferSize'] = meshSegment['m_indexData']['m_dataSize']
+            cachekey = meshSegment['mu_indBufferPosition'].to_bytes(4, byteorder='little') + meshSegment['mu_indBufferSize'].to_bytes(4, byteorder='little')
             if cachekey not in indvertbuffercache:
-                indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[v['mu_indBufferPosition']:v['mu_indBufferPosition'] + v['mu_indBufferSize']], 'B'))
-            v['mu_indBuffer'] = indvertbuffercache[cachekey]
+                indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[meshSegment['mu_indBufferPosition']:meshSegment['mu_indBufferPosition'] + meshSegment['mu_indBufferSize']], 'B'))
+            meshSegment['mu_indBuffer'] = indvertbuffercache[cachekey]
     vertex_buffer_base_position = 0
     if cluster_header.platform_id == GXM_PLATFORM:
         indice_size = 0
         align_size = 0
         if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
-                indice_size += v['mu_indBufferSize']
-                align_size += v['mu_indBufferSize'] % 4
+            for meshSegment in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
+                indice_size += meshSegment['mu_indBufferSize']
+                align_size += meshSegment['mu_indBufferSize'] % 4
         indice_size += align_size
         vertex_buffer_base_position = indice_size
-    for v in pdatablock_list:
-        if 'm_mappableBuffers' in v:
-            v['mu_vertBufferPosition'] = vertex_buffer_base_position + v['m_mappableBuffers']['m_offsetInAllocatedBuffer']
-            v['mu_vertBufferSize'] = v['m_mappableBuffers']['m_strideInAllocatedBuffer']
+    for dataBlock in pdatablock_list:
+        if 'm_mappableBuffers' in dataBlock:
+            dataBlock['mu_vertBufferPosition'] = vertex_buffer_base_position + dataBlock['m_mappableBuffers']['m_offsetInAllocatedBuffer']
+            dataBlock['mu_vertBufferSize'] = dataBlock['m_mappableBuffers']['m_strideInAllocatedBuffer']
         elif 'm_indexBufferSize' in cluster_mesh_info.cluster_header:
-            v['mu_vertBufferPosition'] = cluster_mesh_info.cluster_header['m_indexBufferSize'] + v['m_offsetInVertexBuffer']
-            v['mu_vertBufferSize'] = v['m_dataSize']
-        cachekey = v['mu_vertBufferPosition'].to_bytes(4, byteorder='little') + v['mu_vertBufferSize'].to_bytes(4, byteorder='little')
+            dataBlock['mu_vertBufferPosition'] = cluster_mesh_info.cluster_header['m_indexBufferSize'] + dataBlock['m_offsetInVertexBuffer']
+            dataBlock['mu_vertBufferSize'] = dataBlock['m_dataSize']
+        cachekey = dataBlock['mu_vertBufferPosition'].to_bytes(4, byteorder='little') + dataBlock['mu_vertBufferSize'].to_bytes(4, byteorder='little')
         if cachekey not in indvertbuffercache:
-            indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[v['mu_vertBufferPosition']:v['mu_vertBufferPosition'] + v['mu_vertBufferSize']], 'B'))
-        v['mu_vertBuffer'] = indvertbuffercache[cachekey]
+            indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[dataBlock['mu_vertBufferPosition']:dataBlock['mu_vertBufferPosition'] + dataBlock['mu_vertBufferSize']], 'B'))
+        dataBlock['mu_vertBuffer'] = indvertbuffercache[cachekey]
     if True:
         cur_min = float('inf')
         cur_max = float('-inf')
         if 'PAnimationChannelTimes' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAnimationChannelTimes']:
-                timestamps = cast_memoryview(memoryview(bytearray(cast_memoryview(v['m_timeKeys']['m_els'][:v['m_keyCount']], 'B'))), 'f')
-                v['mu_animation_timestamps'] = timestamps
-                for x in timestamps:
-                    if x < cur_min:
-                        cur_min = x
-                    if x > cur_max:
-                        cur_max = x
+            for animationChannelTime in cluster_mesh_info.data_instances_by_class['PAnimationChannelTimes']:
+                timestamps = cast_memoryview(memoryview(bytearray(cast_memoryview(animationChannelTime['m_timeKeys']['m_els'][:animationChannelTime['m_keyCount']], 'B'))), 'f')
+                animationChannelTime['mu_animation_timestamps'] = timestamps
+                for timestamp in timestamps:
+                    if timestamp < cur_min:
+                        cur_min = timestamp
+                    if timestamp > cur_max:
+                        cur_max = timestamp
         if 'PAnimationClip' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAnimationClip']:
+            for animationClip in cluster_mesh_info.data_instances_by_class['PAnimationClip']:
                 timestamps = cast_memoryview(memoryview(bytearray(2 * 4)), 'f')
-                timestamps[0] = v['m_constantChannelStartTime']
-                timestamps[1] = v['m_constantChannelEndTime']
-                v['mu_animation_timestamps'] = timestamps
-                for x in timestamps:
-                    if x < cur_min:
-                        cur_min = x
-                    if x > cur_max:
-                        cur_max = x
+                timestamps[0] = animationClip['m_constantChannelStartTime']
+                timestamps[1] = animationClip['m_constantChannelEndTime']
+                animationClip['mu_animation_timestamps'] = timestamps
+                for timestamp in timestamps:
+                    if timestamp < cur_min:
+                        cur_min = timestamp
+                    if timestamp > cur_max:
+                        cur_max = timestamp
     map_bone_name_to_matrix = {}
     if 'PMesh' in cluster_mesh_info.data_instances_by_class:
         data_instances = cluster_mesh_info.data_instances_by_class['PMesh']
-        for v in cluster_mesh_info.data_instances_by_class['PMesh']:
-            bonePosePtr = v['m_defaultPose']['m_els']
-            bonePoseName = v['m_matrixNames']['m_els']
-            bonePoseInd = v['m_matrixParents']['m_els']
-            boneSkelMat = v['m_skeletonMatrices']['m_els']
-            boneSkelBounds = v['m_skeletonBounds']['m_els']
+        for mesh in cluster_mesh_info.data_instances_by_class['PMesh']:
+            bonePosePtr = mesh['m_defaultPose']['m_els']
+            bonePoseName = mesh['m_matrixNames']['m_els']
+            bonePoseInd = mesh['m_matrixParents']['m_els']
+            boneSkelMat = mesh['m_skeletonMatrices']['m_els']
+            boneSkelBounds = mesh['m_skeletonBounds']['m_els']
             boneSkelMap = {}
             boneSkelInverseMap = {}
             matrix_hierarchy_only_indices = []
@@ -2686,12 +2686,12 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                     if sm in matrix_hierarchy_only_indices and bn != '':
                         hierarchy_additional_inverse_bind_matrices.append(invert_matrix_44(cur_matrix))
                         hierarchy_additional_names.append(bn)
-                v['mu_reduced_matrix'] = skinReducedMatrix
-                v['mu_root_matrix_name'] = skinRootName
-                v['mu_hierarchy_additional_inverse_bind_matrices'] = hierarchy_additional_inverse_bind_matrices
-                v['mu_hierarchy_additional_names'] = hierarchy_additional_names
-            if type(v['m_meshSegments']['m_els']) == list:
-                for m in v['m_meshSegments']['m_els']:
+                mesh['mu_reduced_matrix'] = skinReducedMatrix
+                mesh['mu_root_matrix_name'] = skinRootName
+                mesh['mu_hierarchy_additional_inverse_bind_matrices'] = hierarchy_additional_inverse_bind_matrices
+                mesh['mu_hierarchy_additional_names'] = hierarchy_additional_names
+            if type(mesh['m_meshSegments']['m_els']) == list:
+                for m in mesh['m_meshSegments']['m_els']:
                     boneRemapForHierarchy = cast_memoryview(memoryview(bytearray(len(m['m_skinBones']['m_els']) * 2)), 'H')
                     boneRemapForSkeleton = cast_memoryview(memoryview(bytearray(len(m['m_skinBones']['m_els']) * 2)), 'H')
                     if len(bonePosePtr) > 0 and 'm_els' not in bonePosePtr and (len(m['m_skinBones']['m_els']) > 0) and (type(m['m_skinBones']['m_els'][0]) != int):
@@ -2736,8 +2736,8 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                                     remapIndForSkeleton[i] = boneRemapForSkeleton[mb]
                                 vertexData['mu_remappedVertBufferSkeleton'] = bytes(cast_memoryview(remapIndForSkeleton, 'B'))
     if 'PNode' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PNode']:
-            v['mu_matrixToUse'] = v['m_localMatrix']['m_elements']
+        for node in cluster_mesh_info.data_instances_by_class['PNode']:
+            node['mu_matrixToUse'] = node['m_localMatrix']['m_elements']
 
     def get_all_node_children(deposit_list, parent_of_node):
         current_children = [child for child in cluster_mesh_info.data_instances_by_class['PNode'] if child['m_parent'] is parent_of_node]
@@ -2749,8 +2749,8 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
         for node in in_list:
             deposit_dict[node['m_name']] = node
     if 'PNode' in cluster_mesh_info.data_instances_by_class:
-        for v in cluster_mesh_info.data_instances_by_class['PNode']:
-            derive_matrix_44(v, v['mu_matrixToUse'])
+        for node in cluster_mesh_info.data_instances_by_class['PNode']:
+            derive_matrix_44(node, node['mu_matrixToUse'])
     if True:
         gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_list)
         return
@@ -2770,8 +2770,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         if need_embed == False:
             need_embed = cluster_header.cluster_marker == NOEPY_HEADER_BE
         if need_embed == False:
-            for v in pdatablock_list:
-                datatype = v['m_streams']['m_els'][0]['m_type']
+            for dataBlock in pdatablock_list:
+                datatype = dataBlock['m_streams']['m_els'][0]['m_type']
                 if datatype >= 4 and datatype <= 7:
                     need_embed = True
                     break
@@ -2834,22 +2834,22 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             dummy_color_accessor_index[count] = accessor_index
             return accessor_index
         if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
+            for meshSegment in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
                 accessor = {}
                 accessor['bufferView'] = len(bufferviews)
                 indiceTypeForGltf = 5123
-                if v['m_indexData']['m_type'] in indiceTypeLengthMapping:
-                    indiceTypeForGltf = indiceTypeLengthMapping[v['m_indexData']['m_type']]
-                elementcount = v['m_indexData']['m_elementCount']
+                if meshSegment['m_indexData']['m_type'] in indiceTypeLengthMapping:
+                    indiceTypeForGltf = indiceTypeLengthMapping[meshSegment['m_indexData']['m_type']]
+                elementcount = meshSegment['m_indexData']['m_elementCount']
                 accessor['componentType'] = indiceTypeForGltf
-                accessor['min'] = [v['m_indexData']['m_minimumIndex']]
-                accessor['max'] = [v['m_indexData']['m_maximumIndex']]
+                accessor['min'] = [meshSegment['m_indexData']['m_minimumIndex']]
+                accessor['max'] = [meshSegment['m_indexData']['m_maximumIndex']]
                 accessor['type'] = 'SCALAR'
                 accessor['count'] = elementcount
-                v['mu_gltfAccessorIndex'] = len(accessors)
+                meshSegment['mu_gltfAccessorIndex'] = len(accessors)
                 if need_embed:
-                    blobdata = v['mu_indBuffer']
-                    singleelementsize = indiceTypeMappingSize[v['m_indexData']['m_type']]
+                    blobdata = meshSegment['mu_indBuffer']
+                    singleelementsize = indiceTypeMappingSize[meshSegment['m_indexData']['m_type']]
                     if singleelementsize * elementcount != len(blobdata):
                         blobdata = blobdata[:singleelementsize * elementcount]
                     if cluster_header.cluster_marker == NOEPY_HEADER_BE:
@@ -2858,14 +2858,14 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         blobdata = blobdatabyteswap
                     add_bufferview_embed(data=blobdata)
                 else:
-                    add_bufferview_reference(position=cluster_mesh_info.vram_model_data_offset + v['mu_indBufferPosition'], size=v['mu_indBufferSize'])
+                    add_bufferview_reference(position=cluster_mesh_info.vram_model_data_offset + meshSegment['mu_indBufferPosition'], size=meshSegment['mu_indBufferSize'])
                 accessors.append(accessor)
         if 'PMesh' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PMesh']:
+            for mesh in cluster_mesh_info.data_instances_by_class['PMesh']:
                 matrix_list = []
-                if 'm_skeletonMatrices' in v and type(v['m_skeletonMatrices']['m_els']) == list:
-                    for vv in v['m_skeletonMatrices']['m_els']:
-                        matrix_list.append(bytes(cast_memoryview(vv['m_elements'], 'B')))
+                if 'm_skeletonMatrices' in mesh and type(mesh['m_skeletonMatrices']['m_els']) == list:
+                    for skeletonMatrix in mesh['m_skeletonMatrices']['m_els']:
+                        matrix_list.append(bytes(cast_memoryview(skeletonMatrix['m_elements'], 'B')))
                 if len(matrix_list) > 0:
                     blobdata = b''.join(matrix_list)
                     accessor = {}
@@ -2873,53 +2873,53 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     accessor['componentType'] = 5126
                     accessor['type'] = 'MAT4'
                     accessor['count'] = len(matrix_list)
-                    v['mu_gltfAccessorForInverseBindMatrixIndex'] = len(accessors)
+                    mesh['mu_gltfAccessorForInverseBindMatrixIndex'] = len(accessors)
                     add_bufferview_embed(data=blobdata)
                     accessors.append(accessor)
         if 'PMeshSegment' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
-                for vvv in v['m_vertexData']['m_els']:
-                    for vvvv in vvv['m_streams']['m_els']:
-                        if vvvv['m_renderDataType'] == 'SkinIndices' and 'mu_remappedVertBufferSkeleton' in vvv:
-                            blobdata = vvv['mu_remappedVertBufferSkeleton']
+            for meshSegment in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
+                for vertexData in meshSegment['m_vertexData']['m_els']:
+                    for streamInfo in vertexData['m_streams']['m_els']:
+                        if streamInfo['m_renderDataType'] == 'SkinIndices' and 'mu_remappedVertBufferSkeleton' in vertexData:
+                            blobdata = vertexData['mu_remappedVertBufferSkeleton']
                             accessor = {}
                             accessor['bufferView'] = len(bufferviews)
                             accessor['componentType'] = 5123
                             accessor['type'] = 'VEC4'
-                            accessor['count'] = vvv['m_elementCount']
-                            vvvv['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
+                            accessor['count'] = vertexData['m_elementCount']
+                            streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
                             add_bufferview_embed(data=blobdata)
                             accessors.append(accessor)
-                        if (vvvv['m_renderDataType'] == 'Tangent' or vvvv['m_renderDataType'] == 'SkinnableTangent') and 'mu_expandedHandednessTangent' in vvv:
-                            blobdata = vvv['mu_expandedHandednessTangent']
+                        if (streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent') and 'mu_expandedHandednessTangent' in vertexData:
+                            blobdata = vertexData['mu_expandedHandednessTangent']
                             accessor = {}
                             accessor['bufferView'] = len(bufferviews)
                             accessor['componentType'] = 5126
                             accessor['type'] = 'VEC4'
-                            accessor['count'] = vvv['m_elementCount']
-                            vvvv['mu_gltfAccessorForExpandedHandednessTangent'] = len(accessors)
+                            accessor['count'] = vertexData['m_elementCount']
+                            streamInfo['mu_gltfAccessorForExpandedHandednessTangent'] = len(accessors)
                             add_bufferview_embed(data=blobdata)
                             accessors.append(accessor)
-        for v in pdatablock_list:
+        for dataBlock in pdatablock_list:
             accessor = {}
             accessor['bufferView'] = len(bufferviews)
             dataTypeForGltf = 5123
-            datatype = v['m_streams']['m_els'][0]['m_type']
+            datatype = dataBlock['m_streams']['m_els'][0]['m_type']
             if datatype in dataTypeMappingForGltf:
                 dataTypeForGltf = dataTypeMappingForGltf[datatype]
             elif (datatype >= 4 and datatype <= 7) and need_embed:
                 dataTypeForGltf = dataTypeMappingForGltf[datatype - 4]
             dataTypeCount = datatype % 4 + 1
-            streamoffset = v['m_streams']['m_els'][0]['m_offset']
-            elementcount = v['m_elementCount']
+            streamoffset = dataBlock['m_streams']['m_els'][0]['m_offset']
+            elementcount = dataBlock['m_elementCount']
             accessor['componentType'] = dataTypeForGltf
             accessor['type'] = dataTypeCountMappingForGltf[datatype % 4]
             accessor['count'] = elementcount
-            v['mu_gltfAccessorIndex'] = len(accessors)
+            dataBlock['mu_gltfAccessorIndex'] = len(accessors)
             if need_embed:
-                blobdata = v['mu_vertBuffer']
+                blobdata = dataBlock['mu_vertBuffer']
                 singleelementsize = dataTypeMappingSize[datatype]
-                blobstride = v['m_stride']
+                blobstride = dataBlock['m_stride']
                 if dataTypeCount * singleelementsize != blobstride:
                     deinterleaved_stride = singleelementsize * dataTypeCount
                     deinterleaved_data = memoryview(bytearray(deinterleaved_stride * elementcount))
@@ -2941,11 +2941,11 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     blobstride = dataTypeCount * 4
                 add_bufferview_embed(data=blobdata, stride=blobstride)
             else:
-                add_bufferview_reference(position=cluster_mesh_info.vram_model_data_offset + v['m_streams']['m_els'][0]['m_offset'] + v['mu_vertBufferPosition'], size=v['mu_vertBufferSize'], stride=v['m_stride'])
+                add_bufferview_reference(position=cluster_mesh_info.vram_model_data_offset + dataBlock['m_streams']['m_els'][0]['m_offset'] + dataBlock['mu_vertBufferPosition'], size=dataBlock['mu_vertBufferSize'], stride=dataBlock['m_stride'])
             accessors.append(accessor)
         if 'PAnimationChannelTimes' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAnimationChannelTimes']:
-                blobdata = bytes(cast_memoryview(v['mu_animation_timestamps'], 'B'))
+            for animationChannelTime in cluster_mesh_info.data_instances_by_class['PAnimationChannelTimes']:
+                blobdata = bytes(cast_memoryview(animationChannelTime['mu_animation_timestamps'], 'B'))
                 if 0.0 != 0.0:
                     blobdatafloatextend = cast_memoryview(memoryview(bytearray(blobdata)), 'f')
                     if True:
@@ -2957,62 +2957,62 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 accessor['bufferView'] = len(bufferviews)
                 accessor['componentType'] = 5126
                 accessor['type'] = 'SCALAR'
-                accessor['count'] = v['m_keyCount']
+                accessor['count'] = animationChannelTime['m_keyCount']
                 cur_min = float('inf')
                 cur_max = float('-inf')
-                timez = cast_memoryview(memoryview(blobdata), 'f')
-                for x in timez:
-                    if x < cur_min:
-                        cur_min = x
-                    if x > cur_max:
-                        cur_max = x
+                times = cast_memoryview(memoryview(blobdata), 'f')
+                for time in times:
+                    if time < cur_min:
+                        cur_min = time
+                    if time > cur_max:
+                        cur_max = time
                 accessor['min'] = [cur_min]
                 accessor['max'] = [cur_max]
-                v['mu_gltfAccessorIndex'] = len(accessors)
+                animationChannelTime['mu_gltfAccessorIndex'] = len(accessors)
                 add_bufferview_embed(data=blobdata)
                 accessors.append(accessor)
         if 'PAnimationChannel' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAnimationChannel']:
-                blobdata = bytes(cast_memoryview(v['m_valueKeys']['m_els'], 'B'))
+            for animationChannel in cluster_mesh_info.data_instances_by_class['PAnimationChannel']:
+                blobdata = bytes(cast_memoryview(animationChannel['m_valueKeys']['m_els'], 'B'))
                 accessor = {}
                 accessor['bufferView'] = len(bufferviews)
                 accessor['componentType'] = 5126
-                if v['m_keyType'] == 'Translation' or v['m_keyType'] == 'Scale':
+                if animationChannel['m_keyType'] == 'Translation' or animationChannel['m_keyType'] == 'Scale':
                     accessor['type'] = 'VEC3'
-                    accessor['count'] = v['m_keyCount']
-                elif v['m_keyType'] == 'Rotation':
+                    accessor['count'] = animationChannel['m_keyCount']
+                elif animationChannel['m_keyType'] == 'Rotation':
                     accessor['type'] = 'VEC4'
-                    accessor['count'] = v['m_keyCount']
+                    accessor['count'] = animationChannel['m_keyCount']
                 else:
                     accessor['type'] = 'SCALAR'
-                    accessor['count'] = v['m_keyCount']
-                v['mu_gltfAccessorIndex'] = len(accessors)
+                    accessor['count'] = animationChannel['m_keyCount']
+                animationChannel['mu_gltfAccessorIndex'] = len(accessors)
                 accessors.append(accessor)
                 add_bufferview_embed(data=blobdata)
         if 'PAnimationConstantChannel' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAnimationConstantChannel']:
-                tmparray = bytes(v['m_value'])
-                if v['m_keyType'] == 'Scale' or v['m_keyType'] == 'Translation':
+            for animationConstantChannel in cluster_mesh_info.data_instances_by_class['PAnimationConstantChannel']:
+                tmparray = bytes(animationConstantChannel['m_value'])
+                if animationConstantChannel['m_keyType'] == 'Scale' or animationConstantChannel['m_keyType'] == 'Translation':
                     tmparray = tmparray[:-4]
                 blobdata = tmparray * 2
                 accessor = {}
                 accessor['bufferView'] = len(bufferviews)
                 accessor['componentType'] = 5126
-                if v['m_keyType'] == 'Translation' or v['m_keyType'] == 'Scale':
+                if animationConstantChannel['m_keyType'] == 'Translation' or animationConstantChannel['m_keyType'] == 'Scale':
                     accessor['type'] = 'VEC3'
                     accessor['count'] = 2
-                elif v['m_keyType'] == 'Rotation':
+                elif animationConstantChannel['m_keyType'] == 'Rotation':
                     accessor['type'] = 'VEC4'
                     accessor['count'] = 2
                 else:
                     accessor['type'] = 'SCALAR'
                     accessor['count'] = 2
-                v['mu_gltfAccessorIndex'] = len(accessors)
+                animationConstantChannel['mu_gltfAccessorIndex'] = len(accessors)
                 accessors.append(accessor)
                 add_bufferview_embed(data=blobdata)
         if 'PAnimationClip' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAnimationClip']:
-                tmparray = v['mu_animation_timestamps']
+            for animationClip in cluster_mesh_info.data_instances_by_class['PAnimationClip']:
+                tmparray = animationClip['mu_animation_timestamps']
                 blobdata = bytes(cast_memoryview(tmparray, 'B'))
                 accessor = {}
                 accessor['bufferView'] = len(bufferviews)
@@ -3021,15 +3021,15 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 accessor['count'] = 2
                 accessor['min'] = [tmparray[0]]
                 accessor['max'] = [tmparray[1]]
-                v['mu_gltfAccessorIndex'] = len(accessors)
+                animationClip['mu_gltfAccessorIndex'] = len(accessors)
                 accessors.append(accessor)
                 add_bufferview_embed(data=blobdata)
         images = []
         if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                if v['m_targetAssetType'] == 'PTexture2D':
+            for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+                if assetReferenceImport['m_targetAssetType'] == 'PTexture2D':
                     image = {}
-                    image_path = os.path.basename(v['m_id'])
+                    image_path = os.path.basename(assetReferenceImport['m_id'])
                     image_name = image_path.rsplit('.', maxsplit=2)[0]
                     if True:
                         image_name += '.png'
@@ -3042,24 +3042,24 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             add_bufferview_embed(data=blobdata)
                     else:
                         image['uri'] = image_name
-                    v['mu_gltfImageIndex'] = len(images)
+                    assetReferenceImport['mu_gltfImageIndex'] = len(images)
                     images.append(image)
         cluster_mesh_info.gltf_data['images'] = images
         samplers = []
         filter_map = {0: 9728, 1: 9729, 2: 9984, 3: 9985, 4: 9986, 5: 9987}
         wrap_map = {0: 33071, 1: 10497, 2: 33071, 3: 33071, 4: 33648}
         if 'PSamplerState' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PSamplerState']:
+            for samplerState in cluster_mesh_info.data_instances_by_class['PSamplerState']:
                 sampler = {}
-                if v['m_magFilter'] in filter_map:
-                    sampler['magFilter'] = filter_map[v['m_magFilter']]
-                if v['m_minFilter'] in filter_map:
-                    sampler['minFilter'] = filter_map[v['m_minFilter']]
-                if v['m_wrapS'] in wrap_map:
-                    sampler['wrapS'] = wrap_map[v['m_wrapS']]
-                if v['m_wrapT'] in wrap_map:
-                    sampler['wrapT'] = wrap_map[v['m_wrapT']]
-                v['mu_gltfSamplerIndex'] = len(samplers)
+                if samplerState['m_magFilter'] in filter_map:
+                    sampler['magFilter'] = filter_map[samplerState['m_magFilter']]
+                if samplerState['m_minFilter'] in filter_map:
+                    sampler['minFilter'] = filter_map[samplerState['m_minFilter']]
+                if samplerState['m_wrapS'] in wrap_map:
+                    sampler['wrapS'] = wrap_map[samplerState['m_wrapS']]
+                if samplerState['m_wrapT'] in wrap_map:
+                    sampler['wrapT'] = wrap_map[samplerState['m_wrapT']]
+                samplerState['mu_gltfSamplerIndex'] = len(samplers)
                 samplers.append(sampler)
         cluster_mesh_info.gltf_data['samplers'] = samplers
         textures = []
@@ -3082,12 +3082,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                                 samplerstate = shaderparam['DiffuseMapSamplerSampler']
                             if 'DiffuseMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['DiffuseMapSampler']) == str:
                                 if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-                                    for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                        if vv['m_id'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                    for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+                                        if assetReferenceImport['m_id'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
                                             if samplerstate != None:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                            texture['source'] = vv['mu_gltfImageIndex']
+                                            texture['source'] = assetReferenceImport['mu_gltfImageIndex']
                                             parameter_buffer['mu_gltfTextureDiffuseIndex'] = len(textures)
                                             textures.append(texture)
                                             break
@@ -3099,12 +3099,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                                 samplerstate = shaderparam['NormalMapSamplerSampler']
                             if 'NormalMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['NormalMapSampler']) == str:
                                 if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-                                    for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                        if vv['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                    for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+                                        if assetReferenceImport['m_id'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
                                             if samplerstate != None:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                            texture['source'] = vv['mu_gltfImageIndex']
+                                            texture['source'] = assetReferenceImport['mu_gltfImageIndex']
                                             parameter_buffer['mu_gltfTextureNormalIndex'] = len(textures)
                                             textures.append(texture)
                                             break
@@ -3116,42 +3116,42 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                                 samplerstate = shaderparam['SpecularMapSamplerSampler']
                             if 'SpecularMapSampler' in parameter_buffer['mu_shaderParameters'] and type(parameter_buffer['mu_shaderParameters']['SpecularMapSampler']) == str:
                                 if 'PAssetReferenceImport' in cluster_mesh_info.data_instances_by_class:
-                                    for vv in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
-                                        if vv['m_id'] == parameter_buffer['mu_shaderParameters']['SpecularMapSampler'] and 'mu_gltfImageIndex' in vv:
+                                    for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
+                                        if assetReferenceImport['m_id'] == parameter_buffer['mu_shaderParameters']['SpecularMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
                                             if samplerstate != None:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
-                                            texture['source'] = vv['mu_gltfImageIndex']
+                                            texture['source'] = assetReferenceImport['mu_gltfImageIndex']
                                             parameter_buffer['mu_gltfTextureSpecularIndex'] = len(textures)
                                             textures.append(texture)
                                             break
         cluster_mesh_info.gltf_data['textures'] = textures
         materials = []
         if 'PMaterial' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PMaterial']:
-                material = {}
-                material['name'] = v['mu_materialname']
-                parameter_buffer = v['m_parameterBuffer']
+            for material in cluster_mesh_info.data_instances_by_class['PMaterial']:
+                material_obj = {}
+                material_obj['name'] = material['mu_materialname']
+                parameter_buffer = material['m_parameterBuffer']
                 if 'mu_gltfTextureDiffuseIndex' in parameter_buffer:
                     textureInfo = {}
                     textureInfo['index'] = parameter_buffer['mu_gltfTextureDiffuseIndex']
                     pbrMetallicRoughness = {}
                     pbrMetallicRoughness['baseColorTexture'] = textureInfo
                     pbrMetallicRoughness['metallicFactor'] = 0.0
-                    material['pbrMetallicRoughness'] = pbrMetallicRoughness
+                    material_obj['pbrMetallicRoughness'] = pbrMetallicRoughness
                 if 'mu_gltfTextureNormalIndex' in parameter_buffer:
                     normalTextureInfo = {}
                     normalTextureInfo['index'] = parameter_buffer['mu_gltfTextureNormalIndex']
-                    material['normalTexture'] = normalTextureInfo
-                v['mu_gltfMaterialIndex'] = len(materials)
-                materials.append(material)
+                    material_obj['normalTexture'] = normalTextureInfo
+                material['mu_gltfMaterialIndex'] = len(materials)
+                materials.append(material_obj)
         cluster_mesh_info.gltf_data['materials'] = materials
         meshes = []
         mesh_instances = []
         if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
             mesh_instances = cluster_mesh_info.data_instances_by_class['PMeshInstance']
-        for t in mesh_instances:
-            curmesh = t['m_mesh']
+        for meshInstance in mesh_instances:
+            curmesh = meshInstance['m_mesh']
             primitives = []
             for tt in range(len(curmesh['m_meshSegments']['m_els'])):
                 primitive = {}
@@ -3160,7 +3160,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     mat = curmesh['m_defaultMaterials']['m_materials']['m_u'][m['m_materialIndex']]
                     if mat != None:
                         primitive['material'] = mat['mu_gltfMaterialIndex']
-                segmentcontext = t['m_segmentContext']['m_els'][tt]
+                segmentcontext = meshInstance['m_segmentContext']['m_els'][tt]
                 attributes = {}
                 colorCount = 0
                 for i in range(len(m['m_vertexData']['m_els'])):
@@ -3204,9 +3204,9 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             continue
                         streamInfo = vertexData['m_streams']['m_els'][0]
                         if type(segmentcontext['m_streamBindings']) == dict:
-                            for xx in segmentcontext['m_streamBindings']['m_u']:
-                                if xx['m_renderDataType'] == 'ST' and xx['m_inputSet'] == streamInfo['m_streamSet']:
-                                    name_lower = xx['m_name'].lower()
+                            for streamBinding in segmentcontext['m_streamBindings']['m_u']:
+                                if streamBinding['m_renderDataType'] == 'ST' and streamBinding['m_inputSet'] == streamInfo['m_streamSet']:
+                                    name_lower = streamBinding['m_name'].lower()
                                     name_to_uv_index_map = {'texcoord7': 6, 'texcoord6': 5, 'texcoord5': 4, 'texcoord4': 3, 'texcoord3': 2, 'texcoord2': 1, 'texcoord': 0, 'vitexcoord': 0, 'texcoord0': 0}
                                     if name_lower in name_to_uv_index_map:
                                         uvIndex = name_to_uv_index_map[name_lower]
@@ -3233,35 +3233,35 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 mesh = {}
                 mesh['primitives'] = primitives
                 mesh['name'] = curmesh['mu_name']
-                t['mu_gltfMeshIndex'] = len(meshes)
+                meshInstance['mu_gltfMeshIndex'] = len(meshes)
                 meshes.append(mesh)
         cluster_mesh_info.gltf_data['meshes'] = meshes
         extensions = {}
         lights = []
         if 'PLight' in cluster_mesh_info.data_instances_by_class:
             light_type_map = {'DirectionalLight': 'directional', 'PointLight': 'point', 'SpotLight': 'spot'}
-            for v in cluster_mesh_info.data_instances_by_class['PLight']:
-                if v['m_lightType'] in light_type_map:
-                    light = {}
+            for light in cluster_mesh_info.data_instances_by_class['PLight']:
+                if light['m_lightType'] in light_type_map:
+                    light_obj = {}
                     name = ''
                     if name == '':
-                        if 'mu_name' in v:
-                            name = v['mu_name']
+                        if 'mu_name' in light:
+                            name = light['mu_name']
                     if name != '':
-                        light['name'] = name
-                    color = v['m_color']['m_elements']
-                    light['color'] = [color[0], color[1], color[2]]
-                    light['intensity'] = v['m_intensity']
-                    light['type'] = light_type_map[v['m_lightType']]
-                    if light['type'] == 'spot':
+                        light_obj['name'] = name
+                    color = light['m_color']['m_elements']
+                    light_obj['color'] = [color[0], color[1], color[2]]
+                    light_obj['intensity'] = light['m_intensity']
+                    light_obj['type'] = light_type_map[light['m_lightType']]
+                    if light_obj['type'] == 'spot':
                         spot = {}
-                        spot['innerConeAngle'] = v['m_innerConeAngle']
-                        spot['outerConeAngle'] = v['m_outerConeAngle']
-                        light['spot'] = spot
-                    if light['type'] == 'point' or (light['type'] == 'spot' and v['m_outerRange'] > 0):
-                        light['range'] = v['m_outerRange']
-                    v['mu_gltfLightIndex'] = len(lights)
-                    lights.append(light)
+                        spot['innerConeAngle'] = light['m_innerConeAngle']
+                        spot['outerConeAngle'] = light['m_outerConeAngle']
+                        light_obj['spot'] = spot
+                    if light_obj['type'] == 'point' or (light_obj['type'] == 'spot' and light['m_outerRange'] > 0):
+                        light_obj['range'] = light['m_outerRange']
+                    light['mu_gltfLightIndex'] = len(lights)
+                    lights.append(light_obj)
         if len(lights) > 0:
             KHR_lights_punctual = {}
             KHR_lights_punctual['lights'] = lights
@@ -3272,72 +3272,72 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         nodes = []
         if 'PNode' in cluster_mesh_info.data_instances_by_class:
             mesh_segment_nodes = []
-            for v in cluster_mesh_info.data_instances_by_class['PNode']:
-                node = {}
+            for node in cluster_mesh_info.data_instances_by_class['PNode']:
+                node_obj = {}
                 node_extensions = {}
                 if True:
-                    node['matrix'] = v['mu_matrixToUse'].tolist()
-                name = v['m_name']
+                    node_obj['matrix'] = node['mu_matrixToUse'].tolist()
+                name = node['m_name']
                 if name == '':
-                    if 'mu_name' in v:
-                        name = v['mu_name']
+                    if 'mu_name' in node:
+                        name = node['mu_name']
                 mesh_node_indices = None
                 if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
-                    for vv in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
-                        if vv['m_localToWorldMatrix'] is v['m_worldMatrix']:
-                            if name == '' and 'mu_name' in vv:
-                                name = vv['mu_name']
-                            if name == '' and 'mu_name' in vv['m_mesh']:
-                                name = vv['m_mesh']['mu_name']
-                            if 'mu_gltfMeshIndex' in vv:
-                                node['mesh'] = vv['mu_gltfMeshIndex']
-                                vv['mu_gltfNodeIndex'] = len(nodes)
-                            elif 'mu_gltfMeshSegmentsIndicies' in vv:
-                                mesh_node_indices = vv['mu_gltfMeshSegmentsIndicies']
+                    for meshInstance in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
+                        if meshInstance['m_localToWorldMatrix'] is node['m_worldMatrix']:
+                            if name == '' and 'mu_name' in meshInstance:
+                                name = meshInstance['mu_name']
+                            if name == '' and 'mu_name' in meshInstance['m_mesh']:
+                                name = meshInstance['m_mesh']['mu_name']
+                            if 'mu_gltfMeshIndex' in meshInstance:
+                                node_obj['mesh'] = meshInstance['mu_gltfMeshIndex']
+                                meshInstance['mu_gltfNodeIndex'] = len(nodes)
+                            elif 'mu_gltfMeshSegmentsIndicies' in meshInstance:
+                                mesh_node_indices = meshInstance['mu_gltfMeshSegmentsIndicies']
                             break
                 if 'PLight' in cluster_mesh_info.data_instances_by_class:
                     node_KHR_lights_punctual = {}
-                    for vv in cluster_mesh_info.data_instances_by_class['PLight']:
-                        if vv['m_localToWorldMatrix'] is v['m_worldMatrix'] and 'mu_gltfLightIndex' in vv:
-                            if name == '' and 'mu_name' in vv:
-                                name = vv['mu_name']
-                            node_KHR_lights_punctual['light'] = vv['mu_gltfLightIndex']
-                            vv['mu_gltfNodeIndex'] = len(nodes)
+                    for light in cluster_mesh_info.data_instances_by_class['PLight']:
+                        if light['m_localToWorldMatrix'] is node['m_worldMatrix'] and 'mu_gltfLightIndex' in light:
+                            if name == '' and 'mu_name' in light:
+                                name = light['mu_name']
+                            node_KHR_lights_punctual['light'] = light['mu_gltfLightIndex']
+                            light['mu_gltfNodeIndex'] = len(nodes)
                             break
                     if len(node_KHR_lights_punctual) > 0:
                         node_extensions['KHR_lights_punctual'] = node_KHR_lights_punctual
                 if len(node_extensions) > 0:
-                    node['extensions'] = node_extensions
+                    node_obj['extensions'] = node_extensions
                 if name != '':
-                    node['name'] = name
-                children = [i for i in range(len(cluster_mesh_info.data_instances_by_class['PNode'])) if cluster_mesh_info.data_instances_by_class['PNode'][i]['m_parent'] is v]
+                    node_obj['name'] = name
+                children = [i for i in range(len(cluster_mesh_info.data_instances_by_class['PNode'])) if cluster_mesh_info.data_instances_by_class['PNode'][i]['m_parent'] is node]
                 if mesh_node_indices != None:
-                    for vv in mesh_node_indices:
+                    for mesh_node_index in mesh_node_indices:
                         mesh_segment_node = {}
-                        mesh_segment_node['name'] = meshes[vv]['name'] + '_node'
-                        mesh_segment_node['mesh'] = vv
+                        mesh_segment_node['name'] = meshes[mesh_node_index]['name'] + '_node'
+                        mesh_segment_node['mesh'] = mesh_node_index
                         children.append(len(cluster_mesh_info.data_instances_by_class['PNode']) + len(mesh_segment_nodes))
                         mesh_segment_nodes.append(mesh_segment_node)
                 if len(children) > 0:
-                    node['children'] = children
-                v['mu_gltfNodeIndex'] = len(nodes)
-                v['mu_gltfNodeName'] = name
-                nodes.append(node)
-            for v in mesh_segment_nodes:
-                nodes.append(v)
+                    node_obj['children'] = children
+                node['mu_gltfNodeIndex'] = len(nodes)
+                node['mu_gltfNodeName'] = name
+                nodes.append(node_obj)
+            for node_obj in mesh_segment_nodes:
+                nodes.append(node_obj)
         cluster_mesh_info.gltf_data['nodes'] = nodes
         skins = []
         if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
-                mesh = v['m_mesh']
-                if 'mu_gltfAccessorForInverseBindMatrixIndex' in mesh and 'mu_gltfNodeIndex' in v:
-                    nodes[v['mu_gltfNodeIndex']]['skin'] = len(skins)
+            for meshInstance in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
+                mesh = meshInstance['m_mesh']
+                if 'mu_gltfAccessorForInverseBindMatrixIndex' in mesh and 'mu_gltfNodeIndex' in meshInstance:
+                    nodes[meshInstance['mu_gltfNodeIndex']]['skin'] = len(skins)
                     skin = {}
                     if 'mu_root_matrix_name' in mesh and mesh['mu_root_matrix_name'] != None:
                         joint = None
                         for i in range(len(nodes)):
-                            vvv = nodes[i]
-                            if vvv['name'] == mesh['mu_root_matrix_name']:
+                            node_obj = nodes[i]
+                            if node_obj['name'] == mesh['mu_root_matrix_name']:
                                 joint = i
                                 break
                         if joint != None:
@@ -3351,18 +3351,18 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         for i in range(len(matrix_names)):
                             matrix_name = matrix_names[i]
                             for ii in range(len(nodes)):
-                                vvv = nodes[ii]
-                                if vvv['name'] == matrix_name['m_buffer']:
+                                node_obj = nodes[ii]
+                                if node_obj['name'] == matrix_name['m_buffer']:
                                     matrix_index_to_node[i] = ii
                                     break
-                        for vv in mesh['m_skeletonBounds']['m_els']:
-                            hierarchy_matrix_index = vv['m_hierarchyMatrixIndex']
+                        for skeletonJointBound in mesh['m_skeletonBounds']['m_els']:
+                            hierarchy_matrix_index = skeletonJointBound['m_hierarchyMatrixIndex']
                             matrix_name = matrix_names[hierarchy_matrix_index]
                             skeleton_matrix_names.append(matrix_name['m_buffer'])
                             joint = None
                             for i in range(len(nodes)):
-                                vvv = nodes[i]
-                                if vvv['name'] == matrix_name['m_buffer']:
+                                node_obj = nodes[i]
+                                if node_obj['name'] == matrix_name['m_buffer']:
                                     joint = i
                                     break
                             if joint != None:
@@ -3372,12 +3372,12 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                                 joints.append(1)
                         if len(joints) > 0:
                             skin['joints'] = joints
-                            v['mu_gltfSkinMatrixIndexToNode'] = matrix_index_to_node
-                    v['mu_gltfSkinIndex'] = len(skins)
+                            meshInstance['mu_gltfSkinMatrixIndexToNode'] = matrix_index_to_node
+                    meshInstance['mu_gltfSkinIndex'] = len(skins)
                     skins.append(skin)
         mesh_is_empty = True
         if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
+            for meshInstance in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
                 mesh_is_empty = False
                 break
         if mesh_is_empty and 'PAnimationSet' in cluster_mesh_info.data_instances_by_class:
@@ -3391,57 +3391,57 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         animations = []
         targetMap = {'Translation': 'translation', 'Rotation': 'rotation', 'Scale': 'scale'}
         if 'PAnimationSet' in cluster_mesh_info.data_instances_by_class:
-            for v in cluster_mesh_info.data_instances_by_class['PAnimationSet']:
-                for vv in v['m_animationClips']['m_u']:
+            for animationSet in cluster_mesh_info.data_instances_by_class['PAnimationSet']:
+                for animationClip in animationSet['m_animationClips']['m_u']:
                     animation = {}
                     samplers = []
                     channels = []
-                    for vvv in vv['m_channels']['m_els']:
-                        if vvv['m_keyType'] not in targetMap:
+                    for animationChannel in animationClip['m_channels']['m_els']:
+                        if animationChannel['m_keyType'] not in targetMap:
                             continue
                         channel = {}
                         channel['sampler'] = len(samplers)
                         target = {}
-                        target['path'] = targetMap[vvv['m_keyType']]
-                        if vvv['m_instanceObjectType'] == 'PNode':
+                        target['path'] = targetMap[animationChannel['m_keyType']]
+                        if animationChannel['m_instanceObjectType'] == 'PNode':
                             if 'PNode' in cluster_mesh_info.data_instances_by_class:
-                                for vvvv in cluster_mesh_info.data_instances_by_class['PNode']:
-                                    if vvvv['mu_gltfNodeName'] == vvv['m_name']:
-                                        target['node'] = vvvv['mu_gltfNodeIndex']
+                                for node in cluster_mesh_info.data_instances_by_class['PNode']:
+                                    if node['mu_gltfNodeName'] == animationChannel['m_name']:
+                                        target['node'] = node['mu_gltfNodeIndex']
                                         break
-                        elif vvv['m_instanceObjectType'] == 'PMeshInstance':
-                            if vvv['m_name'] == 'm_currentPose':
-                                instance_obj = vvv['m_instanceObject']
+                        elif animationChannel['m_instanceObjectType'] == 'PMeshInstance':
+                            if animationChannel['m_name'] == 'm_currentPose':
+                                instance_obj = animationChannel['m_instanceObject']
                                 if instance_obj != None:
                                     if 'mu_gltfSkinMatrixIndexToNode' in instance_obj:
-                                        target['node'] = instance_obj['mu_gltfSkinMatrixIndexToNode'][vvv['m_index']]
+                                        target['node'] = instance_obj['mu_gltfSkinMatrixIndexToNode'][animationChannel['m_index']]
                         channel['target'] = target
                         sampler = {}
-                        sampler['input'] = vvv['m_times']['mu_gltfAccessorIndex']
-                        sampler['output'] = vvv['mu_gltfAccessorIndex']
-                        if vvv['m_interp'] == 2:
+                        sampler['input'] = animationChannel['m_times']['mu_gltfAccessorIndex']
+                        sampler['output'] = animationChannel['mu_gltfAccessorIndex']
+                        if animationChannel['m_interp'] == 2:
                             sampler['interpolation'] = 'STEP'
                         else:
                             sampler['interpolation'] = 'LINEAR'
                         channels.append(channel)
                         samplers.append(sampler)
-                    for vvv in vv['m_constantChannels']['m_els']:
-                        if vvv['m_keyType'] not in targetMap:
+                    for animationConstantChannel in animationClip['m_constantChannels']['m_els']:
+                        if animationConstantChannel['m_keyType'] not in targetMap:
                             continue
                         channel = {}
                         channel['sampler'] = len(samplers)
                         target = {}
-                        target['path'] = targetMap[vvv['m_keyType']]
+                        target['path'] = targetMap[animationConstantChannel['m_keyType']]
                         if 'PNode' in cluster_mesh_info.data_instances_by_class:
-                            for vvvv in cluster_mesh_info.data_instances_by_class['PNode']:
-                                if vvvv['mu_gltfNodeName'] == vvv['m_name']:
-                                    target['node'] = vvvv['mu_gltfNodeIndex']
+                            for node in cluster_mesh_info.data_instances_by_class['PNode']:
+                                if node['mu_gltfNodeName'] == animationConstantChannel['m_name']:
+                                    target['node'] = node['mu_gltfNodeIndex']
                                     break
                         channel['target'] = target
                         sampler = {}
-                        sampler['input'] = vv['mu_gltfAccessorIndex']
-                        sampler['output'] = vvv['mu_gltfAccessorIndex']
-                        if vvv['m_interp'] == 2:
+                        sampler['input'] = animationClip['mu_gltfAccessorIndex']
+                        sampler['output'] = animationConstantChannel['mu_gltfAccessorIndex']
+                        if animationConstantChannel['m_interp'] == 2:
                             sampler['interpolation'] = 'STEP'
                         else:
                             sampler['interpolation'] = 'LINEAR'
@@ -3455,7 +3455,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
         scenes = []
         if 'PNode' in cluster_mesh_info.data_instances_by_class:
             scene = {}
-            nodes = [v['mu_gltfNodeIndex'] for v in cluster_mesh_info.data_instances_by_class['PNode'] if v['m_parent'] == None]
+            nodes = [node['mu_gltfNodeIndex'] for node in cluster_mesh_info.data_instances_by_class['PNode'] if node['m_parent'] == None]
             scene['nodes'] = nodes
             scenes.append(scene)
         cluster_mesh_info.gltf_data['scenes'] = scenes
