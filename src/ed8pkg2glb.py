@@ -1345,7 +1345,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                 dict_data[variable_text] = val
         process_data_members(g, cluster_type_info, cluster_list_fixup_info, class_descriptor.super_class_id, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, None)
         return dict_data
-cluster_classes_to_handle = ['PAnimationChannel', 'PAnimationChannelTimes', 'PAnimationClip', 'PAnimationConstantChannel', 'PAnimationSet', 'PAssetReference', 'PAssetReferenceImport', 'PCgParameterInfoGCM', 'PContextVariantFoldingTable', 'PDataBlock', 'PDataBlockD3D11', 'PDataBlockGCM', 'PDataBlockGNM', 'PDataBlockGXM', 'PEffect', 'PEffectVariant', 'PLight', 'PMaterial', 'PMaterialSwitch', 'PMatrix4', 'PMesh', 'PMeshInstance', 'PMeshInstanceBounds', 'PMeshInstanceSegmentContext', 'PMeshInstanceSegmentStreamBinding', 'PMeshSegment', 'PNode', 'PNodeContext', 'PParameterBuffer', 'PSamplerState', 'PSceneRenderPass', 'PShader', 'PShaderComputeProgram', 'PShaderFragmentProgram', 'PShaderGeometryProgram', 'PShaderParameterCaptureBufferLocation', 'PShaderParameterCaptureBufferLocationTypeConstantBuffer', 'PShaderParameterDefinition', 'PShaderPass', 'PShaderPassInfo', 'PShaderStreamDefinition', 'PShaderVertexProgram', 'PSkeletonJointBounds', 'PSkinBoneRemap', 'PString', 'PTexture2D', 'PTextureCubeMap', 'PVertexStream', 'PWorldMatrix']
+cluster_classes_to_handle = ['PAnimationChannel', 'PAnimationChannelTimes', 'PAnimationClip', 'PAnimationConstantChannel', 'PAnimationSet', 'PAssetReference', 'PAssetReferenceImport', 'PCgParameterInfoGCM', 'PContextVariantFoldingTable', 'PDataBlock', 'PDataBlockD3D11', 'PDataBlockGCM', 'PDataBlockGL', 'PDataBlockGNM', 'PDataBlockGXM', 'PEffect', 'PEffectVariant', 'PLight', 'PMaterial', 'PMaterialSwitch', 'PMatrix4', 'PMesh', 'PMeshInstance', 'PMeshInstanceBounds', 'PMeshInstanceSegmentContext', 'PMeshInstanceSegmentStreamBinding', 'PMeshSegment', 'PNode', 'PNodeContext', 'PParameterBuffer', 'PSamplerState', 'PSceneRenderPass', 'PShader', 'PShaderComputeProgram', 'PShaderFragmentProgram', 'PShaderGeometryProgram', 'PShaderParameterCaptureBufferLocation', 'PShaderParameterCaptureBufferLocationTypeConstantBuffer', 'PShaderParameterDefinition', 'PShaderPass', 'PShaderPassInfo', 'PShaderStreamDefinition', 'PShaderVertexProgram', 'PSkeletonJointBounds', 'PSkinBoneRemap', 'PString', 'PTexture2D', 'PTextureCubeMap', 'PVertexStream', 'PWorldMatrix']
 
 def process_cluster_instance_list_header(cluster_instance_list_header, g, count_list, cluster_type_info, cluster_list_fixup_info, cluster_mesh_info, cluster_header, filename, data_instances_by_class):
     member_location = g.tell()
@@ -2535,12 +2535,11 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
     pdatablock_list = []
     if 'PDataBlock' in cluster_mesh_info.data_instances_by_class:
         pdatablock_list = cluster_mesh_info.data_instances_by_class['PDataBlock']
-    elif 'PDataBlockD3D11' in cluster_mesh_info.data_instances_by_class:
-        pdatablock_list = cluster_mesh_info.data_instances_by_class['PDataBlockD3D11']
-    elif 'PDataBlockGCM' in cluster_mesh_info.data_instances_by_class:
-        pdatablock_list = cluster_mesh_info.data_instances_by_class['PDataBlockGCM']
-    elif 'PDataBlockGXM' in cluster_mesh_info.data_instances_by_class:
-        pdatablock_list = cluster_mesh_info.data_instances_by_class['PDataBlockGXM']
+    else:
+        for class_name in cluster_mesh_info.data_instances_by_class.keys():
+            if type(class_name) == str and class_name.startswith('PDataBlock'):
+                pdatablock_list = cluster_mesh_info.data_instances_by_class[class_name]
+                break
     g.seek(cluster_mesh_info.vram_model_data_offset)
     indvertbuffer = memoryview(g.read())
     indvertbuffercache = {}
