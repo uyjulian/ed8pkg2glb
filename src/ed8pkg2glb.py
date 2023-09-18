@@ -2006,6 +2006,16 @@ class TED8PkgMedia(IStorageMedia):
             (file_entry_name, file_entry_uncompressed_size, file_entry_compressed_size, file_entry_offset, file_entry_flags) = struct.unpack('<64sIIII', f.read(64 + 4 + 4 + 4 + 4))
             package_file_entries[file_entry_name.rstrip(b'\x00').decode('ASCII')] = [file_entry_offset, file_entry_compressed_size, file_entry_uncompressed_size, file_entry_flags]
         self.file_entries = package_file_entries
+        needscommonpkg = False
+        for file_entry_name in sorted(package_file_entries.keys()):
+            file_entry = package_file_entries[file_entry_name]
+            if file_entry[3] & 1 != 0 and file_entry[3] & 8 != 0 and (file_entry[0] == 0) and (file_entry[1] == 0):
+                needscommonpkg = True
+                break
+        commonpkg = None
+        if needscommonpkg:
+            commonpkg = TED8PkgMedia(basepath + '/common.pkg')
+        self.commonpkg = commonpkg
 
     def normalize_path_name(self, name):
         return os.path.normpath(name)
@@ -2015,19 +2025,31 @@ class TED8PkgMedia(IStorageMedia):
 
     def open(self, name, flags='rb', **kwargs):
         file_entry = self.file_entries[name]
+        if file_entry[3] & 1 != 0 and file_entry[3] & 8 != 0 and (file_entry[0] == 0) and (file_entry[1] == 0):
+            return self.commonpkg.open(name, flags, **kwargs)
         self.f.seek(file_entry[0])
         output_data = None
         if file_entry[3] & 2:
             self.f.seek(4, io.SEEK_CUR)
         if file_entry[3] & 4:
             output_data = uncompress_lz4(self.f, file_entry[2], file_entry[1])
-        elif file_entry[3] & 1:
-            output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
         elif file_entry[3] & 8 or file_entry[3] & 16:
             if 'zstandard' in sys.modules:
                 output_data = uncompress_zstd(self.f, file_entry[2], file_entry[1])
             else:
                 raise Exception('File %s could not be extracted because zstandard module is not installed' % name)
+        elif file_entry[3] & 1:
+            is_lz4 = True
+            compressed_size = file_entry[1]
+            if compressed_size >= 8:
+                self.f.seek(4, io.SEEK_CUR)
+                cms = int.from_bytes(self.f.read(4), byteorder='little')
+                self.f.seek(-8, io.SEEK_CUR)
+                is_lz4 = cms != compressed_size and compressed_size - cms != 4
+            if is_lz4:
+                output_data = uncompress_lz4(self.f, file_entry[2], file_entry[1])
+            else:
+                output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
         else:
             output_data = self.f.read(file_entry[2])
         if 'b' in flags:
