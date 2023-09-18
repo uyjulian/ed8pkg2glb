@@ -2062,7 +2062,7 @@ class TED8PkgMedia(IStorageMedia):
             output_data = uncompress_lz4(self.f, file_entry[2], file_entry[1])
         elif file_entry[3] & 1:
             output_data = uncompress_nislzss(self.f, file_entry[2], file_entry[1])
-        elif file_entry[3] & 8:
+        elif file_entry[3] & 8 or file_entry[3] & 16:
             if 'zstandard' in sys.modules:
                 output_data = uncompress_zstd(self.f, file_entry[2], file_entry[1])
             else:
