@@ -2703,6 +2703,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                             boneRemapForSkeleton[i] = sb['m_skeletonMatrixIndex']
                     for vertexData in m['m_vertexData']['m_els']:
                         streamInfo = vertexData['m_streams']['m_els'][0]
+                        renderDataType = streamInfo['m_renderDataType']
                         datatype = streamInfo['m_type']
                         dataTypeCount = datatype % 4 + 1
                         blobdata = vertexData['mu_vertBuffer']
@@ -2710,7 +2711,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                         blobstride = vertexData['m_stride']
                         streamoffset = vertexData['m_streams']['m_els'][0]['m_offset']
                         elementcount = vertexData['m_elementCount']
-                        if streamInfo['m_renderDataType'] == 'SkinIndices':
+                        if renderDataType in ['SkinIndices']:
                             if dataTypeCount * singleelementsize != blobstride:
                                 deinterleaved_stride = singleelementsize * dataTypeCount
                                 deinterleaved_data = memoryview(bytearray(deinterleaved_stride * elementcount))
@@ -2882,7 +2883,8 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             for meshSegment in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
                 for vertexData in meshSegment['m_vertexData']['m_els']:
                     for streamInfo in vertexData['m_streams']['m_els']:
-                        if streamInfo['m_renderDataType'] == 'SkinIndices' and 'mu_remappedVertBufferSkeleton' in vertexData:
+                        renderDataType = streamInfo['m_renderDataType']
+                        if renderDataType in ['SkinIndices'] and 'mu_remappedVertBufferSkeleton' in vertexData:
                             blobdata = vertexData['mu_remappedVertBufferSkeleton']
                             accessor = {}
                             accessor['bufferView'] = len(bufferviews)
@@ -2892,7 +2894,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                             streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
                             add_bufferview_embed(data=blobdata)
                             accessors.append(accessor)
-                        if (streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent') and 'mu_expandedHandednessTangent' in vertexData:
+                        if renderDataType in ['Tangent', 'SkinnableTangent'] and 'mu_expandedHandednessTangent' in vertexData:
                             blobdata = vertexData['mu_expandedHandednessTangent']
                             accessor = {}
                             accessor['bufferView'] = len(bufferviews)
@@ -3168,29 +3170,31 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 for i in range(len(m['m_vertexData']['m_els'])):
                     vertexData = m['m_vertexData']['m_els'][i]
                     streamInfo = vertexData['m_streams']['m_els'][0]
-                    if streamInfo['m_renderDataType'] == 'Vertex' or streamInfo['m_renderDataType'] == 'SkinnableVertex':
+                    renderDataType = streamInfo['m_renderDataType']
+                    if renderDataType in ['Vertex', 'SkinnableVertex']:
                         attributes['POSITION'] = vertexData['mu_gltfAccessorIndex']
-                    elif streamInfo['m_renderDataType'] == 'Normal' or streamInfo['m_renderDataType'] == 'SkinnableNormal':
+                    elif renderDataType in ['Normal', 'SkinnableNormal']:
                         attributes['NORMAL'] = vertexData['mu_gltfAccessorIndex']
-                    elif streamInfo['m_renderDataType'] == 'ST':
+                    elif renderDataType in ['ST']:
                         pass
-                    elif streamInfo['m_renderDataType'] == 'SkinWeights':
+                    elif renderDataType in ['SkinWeights']:
                         attributes['WEIGHTS_0'] = vertexData['mu_gltfAccessorIndex']
-                    elif streamInfo['m_renderDataType'] == 'SkinIndices':
+                    elif renderDataType in ['SkinIndices']:
                         if 'mu_gltfAccessorForRemappedSkinIndiciesIndex' in streamInfo:
                             attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex']
                         else:
                             attributes['JOINTS_0'] = vertexData['mu_gltfAccessorIndex']
-                    elif streamInfo['m_renderDataType'] == 'Color':
+                    elif renderDataType in ['Color']:
                         attributes['COLOR_' + str(colorCount)] = vertexData['mu_gltfAccessorIndex']
                         colorCount += 1
-                    elif streamInfo['m_renderDataType'] == 'Tangent' or streamInfo['m_renderDataType'] == 'SkinnableTangent':
+                    elif renderDataType in ['Tangent', 'SkinnableTangent']:
                         if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
                             attributes['TANGENT'] = streamInfo['mu_gltfAccessorForExpandedHandednessTangent']
                 uvDataStreamSet = {}
                 for vertexData in m['m_vertexData']['m_els']:
                     streamInfo = vertexData['m_streams']['m_els'][0]
-                    if streamInfo['m_renderDataType'] == 'ST':
+                    renderDataType = streamInfo['m_renderDataType']
+                    if renderDataType in ['ST']:
                         streamSet = streamInfo['m_streamSet']
                         uvDataStreamSet[streamSet] = vertexData
                 uvDataLowest = None
