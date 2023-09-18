@@ -1070,7 +1070,6 @@ def get_object_member_array_info_map(cluster_info, cluster_instance_list_header)
             if array_info not in obj_source_object_id[member_id]:
                 obj_source_object_id[member_id].append(array_info)
     return object_member_to_fixup_map
-pythonStructTypeToDataSizeMapping = {'c': 1, 'b': 1, 'B': 1, '?': 1, 'h': 2, 'H': 2, 'i': 4, 'I': 4, 'l': 4, 'L': 4, 'q': 8, 'Q': 8, 'e': 2, 'f': 4, 'd': 8}
 clusterPrimitiveToPythonStructTypeMapping = {'PUInt8': 'B', 'PInt8': 'b', 'PUInt16': 'H', 'PInt16': 'h', 'PUInt32': 'I', 'PInt32': 'i', 'PUInt64': 'Q', 'PInt64': 'q', 'float': 'f'}
 
 def process_data_members(g, cluster_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_info_map, object_member_array_info_map, root_member_id):
@@ -1112,7 +1111,7 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
             if data_instances_by_class != None:
                 if type_text in clusterPrimitiveToPythonStructTypeMapping and (class_name.startswith('PArray<') or class_name.startswith('PSharray<')) and (variable_text in ['m_els', 'm_u']):
                     datatype_pystructtype = clusterPrimitiveToPythonStructTypeMapping[type_text]
-                    datatype_size_single = pythonStructTypeToDataSizeMapping[datatype_pystructtype]
+                    datatype_size_single = struct.calcsize(datatype_pystructtype)
                     val = []
                     if 'm_count' in dict_data:
                         array_count = dict_data['m_count']
@@ -1234,7 +1233,7 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                         process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val, cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_info_map, object_member_array_info_map, member_id)
             elif type_text in clusterPrimitiveToPythonStructTypeMapping:
                 datatype_pystructtype = clusterPrimitiveToPythonStructTypeMapping[type_text]
-                datatype_size_single = pythonStructTypeToDataSizeMapping[datatype_pystructtype]
+                datatype_size_single = struct.calcsize(datatype_pystructtype)
                 if (class_name.startswith('PArray<') or class_name.startswith('PSharray<')) and variable_text in ['m_els', 'm_u']:
                     val = []
                 elif data_member.fixed_array_size != 0:
@@ -2503,12 +2502,11 @@ def derive_matrix_44(dic, mat):
     scale.extend([0, 0, 0])
     dic['mu_scale'] = scale
     decompose_matrix_44(mat, translation, rotation, scale)
-indiceTypeLengthMapping = {8: 5125, 12: 5123, 16: 5121, 20: 5123, 24: 5121, 28: 5125, 32: 5122, 36: 5121, 40: 5123, 44: 5121}
-indiceTypeLengthMappingPython = {8: 'I', 12: 'H', 16: 'B', 20: 'H', 24: 'B', 28: 'i', 32: 'h', 36: 'b', 40: 'h', 44: 'b'}
-indiceTypeMappingSize = {8: 4, 12: 2, 16: 1, 20: 2, 24: 1, 28: 4, 32: 2, 36: 1, 40: 2, 44: 1}
-dataTypeMappingForGltf = {0: 5126, 1: 5126, 2: 5126, 3: 5126, 12: 5123, 13: 5123, 14: 5123, 15: 5123, 16: 5121, 17: 5121, 18: 5121, 19: 5121, 20: 5123, 21: 5123, 22: 5123, 23: 5123, 24: 5121, 25: 5121, 26: 5121, 27: 5121, 32: 5123, 33: 5123, 34: 5123, 35: 5123, 36: 5121, 37: 5121, 38: 5121, 39: 5121, 40: 5123, 41: 5123, 42: 5123, 43: 5123, 44: 5121, 45: 5121, 46: 5121, 47: 5121}
-dataTypeMappingForPython = {0: 'f', 1: 'f', 2: 'f', 3: 'f', 8: 'I', 9: 'I', 10: 'I', 11: 'I', 12: 'H', 13: 'H', 14: 'H', 15: 'H', 16: 'B', 17: 'B', 18: 'B', 19: 'B', 20: 'H', 21: 'H', 22: 'H', 23: 'H', 24: 'B', 25: 'B', 26: 'B', 27: 'B', 28: 'i', 29: 'i', 30: 'i', 31: 'i', 32: 'h', 33: 'h', 34: 'h', 35: 'h', 36: 'b', 37: 'b', 38: 'b', 39: 'b', 40: 'h', 41: 'h', 42: 'h', 43: 'h', 44: 'b', 45: 'b', 46: 'b', 47: 'b'}
-dataTypeMappingSize = {0: 4, 1: 4, 2: 4, 3: 4, 4: 2, 5: 2, 6: 2, 7: 2, 8: 4, 9: 4, 10: 4, 11: 4, 12: 2, 13: 2, 14: 2, 15: 2, 16: 1, 17: 1, 18: 1, 19: 1, 20: 2, 21: 2, 22: 2, 23: 2, 24: 1, 25: 1, 26: 1, 27: 1, 28: 4, 29: 4, 30: 4, 31: 4, 32: 2, 33: 2, 34: 2, 35: 2, 36: 1, 37: 1, 38: 1, 39: 1, 40: 2, 41: 2, 42: 2, 43: 2, 44: 1, 45: 1, 46: 1, 47: 1}
+dataTypeMappingForGltf = {0: 5126, 4: 5131, 8: 5125, 12: 5123, 16: 5121, 20: 5123, 24: 5121, 28: 5124, 32: 5123, 36: 5121, 40: 5123, 44: 5121}
+dataTypeMappingForPython = {0: 'f', 4: 'e', 8: 'I', 12: 'H', 16: 'B', 20: 'H', 24: 'B', 28: 'i', 32: 'h', 36: 'b', 40: 'h', 44: 'b'}
+dataTypeMappingNonstandardRemapForGltf = {4: 0, 28: 0}
+dataTypeMappingNormalizationMultiplier = {20: 65535, 24: 255, 40: 32767, 44: 127}
+dataTypeMappingPrimitiveRemap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 4, 5: 4, 6: 4, 7: 4, 8: 8, 9: 8, 10: 8, 11: 8, 12: 12, 13: 12, 14: 12, 15: 12, 16: 16, 17: 16, 18: 16, 19: 16, 20: 20, 21: 20, 22: 20, 23: 20, 24: 24, 25: 24, 26: 24, 27: 24, 28: 28, 29: 28, 30: 28, 31: 28, 32: 32, 33: 32, 34: 32, 35: 32, 36: 36, 37: 36, 38: 36, 39: 36, 40: 40, 41: 40, 42: 40, 43: 40, 44: 44, 45: 44, 46: 44, 47: 44}
 dataTypeCountMappingForGltf = {0: 'SCALAR', 1: 'VEC2', 2: 'VEC3', 3: 'VEC4'}
 
 def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
@@ -2702,9 +2700,11 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                         for streamInfo in vertexData['m_streams']['m_els']:
                             renderDataType = streamInfo['m_renderDataType']
                             datatype = streamInfo['m_type']
+                            datatyperemapped = dataTypeMappingPrimitiveRemap[datatype]
+                            datatypepython = dataTypeMappingForPython[datatyperemapped]
                             dataTypeCount = datatype % 4 + 1
                             blobdata = streamInfo['mu_vertBuffer']
-                            singleelementsize = dataTypeMappingSize[datatype]
+                            singleelementsize = struct.calcsize(datatypepython)
                             blobstride = vertexData['m_stride']
                             elementcount = vertexData['m_elementCount']
                             if renderDataType in ['SkinIndices']:
@@ -2713,7 +2713,7 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                                     deinterleaved_data = memoryview(bytearray(deinterleaved_stride * elementcount))
                                     for i in range(elementcount):
                                         deinterleaved_data[deinterleaved_stride * i:deinterleaved_stride * (i + 1)] = blobdata[blobstride * i:blobstride * i + deinterleaved_stride]
-                                    blobstride = dataTypeCount * dataTypeMappingSize[datatype]
+                                    blobstride = dataTypeCount * singleelementsize
                                     blobdata = bytes(deinterleaved_data)
                                 elif dataTypeCount * singleelementsize * elementcount != len(blobdata):
                                     blobdata = blobdata[0:dataTypeCount * singleelementsize * elementcount]
@@ -2721,18 +2721,20 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                                     blobdatabyteswap = bytearray(blobdata)
                                     bytearray_byteswap(blobdatabyteswap, singleelementsize)
                                     blobdata = blobdatabyteswap
-                                skinInd = cast_memoryview(memoryview(blobdata), dataTypeMappingForPython[datatype])
+                                skinInd = cast_memoryview(memoryview(blobdata), datatypepython)
                                 if len(boneRemapForHierarchy) > 0:
                                     remapIndForHierarchy = cast_memoryview(memoryview(bytearray(len(skinInd) * 2)), 'H')
                                     for i in range(len(skinInd)):
                                         mb = skinInd[i]
-                                        remapIndForHierarchy[i] = boneRemapForHierarchy[mb]
+                                        if mb < len(boneRemapForHierarchy):
+                                            remapIndForHierarchy[i] = boneRemapForHierarchy[mb]
                                     streamInfo['mu_remappedVertBufferHierarchy'] = bytes(cast_memoryview(remapIndForHierarchy, 'B'))
                                 if len(boneRemapForSkeleton) > 0:
                                     remapIndForSkeleton = cast_memoryview(memoryview(bytearray(len(skinInd) * 2)), 'H')
                                     for i in range(len(skinInd)):
                                         mb = skinInd[i]
-                                        remapIndForSkeleton[i] = boneRemapForSkeleton[mb]
+                                        if mb < len(boneRemapForSkeleton):
+                                            remapIndForSkeleton[i] = boneRemapForSkeleton[mb]
                                     streamInfo['mu_remappedVertBufferSkeleton'] = bytes(cast_memoryview(remapIndForSkeleton, 'B'))
     if 'PNode' in cluster_mesh_info.data_instances_by_class:
         for node in cluster_mesh_info.data_instances_by_class['PNode']:
@@ -2768,13 +2770,6 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             need_embed = True
         if need_embed == False:
             need_embed = cluster_header.cluster_marker == NOEPY_HEADER_BE
-        if need_embed == False:
-            for vertexData in pdatablock_list:
-                for streamInfo in vertexData['m_streams']['m_els']:
-                    datatype = streamInfo['m_type']
-                    if datatype >= 4 and datatype <= 7:
-                        need_embed = True
-                        break
         buffer0 = {}
         buffers.append(buffer0)
         if need_embed == False:
@@ -2837,19 +2832,20 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
             for meshSegment in cluster_mesh_info.data_instances_by_class['PMeshSegment']:
                 accessor = {}
                 accessor['bufferView'] = len(bufferviews)
-                indiceTypeForGltf = 5123
-                if meshSegment['m_indexData']['m_type'] in indiceTypeLengthMapping:
-                    indiceTypeForGltf = indiceTypeLengthMapping[meshSegment['m_indexData']['m_type']]
+                datatype = meshSegment['m_indexData']['m_type']
+                datatyperemapped = dataTypeMappingPrimitiveRemap[datatype]
+                dataTypeForGltf = dataTypeMappingForGltf[datatyperemapped]
                 elementcount = meshSegment['m_indexData']['m_elementCount']
-                accessor['componentType'] = indiceTypeForGltf
+                accessor['componentType'] = dataTypeForGltf
                 accessor['min'] = [meshSegment['m_indexData']['m_minimumIndex']]
                 accessor['max'] = [meshSegment['m_indexData']['m_maximumIndex']]
                 accessor['type'] = 'SCALAR'
                 accessor['count'] = elementcount
                 meshSegment['mu_gltfAccessorIndex'] = len(accessors)
                 if need_embed:
+                    datatypepython = dataTypeMappingForPython[datatyperemapped]
                     blobdata = meshSegment['mu_indBuffer']
-                    singleelementsize = indiceTypeMappingSize[meshSegment['m_indexData']['m_type']]
+                    singleelementsize = struct.calcsize(datatypepython)
                     if singleelementsize * elementcount != len(blobdata):
                         blobdata = blobdata[:singleelementsize * elementcount]
                     if cluster_header.cluster_marker == NOEPY_HEADER_BE:
@@ -2907,27 +2903,33 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 accessor['bufferView'] = len(bufferviews)
                 dataTypeForGltf = 5123
                 datatype = streamInfo['m_type']
-                if datatype in dataTypeMappingForGltf:
-                    dataTypeForGltf = dataTypeMappingForGltf[datatype]
-                elif (datatype >= 4 and datatype <= 7) and need_embed:
-                    dataTypeForGltf = dataTypeMappingForGltf[datatype - 4]
-                dataTypeCount = datatype % 4 + 1
+                datatyperemapped = dataTypeMappingPrimitiveRemap[datatype]
+                datatypenew = None
+                if datatyperemapped in dataTypeMappingNonstandardRemapForGltf:
+                    datatypenew = dataTypeMappingNonstandardRemapForGltf[datatyperemapped]
+                    dataTypeForGltf = dataTypeMappingForGltf[datatypenew]
+                else:
+                    dataTypeForGltf = dataTypeMappingForGltf[datatyperemapped]
                 elementcount = vertexData['m_elementCount']
                 datastride = vertexData['m_stride']
                 accessor['componentType'] = dataTypeForGltf
                 accessor['type'] = dataTypeCountMappingForGltf[datatype % 4]
                 accessor['count'] = elementcount
+                if datatyperemapped in dataTypeMappingNormalizationMultiplier:
+                    accessor['normalized'] = True
                 streamInfo['mu_gltfAccessorIndex'] = len(accessors)
-                if need_embed:
+                if need_embed or datatypenew != None:
+                    datatypepython = dataTypeMappingForPython[datatyperemapped]
+                    dataTypeCount = datatype % 4 + 1
                     blobdata = streamInfo['mu_vertBuffer']
-                    singleelementsize = dataTypeMappingSize[datatype]
+                    singleelementsize = struct.calcsize(datatypepython)
                     blobstride = datastride
                     if dataTypeCount * singleelementsize != blobstride:
                         deinterleaved_stride = singleelementsize * dataTypeCount
                         deinterleaved_data = memoryview(bytearray(deinterleaved_stride * elementcount))
                         for i in range(elementcount):
                             deinterleaved_data[deinterleaved_stride * i:deinterleaved_stride * (i + 1)] = blobdata[blobstride * i:blobstride * i + deinterleaved_stride]
-                        blobstride = dataTypeCount * dataTypeMappingSize[datatype]
+                        blobstride = dataTypeCount * singleelementsize
                         blobdata = bytes(deinterleaved_data)
                     elif dataTypeCount * singleelementsize * elementcount != len(blobdata):
                         blobdata = blobdata[0:dataTypeCount * singleelementsize * elementcount]
@@ -2935,12 +2937,14 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         blobdatabyteswap = bytearray(blobdata)
                         bytearray_byteswap(blobdatabyteswap, singleelementsize)
                         blobdata = blobdatabyteswap
-                    if datatype >= 4 and datatype <= 7:
-                        blobdatafloatextend = cast_memoryview(memoryview(bytearray(dataTypeCount * elementcount * 4)), 'f')
+                    if datatypenew != None:
+                        datatypenewpython = dataTypeMappingForPython[datatypenew]
+                        singleelementsizenew = struct.calcsize(datatypenewpython)
+                        blobdatafloatextend = cast_memoryview(memoryview(bytearray(dataTypeCount * elementcount * singleelementsizenew)), datatypenewpython)
                         for i in range(dataTypeCount * elementcount):
-                            blobdatafloatextend[i] = struct.unpack('e', blobdata[i * 2:i * 2 + 2])[0]
+                            blobdatafloatextend[i] = struct.unpack(datatypepython, blobdata[i * singleelementsize:i * singleelementsize + singleelementsize])[0]
                         blobdata = bytes(cast_memoryview(blobdatafloatextend, 'B'))
-                        blobstride = dataTypeCount * 4
+                        blobstride = dataTypeCount * singleelementsizenew
                     add_bufferview_embed(data=blobdata, stride=blobstride)
                 else:
                     add_bufferview_reference(position=cluster_mesh_info.vram_model_data_offset + streamInfo['mu_vertBufferPosition'], size=streamInfo['mu_vertBufferSize'], stride=datastride)
