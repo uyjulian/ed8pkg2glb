@@ -616,13 +616,11 @@ def decode_dxt5(data):
     return bytes(finalColor)
 
 def decode_block_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
-    if dwWidth % 4 != 0:
-        raise Exception('Width is not multiple of 4')
-    if dwHeight % 4 != 0:
-        raise Exception('Height is not multiple of 4')
+    rounded_height = (dwHeight + 3) // 4 * 4
+    rounded_width = (dwWidth + 3) // 4 * 4
     block_size = 8 if dxgiFormat == 71 else 16
-    blocks_height = (dwHeight + 3) // 4
-    blocks_width = (dwWidth + 3) // 4
+    blocks_height = rounded_height // 4
+    blocks_width = rounded_width // 4
     line_pitch = blocks_width * block_size
     size_in_bytes = line_pitch * blocks_height
     in_data = f.read(size_in_bytes)
@@ -644,8 +642,8 @@ def decode_block_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
     pixel_size_in_bytes = 4
     block_width_size_in_bytes = 4 * pixel_size_in_bytes
     single_row_size_in_bytes = blocks_width * block_width_size_in_bytes
-    out_data = bytearray(single_row_size_in_bytes * dwHeight)
-    for row in range(0, dwHeight, 4):
+    out_data = bytearray(single_row_size_in_bytes * rounded_height)
+    for row in range(0, rounded_height, 4):
         offs = row // 4 * line_pitch
         block_line_data = in_data[offs:offs + line_pitch]
         blocks = len(block_line_data) // block_size
@@ -657,6 +655,12 @@ def decode_block_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
                 start_write_offset = block_offset // block_size * block_width_size_in_bytes + (row + i) * single_row_size_in_bytes
                 start_read_offset = 4 * 4 * i
                 out_data[start_write_offset:start_write_offset + block_width_size_in_bytes] = decoded[start_read_offset:start_read_offset + block_width_size_in_bytes]
+    if rounded_height != dwHeight or rounded_width != dwWidth:
+        single_row_size_in_bytes_cropped = pixel_size_in_bytes * dwWidth
+        out_data_cropped = bytearray(single_row_size_in_bytes_cropped * dwHeight)
+        for row in range(dwHeight):
+            out_data_cropped[single_row_size_in_bytes_cropped * row:single_row_size_in_bytes_cropped * (row + 1)] = out_data[single_row_size_in_bytes * row:single_row_size_in_bytes * (row + 1)]
+        out_data = out_data_cropped
     return bytes(out_data)
 
 def decode_l8_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
