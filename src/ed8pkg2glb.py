@@ -2579,16 +2579,17 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
         indice_size += align_size
         vertex_buffer_base_position = indice_size
     for vertexData in pdatablock_list:
-        if 'm_mappableBuffers' in vertexData:
-            vertexData['mu_vertBufferPosition'] = vertex_buffer_base_position + vertexData['m_mappableBuffers']['m_offsetInAllocatedBuffer']
-            vertexData['mu_vertBufferSize'] = vertexData['m_mappableBuffers']['m_strideInAllocatedBuffer']
-        elif 'm_indexBufferSize' in cluster_mesh_info.cluster_header:
-            vertexData['mu_vertBufferPosition'] = cluster_mesh_info.cluster_header['m_indexBufferSize'] + vertexData['m_offsetInVertexBuffer']
-            vertexData['mu_vertBufferSize'] = vertexData['m_dataSize']
-        cachekey = vertexData['mu_vertBufferPosition'].to_bytes(4, byteorder='little') + vertexData['mu_vertBufferSize'].to_bytes(4, byteorder='little')
-        if cachekey not in indvertbuffercache:
-            indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[vertexData['mu_vertBufferPosition']:vertexData['mu_vertBufferPosition'] + vertexData['mu_vertBufferSize']], 'B'))
-        vertexData['mu_vertBuffer'] = indvertbuffercache[cachekey]
+        for streamInfo in vertexData['m_streams']['m_els']:
+            if 'm_mappableBuffers' in vertexData:
+                streamInfo['mu_vertBufferPosition'] = vertex_buffer_base_position + vertexData['m_mappableBuffers']['m_offsetInAllocatedBuffer'] + streamInfo['m_offset']
+                streamInfo['mu_vertBufferSize'] = vertexData['m_mappableBuffers']['m_strideInAllocatedBuffer']
+            elif 'm_indexBufferSize' in cluster_mesh_info.cluster_header:
+                streamInfo['mu_vertBufferPosition'] = cluster_mesh_info.cluster_header['m_indexBufferSize'] + vertexData['m_offsetInVertexBuffer'] + streamInfo['m_offset']
+                streamInfo['mu_vertBufferSize'] = vertexData['m_dataSize']
+            cachekey = streamInfo['mu_vertBufferPosition'].to_bytes(4, byteorder='little') + streamInfo['mu_vertBufferSize'].to_bytes(4, byteorder='little')
+            if cachekey not in indvertbuffercache:
+                indvertbuffercache[cachekey] = bytes(cast_memoryview(indvertbuffer[streamInfo['mu_vertBufferPosition']:streamInfo['mu_vertBufferPosition'] + streamInfo['mu_vertBufferSize']], 'B'))
+            streamInfo['mu_vertBuffer'] = indvertbuffercache[cachekey]
     if True:
         cur_min = float('inf')
         cur_max = float('-inf')
@@ -2706,21 +2707,20 @@ def render_mesh(g, cluster_mesh_info, cluster_info, cluster_header):
                             renderDataType = streamInfo['m_renderDataType']
                             datatype = streamInfo['m_type']
                             dataTypeCount = datatype % 4 + 1
-                            blobdata = vertexData['mu_vertBuffer']
+                            blobdata = streamInfo['mu_vertBuffer']
                             singleelementsize = dataTypeMappingSize[datatype]
                             blobstride = vertexData['m_stride']
-                            streamoffset = streamInfo['m_offset']
                             elementcount = vertexData['m_elementCount']
                             if renderDataType in ['SkinIndices']:
                                 if dataTypeCount * singleelementsize != blobstride:
                                     deinterleaved_stride = singleelementsize * dataTypeCount
                                     deinterleaved_data = memoryview(bytearray(deinterleaved_stride * elementcount))
                                     for i in range(elementcount):
-                                        deinterleaved_data[deinterleaved_stride * i:deinterleaved_stride * (i + 1)] = blobdata[blobstride * i + streamoffset:blobstride * i + streamoffset + deinterleaved_stride]
+                                        deinterleaved_data[deinterleaved_stride * i:deinterleaved_stride * (i + 1)] = blobdata[blobstride * i:blobstride * i + deinterleaved_stride]
                                     blobstride = dataTypeCount * dataTypeMappingSize[datatype]
                                     blobdata = bytes(deinterleaved_data)
                                 elif dataTypeCount * singleelementsize * elementcount != len(blobdata):
-                                    blobdata = blobdata[streamoffset:streamoffset + dataTypeCount * singleelementsize * elementcount]
+                                    blobdata = blobdata[0:dataTypeCount * singleelementsize * elementcount]
                                 if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                                     blobdatabyteswap = bytearray(blobdata)
                                     bytearray_byteswap(blobdatabyteswap, singleelementsize)
@@ -2916,26 +2916,25 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 elif (datatype >= 4 and datatype <= 7) and need_embed:
                     dataTypeForGltf = dataTypeMappingForGltf[datatype - 4]
                 dataTypeCount = datatype % 4 + 1
-                streamoffset = streamInfo['m_offset']
                 elementcount = vertexData['m_elementCount']
                 datastride = vertexData['m_stride']
                 accessor['componentType'] = dataTypeForGltf
                 accessor['type'] = dataTypeCountMappingForGltf[datatype % 4]
                 accessor['count'] = elementcount
-                vertexData['mu_gltfAccessorIndex'] = len(accessors)
+                streamInfo['mu_gltfAccessorIndex'] = len(accessors)
                 if need_embed:
-                    blobdata = vertexData['mu_vertBuffer']
+                    blobdata = streamInfo['mu_vertBuffer']
                     singleelementsize = dataTypeMappingSize[datatype]
                     blobstride = datastride
                     if dataTypeCount * singleelementsize != blobstride:
                         deinterleaved_stride = singleelementsize * dataTypeCount
                         deinterleaved_data = memoryview(bytearray(deinterleaved_stride * elementcount))
                         for i in range(elementcount):
-                            deinterleaved_data[deinterleaved_stride * i:deinterleaved_stride * (i + 1)] = blobdata[blobstride * i + streamoffset:blobstride * i + streamoffset + deinterleaved_stride]
+                            deinterleaved_data[deinterleaved_stride * i:deinterleaved_stride * (i + 1)] = blobdata[blobstride * i:blobstride * i + deinterleaved_stride]
                         blobstride = dataTypeCount * dataTypeMappingSize[datatype]
                         blobdata = bytes(deinterleaved_data)
                     elif dataTypeCount * singleelementsize * elementcount != len(blobdata):
-                        blobdata = blobdata[streamoffset:streamoffset + dataTypeCount * singleelementsize * elementcount]
+                        blobdata = blobdata[0:dataTypeCount * singleelementsize * elementcount]
                     if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                         blobdatabyteswap = bytearray(blobdata)
                         bytearray_byteswap(blobdatabyteswap, singleelementsize)
@@ -2948,7 +2947,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                         blobstride = dataTypeCount * 4
                     add_bufferview_embed(data=blobdata, stride=blobstride)
                 else:
-                    add_bufferview_reference(position=cluster_mesh_info.vram_model_data_offset + streamoffset + vertexData['mu_vertBufferPosition'], size=vertexData['mu_vertBufferSize'], stride=datastride)
+                    add_bufferview_reference(position=cluster_mesh_info.vram_model_data_offset + streamInfo['mu_vertBufferPosition'], size=streamInfo['mu_vertBufferSize'], stride=datastride)
                 accessors.append(accessor)
         if 'PAnimationChannelTimes' in cluster_mesh_info.data_instances_by_class:
             for animationChannelTime in cluster_mesh_info.data_instances_by_class['PAnimationChannelTimes']:
@@ -3174,20 +3173,20 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                     for streamInfo in vertexData['m_streams']['m_els']:
                         renderDataType = streamInfo['m_renderDataType']
                         if renderDataType in ['Vertex', 'SkinnableVertex']:
-                            attributes['POSITION'] = vertexData['mu_gltfAccessorIndex']
+                            attributes['POSITION'] = streamInfo['mu_gltfAccessorIndex']
                         elif renderDataType in ['Normal', 'SkinnableNormal']:
-                            attributes['NORMAL'] = vertexData['mu_gltfAccessorIndex']
+                            attributes['NORMAL'] = streamInfo['mu_gltfAccessorIndex']
                         elif renderDataType in ['ST']:
                             pass
                         elif renderDataType in ['SkinWeights']:
-                            attributes['WEIGHTS_0'] = vertexData['mu_gltfAccessorIndex']
+                            attributes['WEIGHTS_0'] = streamInfo['mu_gltfAccessorIndex']
                         elif renderDataType in ['SkinIndices']:
                             if 'mu_gltfAccessorForRemappedSkinIndiciesIndex' in streamInfo:
                                 attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex']
                             else:
-                                attributes['JOINTS_0'] = vertexData['mu_gltfAccessorIndex']
+                                attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorIndex']
                         elif renderDataType in ['Color']:
-                            attributes['COLOR_' + str(colorCount)] = vertexData['mu_gltfAccessorIndex']
+                            attributes['COLOR_' + str(colorCount)] = streamInfo['mu_gltfAccessorIndex']
                             colorCount += 1
                         elif renderDataType in ['Tangent', 'SkinnableTangent']:
                             if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
@@ -3230,7 +3229,7 @@ def gltf_export(g, cluster_mesh_info, cluster_info, cluster_header, pdatablock_l
                 for i in range(len(uvDataRemapped)):
                     vertexData = uvDataRemapped[i][0]
                     streamInfo = uvDataRemapped[i][1]
-                    attributes['TEXCOORD_' + str(i)] = vertexData['mu_gltfAccessorIndex']
+                    attributes['TEXCOORD_' + str(i)] = streamInfo['mu_gltfAccessorIndex']
                 primitive['attributes'] = attributes
                 primitive['indices'] = m['mu_gltfAccessorIndex']
                 primitiveTypeForGltf = 0
