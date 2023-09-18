@@ -1191,9 +1191,6 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                     array_count = dict_data['m_count']
                     current_count = 0
                     val = [None] * array_count
-                    if array_count > 0:
-                        val[0] = dict_data[variable_text]
-                        process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val[0], cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_info_map, object_member_array_info_map, member_id)
                     for b in range(pointer_fixup_count):
                         if current_count >= array_count:
                             break
@@ -1204,6 +1201,9 @@ def process_data_members(g, cluster_info, id_, member_location, array_location, 
                             if len(data_instances_by_class_this) > offset_calculation:
                                 val[pointer_info.array_index] = data_instances_by_class_this[offset_calculation]
                             current_count += 1
+                    if array_count > 0 and current_count == 0:
+                        val[0] = dict_data[variable_text]
+                        process_data_members(g, cluster_info, class_type_id, data_offset, array_location, class_element, cluster_mesh_info, type_text, should_print_class, val[0], cluster_header, data_instances_by_class, offset_from_parent + value_offset, array_fixup_count, pointer_fixup_count, object_member_pointer_info_map, object_member_array_info_map, member_id)
                 elif type_text in data_instances_by_class or type_text in ['PBase']:
                     for pointer_info in pointer_infos:
                         if pointer_info.is_class_data_member():
