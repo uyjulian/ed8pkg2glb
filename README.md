@@ -10,7 +10,7 @@ See [Trails Research Group](https://github.com/Trails-Research-Group) for more r
 
 First, download and extract the [Win32 version](https://github.com/uyjulian/ed8pkg2glb/releases/latest/download/ed8pkg2glb-win32.zip).  
 Afterwards, drag and drop a **single** `.pkg` file onto the executable `ed8pkg2glb.exe`.  
-`.glb` or `.png` files will be output in the same directory as `.pkg`.  
+`.glb` **or** (not and) `.png` files will be output in the same directory as `.pkg`.  
 
 ## Output file information
 
