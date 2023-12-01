@@ -16,7 +16,7 @@ Afterwards, drag and drop a **single** `.pkg` file onto the executable `ed8pkg2g
 
 The `.glb` file can be imported in [Blender](https://www.blender.org/).  
 Compatibility with other applications is not guaranteed due to the output file not completely adhering to the GLTF specification.  
-Due to the fact that the game uses shaders for manipulating the pixel output, the output result may not look exactly as in the game.  
+Due to the fact that the game uses shaders for manipulating the pixel output, the output result may not look exactly as in the game, and not all textures will be mapped to glTF materials.  
 
 The `.png` file is always output in compressed RGBA format. It is loadable in [Blender](https://www.blender.org/) without any conversion needed.  
 
