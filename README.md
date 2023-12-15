@@ -59,6 +59,12 @@ The files from this platform are known working, but may not produce the correct 
 
 Some or all files from this platform are known to not work.
 
+## Locating .pkg files from the game
+
+### Steam
+Open Steam, select the "Library" tab, select the targeted game from the left hand side bar, click on the gear icon (Manage) on the right, then go to "Manage->Browse local files".  
+A file browser window will open showing the files related to the game. If you do not see any `.pkg` files, see the section "Extracting a .pkg file from an outer archive" for details on extracting `.pkg` files.  
+
 ## Extracting a .pkg file from an outer archive
 
 ### PSARC (PS3/PSVita/PS4)
