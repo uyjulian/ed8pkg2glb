@@ -2713,6 +2713,43 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
                                         if mb < len(boneRemapForSkeleton):
                                             remapIndForSkeleton[i] = boneRemapForSkeleton[mb]
                                     streamInfo['mu_remappedVertBufferSkeleton'] = bytes(cast_memoryview(remapIndForSkeleton, 'B'))
+                            elif renderDataType in ['Color']:
+                                if True:
+                                    if datatyperemapped == 0:
+                                        if dataTypeCount * singleelementsize != blobstride:
+                                            deinterleaved_stride = singleelementsize * dataTypeCount
+                                            deinterleaved_data = memoryview(bytearray(deinterleaved_stride * elementcount))
+                                            for i in range(elementcount):
+                                                deinterleaved_data[deinterleaved_stride * i:deinterleaved_stride * (i + 1)] = blobdata[blobstride * i:blobstride * i + deinterleaved_stride]
+                                            blobstride = dataTypeCount * singleelementsize
+                                            blobdata = bytes(deinterleaved_data)
+                                        elif dataTypeCount * singleelementsize * elementcount != len(blobdata):
+                                            blobdata = blobdata[0:dataTypeCount * singleelementsize * elementcount]
+                                        if cluster_header.cluster_marker == NOEPY_HEADER_BE:
+                                            blobdatabyteswap = bytearray(blobdata)
+                                            bytearray_byteswap(blobdatabyteswap, singleelementsize)
+                                            blobdata = blobdatabyteswap
+                                        unconverted_data = cast_memoryview(memoryview(blobdata), datatypepython)
+                                        converted_data = cast_memoryview(memoryview(bytearray(elementcount * 4 * 4)), 'f')
+                                        for i in range(elementcount):
+                                            for ii in range(3):
+                                                c = converted_data[i * dataTypeCount + ii]
+                                                if c < 0.04045:
+                                                    if c < 0.0:
+                                                        c = 0.0
+                                                    else:
+                                                        c *= 1.0 / 12.92
+                                                else:
+                                                    c = ((c + 0.055) * (1.0 / 1.055)) ** 2.4
+                                                converted_data[i * 4 + ii] = c
+                                                converted_data[i * 4 + ii] = unconverted_data[i * dataTypeCount + ii]
+                                            if dataTypeCount == 3:
+                                                converted_data[i * 4 + 3] = 1
+                                            else:
+                                                converted_data[i * 4 + 3] = unconverted_data[i * dataTypeCount + 3]
+                                        blobstride = 4 * singleelementsize
+                                        blobdata = bytes(cast_memoryview(converted_data, 'B'))
+                                        streamInfo['mu_convertedColor'] = blobdata
     if 'PNode' in cluster_mesh_info.data_instances_by_class:
         for node in cluster_mesh_info.data_instances_by_class['PNode']:
             node['mu_matrixToUse'] = node['m_localMatrix']['m_elements']
@@ -2862,6 +2899,16 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                             accessor['type'] = 'VEC4'
                             accessor['count'] = vertexData['m_elementCount']
                             streamInfo['mu_gltfAccessorForRemappedSkinIndiciesIndex'] = len(accessors)
+                            add_bufferview_embed(data=blobdata)
+                            accessors.append(accessor)
+                        if renderDataType in ['Color'] and 'mu_convertedColor' in streamInfo:
+                            blobdata = streamInfo['mu_convertedColor']
+                            accessor = {}
+                            accessor['bufferView'] = len(bufferviews)
+                            accessor['componentType'] = 5126
+                            accessor['type'] = 'VEC4'
+                            accessor['count'] = vertexData['m_elementCount']
+                            streamInfo['mu_gltfAccessorForConvertedColor'] = len(accessors)
                             add_bufferview_embed(data=blobdata)
                             accessors.append(accessor)
                         if renderDataType in ['Tangent', 'SkinnableTangent'] and 'mu_expandedHandednessTangent' in streamInfo:
@@ -3163,7 +3210,10 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                             else:
                                 attributes['JOINTS_0'] = streamInfo['mu_gltfAccessorIndex']
                         elif renderDataType in ['Color']:
-                            attributes['COLOR_' + str(colorCount)] = streamInfo['mu_gltfAccessorIndex']
+                            if 'mu_gltfAccessorForConvertedColor' in streamInfo:
+                                attributes['COLOR_' + str(colorCount)] = streamInfo['mu_gltfAccessorForConvertedColor']
+                            else:
+                                attributes['COLOR_' + str(colorCount)] = streamInfo['mu_gltfAccessorIndex']
                             colorCount += 1
                         elif renderDataType in ['Tangent', 'SkinnableTangent']:
                             if 'mu_gltfAccessorForExpandedHandednessTangent' in streamInfo:
