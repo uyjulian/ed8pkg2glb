@@ -1076,11 +1076,11 @@ def get_object_member_array_fixup_list_map(cluster_type_info, cluster_list_fixup
     return object_member_to_fixup_map
 clusterPrimitiveToPythonStructTypeMapping = {'PUInt8': 'B', 'PInt8': 'b', 'PUInt16': 'H', 'PInt16': 'h', 'PUInt32': 'I', 'PInt32': 'i', 'PUInt64': 'Q', 'PInt64': 'q', 'float': 'f'}
 
-def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, root_member_id):
+def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, root_member_id, is_class_data_member):
     if id_ > 0:
 
         def process_data_members_recursive(id_=id_, member_location=member_location, class_name=class_name, dict_data=dict_data, offset_from_parent=offset_from_parent, root_member_id=root_member_id):
-            process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, root_member_id)
+            process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, root_member_id, is_class_data_member)
         class_id = id_ - 1
         class_descriptor = cluster_type_info.class_descriptors[class_id]
         member_id_to_pointer_fixup_list = {}
@@ -1215,18 +1215,21 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                         process_data_members_recursive(id_=class_type_id, member_location=data_offset, class_name=type_text, dict_data=val[0], offset_from_parent=offset_from_parent + value_offset, root_member_id=member_id)
                 elif type_text in data_instances_by_class or type_text in ['PBase']:
                     for pointer_fixup in pointer_fixup_list:
-                        if pointer_fixup.is_class_data_member():
+                        pointer_fixup_is_class_data_member = pointer_fixup.is_class_data_member()
+                        if pointer_fixup_is_class_data_member and is_class_data_member or (not pointer_fixup_is_class_data_member and (not is_class_data_member) and (pointer_fixup.som == offset_from_parent + value_offset)):
                             user_fix_id = pointer_fixup.user_fixup_id
-                            object_id = pointer_fixup.destination_object.object_id
-                            object_list = pointer_fixup.destination_object.object_list
-                            if object_list in data_instances_by_class:
-                                data_instances_by_class_this = data_instances_by_class[object_list]
-                                if len(data_instances_by_class_this) > object_id:
-                                    val = data_instances_by_class_this[object_id]
-                                    break
+                            if pointer_fixup.destination_object != None:
+                                object_id = pointer_fixup.destination_object.object_id
+                                object_list = pointer_fixup.destination_object.object_list
+                                if object_list in data_instances_by_class:
+                                    data_instances_by_class_this = data_instances_by_class[object_list]
+                                    if len(data_instances_by_class_this) > object_id:
+                                        val = data_instances_by_class_this[object_id]
+                                        break
                 elif type_text in cluster_type_info.import_classes_strings:
                     for pointer_fixup in pointer_fixup_list:
-                        if pointer_fixup.is_class_data_member():
+                        pointer_fixup_is_class_data_member = pointer_fixup.is_class_data_member()
+                        if pointer_fixup_is_class_data_member and is_class_data_member or (not pointer_fixup_is_class_data_member and (not is_class_data_member) and (pointer_fixup.som == offset_from_parent + value_offset)):
                             user_fix_id = pointer_fixup.user_fixup_id
                             if user_fix_id != None and user_fix_id < len(cluster_list_fixup_info.user_fixup_results) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_list_fixup_info.user_fixup_results[user_fix_id].data) == int) and (cluster_list_fixup_info.user_fixup_results[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport'])):
                                 val = data_instances_by_class['PAssetReferenceImport'][cluster_list_fixup_info.user_fixup_results[user_fix_id].data]
@@ -1315,7 +1318,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                     process_data_members_recursive(id_=class_type_id, member_location=data_offset, class_name=type_text, dict_data=val, offset_from_parent=offset_from_parent + value_offset, root_member_id=member_id)
             if data_instances_by_class != None and val != None or data_instances_by_class == None:
                 dict_data[variable_text] = val
-        process_data_members_recursive(id_=class_descriptor.super_class_id, root_member_id=None)
+        process_data_members_recursive(id_=class_descriptor.super_class_id)
         return dict_data
 cluster_classes_to_handle = ['PAnimationChannel', 'PAnimationChannelTimes', 'PAnimationClip', 'PAnimationConstantChannel', 'PAnimationSet', 'PAssetReference', 'PAssetReferenceImport', 'PCgParameterInfoGCM', 'PContextVariantFoldingTable', 'PDataBlock', 'PDataBlockD3D11', 'PDataBlockGCM', 'PDataBlockGL', 'PDataBlockGNM', 'PDataBlockGXM', 'PEffect', 'PEffectVariant', 'PLight', 'PMaterial', 'PMaterialSwitch', 'PMatrix4', 'PMesh', 'PMeshInstance', 'PMeshInstanceBounds', 'PMeshInstanceSegmentContext', 'PMeshInstanceSegmentStreamBinding', 'PMeshSegment', 'PNode', 'PNodeContext', 'PParameterBuffer', 'PSamplerState', 'PSceneRenderPass', 'PShader', 'PShaderComputeProgram', 'PShaderFragmentProgram', 'PShaderGeometryProgram', 'PShaderParameterCaptureBufferLocation', 'PShaderParameterCaptureBufferLocationTypeConstantBuffer', 'PShaderParameterDefinition', 'PShaderPass', 'PShaderPassInfo', 'PShaderStreamDefinition', 'PShaderVertexProgram', 'PSkeletonJointBounds', 'PSkinBoneRemap', 'PString', 'PTexture2D', 'PTextureCubeMap', 'PVertexStream', 'PWorldMatrix']
 
@@ -1341,6 +1344,9 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
         if cluster_list_fixup_info != None:
             object_member_pointer_fixup_list_map = get_object_member_pointer_fixup_list_map(cluster_type_info, cluster_list_fixup_info, cluster_instance_list_header)
             object_member_array_fixup_list_map = get_object_member_array_fixup_list_map(cluster_type_info, cluster_list_fixup_info, cluster_instance_list_header)
+
+        def process_data_members_curry(id_=cluster_instance_list_header['m_classID'], member_location=0, class_element=0, class_name=class_name, dict_data=None, data_instances_by_class=data_instances_by_class, offset_from_parent=0, array_fixup_count=cluster_instance_list_header['m_arrayFixupCount'], pointer_fixup_count=cluster_instance_list_header['m_pointerFixupCount'], root_member_id=None, is_class_data_member=True):
+            process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, member_location, array_location, class_element, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, offset_from_parent, array_fixup_count, pointer_fixup_count, object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, root_member_id, is_class_data_member)
         for i in range(cluster_instance_list_header['m_count']):
             dict_data = None
             if data_instances_by_class == None:
@@ -1349,7 +1355,7 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
             else:
                 dict_data = data_instances[i]
             g.seek(member_location)
-            process_data_members(g, cluster_type_info, cluster_list_fixup_info, cluster_instance_list_header['m_classID'], member_location, array_location, i, cluster_mesh_info, class_name, should_print_class, dict_data, cluster_header, data_instances_by_class, 0, cluster_instance_list_header['m_arrayFixupCount'], cluster_instance_list_header['m_pointerFixupCount'], object_member_pointer_fixup_list_map, object_member_array_fixup_list_map, None)
+            process_data_members_curry(member_location=member_location, class_element=i, dict_data=dict_data)
             if data_instances_by_class == None:
                 dict_data['mu_memberLoc'] = member_location
                 dict_data['mu_memberClass'] = class_name
@@ -1423,7 +1429,7 @@ class ClusterPackedDataMember:
 
 class ClusterPackedClassDescriptor:
 
-    def __init__(self, g, cluster_header):
+    def __init__(self, g, cluster_header, class_id):
         self.super_class_id = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.size_in_bytes_and_alignment = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.name_offset = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
@@ -1434,6 +1440,7 @@ class ClusterPackedClassDescriptor:
         self.flags = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.default_buffer_offset = read_integer(g, 4, False, '>' if cluster_header.cluster_marker == NOEPY_HEADER_BE else '<')
         self.name = ''
+        self.class_id = class_id
 
     def get_size_in_bytes(self):
         return self.size_in_bytes_and_alignment & 268435455
@@ -1826,7 +1833,7 @@ def parse_cluster(filename='', noesis_model=None, storage_media=None):
         bytearray_byteswap(type_ids, 4)
     type_ids = cast_memoryview(memoryview(type_ids), 'i')
     class_member_count = 0
-    class_descriptors = [ClusterPackedClassDescriptor(g, cluster_header) for i in range(name_spaces.class_count)]
+    class_descriptors = [ClusterPackedClassDescriptor(g, cluster_header, i + 1) for i in range(name_spaces.class_count)]
     for class_descriptor in class_descriptors:
         class_descriptor.member_offset = class_member_count
         class_member_count += class_descriptor.class_data_member_count
@@ -1846,21 +1853,19 @@ def parse_cluster(filename='', noesis_model=None, storage_media=None):
     cluster_mesh_info.storage_media = storage_media
     cluster_mesh_info.filename = filename
     cluster_type_info = ClusterProcessTypeInfo(class_descriptors, class_data_members, type_strings)
-    for i in range(len(class_descriptors)):
-        class_descriptor = class_descriptors[i]
+    for class_descriptor in class_descriptors:
         if class_descriptor.name == 'PClusterHeader':
             g.seek(0)
-            process_data_members(g, cluster_type_info, None, i + 1, 0, 0, 0, cluster_mesh_info, class_descriptor.name, False, cluster_mesh_info.cluster_header, cluster_header, None, 0, 0, 0, None, None, None)
+            process_data_members(g, cluster_type_info, None, class_descriptor.class_id, 0, 0, 0, cluster_mesh_info, class_descriptor.name, False, cluster_mesh_info.cluster_header, cluster_header, None, 0, 0, 0, None, None, None, False)
             break
     instance_list = None
     object_data_offset = None
-    for i in range(len(class_descriptors)):
-        class_descriptor = class_descriptors[i]
+    for class_descriptor in class_descriptors:
         if class_descriptor.name == 'PInstanceListHeader':
             g.seek(instance_list_offset)
-            class_size = get_class_size(cluster_type_info, i + 1)
+            class_size = get_class_size(cluster_type_info, class_descriptor.class_id)
             object_data_offset = instance_list_offset + cluster_mesh_info.cluster_header['m_instanceListCount'] * class_size
-            instance_list = [process_data_members(g, cluster_type_info, None, i + 1, instance_list_offset + class_size * j, 0, j, cluster_mesh_info, class_descriptor.name, False, {}, cluster_header, None, 0, 0, 0, None, None, None) for j in range(cluster_mesh_info.cluster_header['m_instanceListCount'])]
+            instance_list = [process_data_members(g, cluster_type_info, None, class_descriptor.class_id, instance_list_offset + class_size * j, 0, j, cluster_mesh_info, class_descriptor.name, False, {}, cluster_header, None, 0, 0, 0, None, None, None, False) for j in range(cluster_mesh_info.cluster_header['m_instanceListCount'])]
             break
     user_fixup_data_offset = object_data_offset + cluster_mesh_info.cluster_header['m_totalDataSize']
     user_fixup_offset = user_fixup_data_offset + cluster_mesh_info.cluster_header['m_userFixupDataSize']
