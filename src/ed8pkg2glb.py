@@ -462,7 +462,7 @@ import struct
 
 def decode_dxt1(data):
     finalColor = bytearray(4 * 4 * 4)
-    (color0, color1, bits) = struct.unpack('<HHI', data[:8])
+    color0, color1, bits = struct.unpack('<HHI', data[:8])
     r0 = (color0 >> 11 & 31) << 3
     g0 = (color0 >> 5 & 63) << 2
     b0 = (color0 & 31) << 3
@@ -513,8 +513,8 @@ def decode_dxt3(data):
     finalColor = bytearray(4 * 4 * 4)
     block = data[:16]
     bits = struct.unpack(b'<8B', block[:8])
-    (color0, color1) = struct.unpack(b'<HH', block[8:12])
-    (code,) = struct.unpack(b'<I', block[12:])
+    color0, color1 = struct.unpack(b'<HH', block[8:12])
+    code, = struct.unpack(b'<I', block[12:])
     r0 = (color0 >> 11 & 31) << 3
     g0 = (color0 >> 5 & 63) << 2
     b0 = (color0 & 31) << 3
@@ -560,12 +560,12 @@ def decode_dxt3(data):
 def decode_dxt5(data):
     finalColor = bytearray(4 * 4 * 4)
     block = data[:16]
-    (alpha0, alpha1) = struct.unpack(b'<BB', block[:2])
+    alpha0, alpha1 = struct.unpack(b'<BB', block[:2])
     bits = struct.unpack(b'<6B', block[2:8])
     alphaCode1 = bits[2] | bits[3] << 8 | bits[4] << 16 | bits[5] << 24
     alphaCode2 = bits[0] | bits[1] << 8
-    (color0, color1) = struct.unpack(b'<HH', block[8:12])
-    (code,) = struct.unpack(b'<I', block[12:])
+    color0, color1 = struct.unpack(b'<HH', block[8:12])
+    code, = struct.unpack(b'<I', block[12:])
     r0 = (color0 >> 11 & 31) << 3
     g0 = (color0 >> 5 & 63) << 2
     b0 = (color0 & 31) << 3
@@ -673,7 +673,7 @@ def decode_l8_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
         for col in range(dwWidth):
             out_offset = (row * dwWidth + col) * 4
             in_offset = (row * dwWidth + col) * 1
-            (color,) = struct.unpack(b'<B', in_data[in_offset:in_offset + 1])
+            color, = struct.unpack(b'<B', in_data[in_offset:in_offset + 1])
             out_data[out_offset + 0] = color & 255
             out_data[out_offset + 1] = color & 255
             out_data[out_offset + 2] = color & 255
@@ -690,7 +690,7 @@ def decode_la8_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
         for col in range(dwWidth):
             out_offset = (row * dwWidth + col) * 4
             in_offset = (row * dwWidth + col) * 2
-            (color,) = struct.unpack(b'<H', in_data[in_offset:in_offset + 2])
+            color, = struct.unpack(b'<H', in_data[in_offset:in_offset + 2])
             out_data[out_offset + 0] = color >> 8 & 255
             out_data[out_offset + 1] = color >> 8 & 255
             out_data[out_offset + 2] = color >> 8 & 255
@@ -707,7 +707,7 @@ def decode_rgb565_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
         for col in range(dwWidth):
             out_offset = (row * dwWidth + col) * 4
             in_offset = (row * dwWidth + col) * 2
-            (color,) = struct.unpack(b'<H', in_data[in_offset:in_offset + 2])
+            color, = struct.unpack(b'<H', in_data[in_offset:in_offset + 2])
             out_data[out_offset + 0] = (color >> 11 & 31) << 3
             out_data[out_offset + 1] = (color >> 5 & 63) << 2
             out_data[out_offset + 2] = (color & 31) << 3
@@ -724,7 +724,7 @@ def decode_argb4444_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
         for col in range(dwWidth):
             out_offset = (row * dwWidth + col) * 4
             in_offset = (row * dwWidth + col) * 2
-            (color,) = struct.unpack(b'<H', in_data[in_offset:in_offset + 2])
+            color, = struct.unpack(b'<H', in_data[in_offset:in_offset + 2])
             out_data[out_offset + 0] = (color >> 8 & 15) * 17
             out_data[out_offset + 1] = (color >> 4 & 15) * 17
             out_data[out_offset + 2] = (color >> 0 & 15) * 17
@@ -741,7 +741,7 @@ def decode_rgba8_into_abgr8(f, dwWidth, dwHeight, dxgiFormat):
         for col in range(dwWidth):
             out_offset = (row * dwWidth + col) * 4
             in_offset = out_offset
-            (color,) = struct.unpack(b'<I', in_data[in_offset:in_offset + 4])
+            color, = struct.unpack(b'<I', in_data[in_offset:in_offset + 4])
             out_data[out_offset + 0] = color >> 0 & 255
             out_data[out_offset + 1] = color >> 8 & 255
             out_data[out_offset + 2] = color >> 16 & 255
@@ -758,7 +758,7 @@ def decode_argb8_into_agbr8(f, dwWidth, dwHeight, dxgiFormat):
         for col in range(dwWidth):
             out_offset = (row * dwWidth + col) * 4
             in_offset = out_offset
-            (color,) = struct.unpack(b'<I', in_data[in_offset:in_offset + 4])
+            color, = struct.unpack(b'<I', in_data[in_offset:in_offset + 4])
             out_data[out_offset + 0] = color >> 16 & 255
             out_data[out_offset + 1] = color >> 8 & 255
             out_data[out_offset + 2] = color >> 0 & 255
@@ -793,22 +793,22 @@ def get_dds_header(fmt, width, height, mipmap_levels, is_cube_map):
     miscFlags2 = 0
     if True:
         if fmt == 'LA8':
-            (ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask) = (255, 255, 255, 65280)
+            ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask = (255, 255, 255, 65280)
             dwFlags |= 8
         elif fmt == 'L8':
-            (ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask) = (255, 255, 255, 0)
+            ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask = (255, 255, 255, 0)
             dwFlags |= 8
         elif fmt == 'ARGB8' or fmt == 'ARGB8_SRGB':
-            (ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask) = (65280, 16711680, 4278190080, 255)
+            ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask = (65280, 16711680, 4278190080, 255)
             dwFlags |= 8
         elif fmt == 'RGBA8':
-            (ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask) = (255, 65280, 16711680, 4278190080)
+            ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask = (255, 65280, 16711680, 4278190080)
             dwFlags |= 8
         elif fmt == 'RGB565':
-            (ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask) = (63488, 2016, 31, 0)
+            ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask = (63488, 2016, 31, 0)
             dwFlags |= 8
         elif fmt == 'ARGB4444':
-            (ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask) = (3840, 240, 15, 61440)
+            ddspf_dwRBitMask, ddspf_dwGBitMask, ddspf_dwBBitMask, ddspf_dwABitMask = (3840, 240, 15, 61440)
             dwFlags |= 8
         elif fmt == 'BC5':
             dwFlags |= 524288
@@ -1921,11 +1921,11 @@ def file_is_ed8_pkg(path):
         if length <= 4:
             return False
         f.seek(4, io.SEEK_CUR)
-        (total_file_entries,) = struct.unpack('<I', f.read(4))
+        total_file_entries, = struct.unpack('<I', f.read(4))
         if length < 8 + (64 + 4 + 4 + 4 + 4) * total_file_entries:
             return False
         for i in range(total_file_entries):
-            (file_entry_name, file_entry_uncompressed_size, file_entry_compressed_size, file_entry_offset, file_entry_flags) = struct.unpack('<64sIIII', f.read(64 + 4 + 4 + 4 + 4))
+            file_entry_name, file_entry_uncompressed_size, file_entry_compressed_size, file_entry_offset, file_entry_flags = struct.unpack('<64sIIII', f.read(64 + 4 + 4 + 4 + 4))
             cur_offset = file_entry_offset + file_entry_compressed_size
             if cur_offset > max_offset:
                 max_offset = cur_offset
@@ -2005,9 +2005,9 @@ class TED8PkgMedia(IStorageMedia):
         self.f = f
         f.seek(4, io.SEEK_CUR)
         package_file_entries = {}
-        (total_file_entries,) = struct.unpack('<I', f.read(4))
+        total_file_entries, = struct.unpack('<I', f.read(4))
         for i in range(total_file_entries):
-            (file_entry_name, file_entry_uncompressed_size, file_entry_compressed_size, file_entry_offset, file_entry_flags) = struct.unpack('<64sIIII', f.read(64 + 4 + 4 + 4 + 4))
+            file_entry_name, file_entry_uncompressed_size, file_entry_compressed_size, file_entry_offset, file_entry_flags = struct.unpack('<64sIIII', f.read(64 + 4 + 4 + 4 + 4))
             package_file_entries[file_entry_name.rstrip(b'\x00').decode('ASCII')] = [file_entry_offset, file_entry_compressed_size, file_entry_uncompressed_size, file_entry_flags]
         self.file_entries = package_file_entries
         needscommonpkg = False
