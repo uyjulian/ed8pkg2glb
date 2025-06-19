@@ -2518,6 +2518,13 @@ def derive_matrix_44(dic, mat):
     scale.extend([0, 0, 0])
     dic['mu_scale'] = scale
     decompose_matrix_44(mat, translation, rotation, scale)
+
+def hash_string(s, hash_seed):
+    hash_ = hash_seed & 4294967295
+    if s != None:
+        for c in s:
+            hash_ = (hash_ * 33 & 4294967295) + (ord(c) & 31) & 4294967295
+    return hash_
 dataTypeMappingForGltf = {0: 5126, 4: 5131, 8: 5125, 12: 5123, 16: 5121, 20: 5123, 24: 5121, 28: 5124, 32: 5123, 36: 5121, 40: 5123, 44: 5121}
 dataTypeMappingForPython = {0: 'f', 4: 'e', 8: 'I', 12: 'H', 16: 'B', 20: 'H', 24: 'B', 28: 'i', 32: 'h', 36: 'b', 40: 'h', 44: 'b'}
 dataTypeMappingNonstandardRemapForGltf = {4: 0, 28: 0}
@@ -2554,6 +2561,14 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
             load_materials_with_actual_name(material, cluster_mesh_info)
             if 'mu_name' in material:
                 material['mu_materialname'] = material['mu_name']
+    if 'PMeshInstanceSegmentStreamBinding' in cluster_mesh_info.data_instances_by_class:
+        for streamBinding in cluster_mesh_info.data_instances_by_class['PMeshInstanceSegmentStreamBinding']:
+            hash_ = 0
+            name_ = streamBinding['m_name']['m_buffer']
+            if name_ != None:
+                hash_ = hash_string(name_, 1973) & 65535
+            if hash_ != streamBinding['m_nameHash']:
+                raise Exception('Hash of stream binding name does not match')
     pdatablock_list = []
     if 'PDataBlock' in cluster_mesh_info.data_instances_by_class:
         pdatablock_list = cluster_mesh_info.data_instances_by_class['PDataBlock']
