@@ -1185,28 +1185,6 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
                                         val = [None] * array_count
                                     val[pointer_fixup.array_index] = cluster_list_fixup_info.user_fixup_results[user_fix_id].data
                                     current_count += 1
-                    if type_value in ['PShaderParameterDefinition'] and val != None:
-                        shader_object_dict = {}
-                        for pointer_fixup in pointer_fixup_list:
-                            if not pointer_fixup.is_class_data_member():
-                                for arr_index in range(len(val)):
-                                    value_this = val[arr_index]
-                                    pointer_fixup_list_offset_needed = pointer_fixup.som
-                                    if value_this['m_parameterType'] == 71:
-                                        pointer_fixup_list_offset_needed -= 8
-                                        if value_this['m_bufferLoc']['m_offset'] == pointer_fixup_list_offset_needed:
-                                            if len(cluster_type_info.classes_strings) > pointer_fixup.destination_object.object_list and pointer_fixup.destination_object.object_list in data_instances_by_class:
-                                                shader_object_dict[value_this['m_name']['m_buffer']] = data_instances_by_class[pointer_fixup.destination_object.object_list][pointer_fixup.destination_object.object_id]
-                                    elif value_this['m_parameterType'] == 66 or value_this['m_parameterType'] == 68:
-                                        if value_this['m_bufferLoc']['m_size'] == 24:
-                                            pointer_fixup_list_offset_needed -= 16
-                                        else:
-                                            pointer_fixup_list_offset_needed -= 12
-                                        if value_this['m_bufferLoc']['m_offset'] == pointer_fixup_list_offset_needed:
-                                            user_fix_id = pointer_fixup.user_fixup_id
-                                            if user_fix_id != None and user_fix_id < len(cluster_list_fixup_info.user_fixup_results) and ('PAssetReferenceImport' in data_instances_by_class) and (type(cluster_list_fixup_info.user_fixup_results[user_fix_id].data) == int) and (cluster_list_fixup_info.user_fixup_results[user_fix_id].data < len(data_instances_by_class['PAssetReferenceImport'])):
-                                                shader_object_dict[value_this['m_name']['m_buffer']] = data_instances_by_class['PAssetReferenceImport'][cluster_list_fixup_info.user_fixup_results[user_fix_id].data]
-                        dict_data['mu_object_references'] = shader_object_dict
                 elif (class_name[0:9] == 'PSharray<' and class_name[-1:] == '>') and variable_text in ['m_u']:
                     array_count = dict_data['m_count']
                     current_count = 0
@@ -1332,6 +1310,7 @@ def process_data_members(g, cluster_type_info, cluster_list_fixup_info, id_, mem
         process_data_members_recursive(id_=class_descriptor.super_class_id)
         return dict_data
 cluster_classes_to_handle = ['PAnimationChannel', 'PAnimationChannelTimes', 'PAnimationClip', 'PAnimationConstantChannel', 'PAnimationSet', 'PAssetReference', 'PAssetReferenceImport', 'PCgParameterInfoGCM', 'PContextVariantFoldingTable', 'PDataBlock', 'PDataBlockD3D11', 'PDataBlockGCM', 'PDataBlockGL', 'PDataBlockGNM', 'PDataBlockGXM', 'PEffect', 'PEffectVariant', 'PLight', 'PMaterial', 'PMaterialSwitch', 'PMatrix4', 'PMesh', 'PMeshInstance', 'PMeshInstanceBounds', 'PMeshInstanceSegmentContext', 'PMeshInstanceSegmentStreamBinding', 'PMeshSegment', 'PNode', 'PNodeContext', 'PParameterBuffer', 'PSamplerState', 'PSceneRenderPass', 'PShader', 'PShaderComputeProgram', 'PShaderFragmentProgram', 'PShaderGeometryProgram', 'PShaderParameterCaptureBufferLocation', 'PShaderParameterCaptureBufferLocationTypeConstantBuffer', 'PShaderParameterDefinition', 'PShaderPass', 'PShaderPassInfo', 'PShaderStreamDefinition', 'PShaderVertexProgram', 'PSkeletonJointBounds', 'PSkinBoneRemap', 'PString', 'PTexture2D', 'PTextureCubeMap', 'PVertexStream', 'PWorldMatrix']
+cluster_class_name_to_parameter_buffer_type = {'PShaderParameterCaptureBufferTexture2D': 66, 'PShaderParameterCaptureBufferTexture3D': 67, 'PShaderParameterCaptureBufferTextureCubeMap': 68, 'PShaderParameterCaptureBufferSampler': 71, 'PShaderParameterCaptureBufferStructuredBuffer': 72, 'PShaderParameterCaptureBufferRWStructuredBuffer': 73, 'PShaderParameterCaptureConstantBuffer': 74, 'PShaderParameterCaptureBufferByteAddressBuffer': 75, 'PShaderParameterCaptureBufferRWByteAddressBuffer': 76, 'PShaderParameterCaptureBufferRWTexture2D': 77, 'PShaderParameterCaptureBufferRWTexture3D': 78, 'PShaderParameterCaptureBufferDataBlock': 79, 'PShaderParameterCaptureBufferIndexDataBlock': 80, 'PShaderParameterCaptureBufferTexture2DArray': 81, 'PShaderParameterCaptureBufferTextureCubeMapArray': 82, 'PShaderParameterCaptureBufferRWTexture2DArray': 83}
 
 def process_cluster_instance_list_header(cluster_instance_list_header, g, count_list, cluster_type_info, cluster_list_fixup_info, cluster_mesh_info, cluster_header, filename, data_instances_by_class):
     member_location = g.tell()
@@ -1380,6 +1359,24 @@ def process_cluster_instance_list_header(cluster_instance_list_header, g, count_
         cluster_list_fixup_info.pointer_fixup_offset += cluster_instance_list_header['m_pointerFixupCount']
         cluster_list_fixup_info.array_fixup_offset += cluster_instance_list_header['m_arrayFixupCount']
     if data_instances_by_class != None:
+        if class_name == 'PParameterBuffer':
+            ptr_member_id = get_data_member_id_from_name(cluster_type_info, cluster_instance_list_header['m_classID'], 'm_tweakableShaderParameterDefinitions')
+            for i in range(cluster_instance_list_header['m_count']):
+                parameterBuffer = data_instances[i]
+                parameter_buffer_objects = {}
+                parameterBuffer['mu_parameter_buffer_objects'] = parameter_buffer_objects
+                member_location = parameterBuffer['mu_memberLoc']
+                for shaderParameterDefinition in parameterBuffer['m_tweakableShaderParameterDefinitions']['m_els']:
+                    parameter_offset = shaderParameterDefinition['m_bufferLoc']['m_offset']
+                    parameter_size = shaderParameterDefinition['m_bufferLoc']['m_size']
+                    parameter_type = shaderParameterDefinition['m_parameterType']
+                    if parameter_type in cluster_list_fixup_info.parameter_buffer_type_to_class_descriptor:
+                        parameter_class_descriptor = cluster_list_fixup_info.parameter_buffer_type_to_class_descriptor[parameter_type]
+                        if parameter_offset not in parameter_buffer_objects:
+                            dict_data = {}
+                            parameter_buffer_objects[parameter_offset] = dict_data
+                            process_data_members_curry(id_=parameter_class_descriptor.class_id, member_location=member_location + parameter_offset, class_element=i, class_name=parameter_class_descriptor.name, dict_data=dict_data, data_instances_by_class=None, offset_from_parent=parameter_offset, root_member_id=ptr_member_id, is_class_data_member=False)
+                            process_data_members_curry(id_=parameter_class_descriptor.class_id, member_location=member_location + parameter_offset, class_element=i, class_name=parameter_class_descriptor.name, dict_data=dict_data, offset_from_parent=parameter_offset, root_member_id=ptr_member_id, is_class_data_member=False)
         return None
     if class_name == 'PAssetReference':
         for assetReference in data_instances:
@@ -1679,7 +1676,7 @@ class ClusterProcessTypeInfo:
 
 class ClusterProcessListFixupInfo:
 
-    def __init__(self, pointer_array_fixups, pointer_fixups, array_fixups, user_fixup_results):
+    def __init__(self, pointer_array_fixups, pointer_fixups, array_fixups, user_fixup_results, parameter_buffer_type_to_class_descriptor):
         self.pointer_array_fixup_offset = 0
         self.pointer_fixup_offset = 0
         self.array_fixup_offset = 0
@@ -1687,6 +1684,7 @@ class ClusterProcessListFixupInfo:
         self.pointer_fixups = pointer_fixups
         self.array_fixups = array_fixups
         self.user_fixup_results = user_fixup_results
+        self.parameter_buffer_type_to_class_descriptor = parameter_buffer_type_to_class_descriptor
 
     def reset_offset(self):
         self.pointer_array_fixup_offset = 0
@@ -1878,6 +1876,10 @@ def parse_cluster(filename='', noesis_model=None, storage_media=None):
             object_data_offset = instance_list_offset + cluster_mesh_info.cluster_header['m_instanceListCount'] * class_size
             instance_list = [process_data_members(g, cluster_type_info, None, class_descriptor.class_id, instance_list_offset + class_size * j, 0, j, cluster_mesh_info, class_descriptor.name, False, {}, cluster_header, None, 0, 0, 0, None, None, None, False) for j in range(cluster_mesh_info.cluster_header['m_instanceListCount'])]
             break
+    parameter_buffer_type_to_class_descriptor = {}
+    for class_descriptor in class_descriptors:
+        if class_descriptor.name in cluster_class_name_to_parameter_buffer_type:
+            parameter_buffer_type_to_class_descriptor[cluster_class_name_to_parameter_buffer_type[class_descriptor.name]] = class_descriptor
     user_fixup_data_offset = object_data_offset + cluster_mesh_info.cluster_header['m_totalDataSize']
     user_fixup_offset = user_fixup_data_offset + cluster_mesh_info.cluster_header['m_userFixupDataSize']
     g.seek(user_fixup_offset)
@@ -1901,7 +1903,7 @@ def parse_cluster(filename='', noesis_model=None, storage_media=None):
     array_fixups = [ClusterArrayFixup() for i in range(cluster_mesh_info.cluster_header['m_arrayFixupCount'])]
     g.seek(array_fixup_offset)
     array_fixups = decompress_fixups(FixUpBuffer(g, cluster_mesh_info.cluster_header['m_arrayFixupSize'], array_fixups), instance_list, False, False)
-    cluster_list_fixup_info = ClusterProcessListFixupInfo(pointer_array_fixups, pointer_fixups, array_fixups, user_fixup_results)
+    cluster_list_fixup_info = ClusterProcessListFixupInfo(pointer_array_fixups, pointer_fixups, array_fixups, user_fixup_results, parameter_buffer_type_to_class_descriptor)
     class_location = object_data_offset
     count_list = 0
     data_instances_by_class = {}
@@ -2311,43 +2313,36 @@ def load_materials_with_actual_name(dict_data, cluster_mesh_info):
         dict_data['mu_compiledShaderName'] = dict_data['m_effectVariant']['m_id']['m_buffer']
 
 def load_shader_parameters(g, dict_data, cluster_header):
-    if 'mu_shaderParameters' in dict_data:
+    parameterBuffer = dict_data
+    if 'mu_shaderParameters' in parameterBuffer:
         return
     old_position = g.tell()
-    g.seek(dict_data['mu_memberLoc'])
-    parameter_buffer = g.read(dict_data['m_parameterBufferSize'])
+    g.seek(parameterBuffer['mu_memberLoc'])
+    parameter_buffer_bytes = g.read(parameterBuffer['m_parameterBufferSize'])
     g.seek(old_position)
     shader_parameters = {}
-    for shaderParameterDefinition in dict_data['m_tweakableShaderParameterDefinitions']['m_els']:
+    for shaderParameterDefinition in parameterBuffer['m_tweakableShaderParameterDefinitions']['m_els']:
         parameter_offset = shaderParameterDefinition['m_bufferLoc']['m_offset']
         parameter_size = shaderParameterDefinition['m_bufferLoc']['m_size']
-        if shaderParameterDefinition['m_parameterType'] == 66 or shaderParameterDefinition['m_parameterType'] == 68:
-            arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
-            if cluster_header.cluster_marker == NOEPY_HEADER_BE:
-                bytearray_byteswap(arr, 4)
-            arr = cast_memoryview(memoryview(arr), 'I')
-            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
-            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references']:
-                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references'][shaderParameterDefinition['m_name']['m_buffer']]['m_id']['m_buffer']
-        elif shaderParameterDefinition['m_parameterType'] == 71:
-            arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
-            if cluster_header.cluster_marker == NOEPY_HEADER_BE:
-                bytearray_byteswap(arr, 4)
-            arr = cast_memoryview(memoryview(arr), 'I')
-            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
-            if shaderParameterDefinition['m_name']['m_buffer'] in dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references']:
-                shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = dict_data['m_tweakableShaderParameterDefinitions']['mu_object_references'][shaderParameterDefinition['m_name']['m_buffer']]
-        elif parameter_size == 24:
-            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = struct.unpack('IIQQ', parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+        if shaderParameterDefinition['m_parameterType'] in [66, 67, 68, 77, 78, 81, 82, 83]:
+            if parameter_offset in parameterBuffer['mu_parameter_buffer_objects']:
+                capture_parameter = parameterBuffer['mu_parameter_buffer_objects'][parameter_offset]
+                if capture_parameter['m_texture'] != None:
+                    shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = capture_parameter['m_texture']['m_id']['m_buffer']
+        elif shaderParameterDefinition['m_parameterType'] in [71]:
+            if parameter_offset in parameterBuffer['mu_parameter_buffer_objects']:
+                capture_parameter = parameterBuffer['mu_parameter_buffer_objects'][parameter_offset]
+                if capture_parameter['m_samplerState'] != None:
+                    shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = capture_parameter['m_samplerState']
         elif parameter_size % 4 == 0:
-            arr = bytearray(parameter_buffer[parameter_offset:parameter_offset + parameter_size])
+            arr = bytearray(parameter_buffer_bytes[parameter_offset:parameter_offset + parameter_size])
             if cluster_header.cluster_marker == NOEPY_HEADER_BE:
                 bytearray_byteswap(arr, 4)
             arr = cast_memoryview(memoryview(arr), 'f')
             shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = arr
         else:
-            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = parameter_buffer[parameter_offset:parameter_offset + parameter_size]
-    dict_data['mu_shaderParameters'] = shader_parameters
+            shader_parameters[shaderParameterDefinition['m_name']['m_buffer']] = parameter_buffer_bytes[parameter_offset:parameter_offset + parameter_size]
+    parameterBuffer['mu_shaderParameters'] = shader_parameters
 
 def multiply_array_as_4x4_matrix(arra, arrb):
     newarr = cast_memoryview(memoryview(bytearray(cast_memoryview(memoryview(arra), 'B'))), 'f')
