@@ -2269,10 +2269,26 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
                 raise Exception('Unhandled format ' + dict_data['m_format'] + ' for PNG conversion')
             if dxgiFormat != None:
                 decode_callback = decode_block_into_abgr8
-            zfio = io.BytesIO()
-            zfio.write(image_data)
-            zfio.seek(0)
-            rgba_image_data = decode_callback(zfio, image_width, image_height, dxgiFormat)
+            encoded_images = []
+            rgba_images = []
+            if True:
+                if is_cube_map and 'm_maxTextureBufferSize' in cluster_mesh_info.cluster_header:
+                    actual_mipmap_count = dict_data['m_mipmapCount']
+                    mipmaps_to_write = 1
+                    base_offset, base_size, base_width, base_height = get_mipmap_offset_and_size(actual_mipmap_count + 1, image_width, image_height, dict_data['m_format'], is_cube_map)
+                    for ii in range(1 if not is_cube_map else 6):
+                        for i in range(mipmaps_to_write):
+                            mipmap_offset, mipmap_size, mipmap_width, mipmap_height = get_mipmap_offset_and_size(i, image_width, image_height, dict_data['m_format'], is_cube_map)
+                            total_offset = ii * base_offset + mipmap_offset
+                            image_data_current = image_data[total_offset:total_offset + mipmap_size]
+                            encoded_images.append(image_data_current)
+            if len(encoded_images) == 0:
+                encoded_images.append(image_data)
+            for encoded_image in encoded_images:
+                zfio = io.BytesIO()
+                zfio.write(encoded_image)
+                zfio.seek(0)
+                rgba_images.append(decode_callback(zfio, image_width, image_height, dxgiFormat))
             with cluster_mesh_info.storage_media.open(png_output_path, 'wb') as f:
                 import zlib
                 f.write(b'\x89PNG\r\n\x1a\n')
@@ -2282,14 +2298,15 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
                     wf.write(ident[0:4])
                     wf.write(d)
                     wf.write(zlib.crc32(d, zlib.crc32(ident[0:4])).to_bytes(4, byteorder='big'))
-                ihdr_str = struct.pack('>IIBBBBB', image_width, image_height, 8, 6, 0, 0, 0)
+                ihdr_str = struct.pack('>IIBBBBB', image_width, image_height * len(rgba_images), 8, 6, 0, 0, 0)
                 write_png_chunk(f, b'IHDR', ihdr_str)
                 cbio = io.BytesIO()
                 cobj = zlib.compressobj(level=1)
-                for row in range(image_height):
-                    cbio.write(cobj.compress(b'\x00'))
-                    out_offset = row * image_width * 4
-                    cbio.write(cobj.compress(rgba_image_data[out_offset:out_offset + image_width * 4]))
+                for rgba_image_data in rgba_images:
+                    for row in range(image_height):
+                        cbio.write(cobj.compress(b'\x00'))
+                        out_offset = row * image_width * 4
+                        cbio.write(cobj.compress(rgba_image_data[out_offset:out_offset + image_width * 4]))
                 cbio.write(cobj.flush())
                 write_png_chunk(f, b'IDAT', cbio.getbuffer())
                 write_png_chunk(f, b'IEND', b'')
