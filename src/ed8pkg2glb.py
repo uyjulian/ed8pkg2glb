@@ -975,6 +975,17 @@ def get_class_name(cluster_type_info, id_):
 def get_class_size(cluster_type_info, id_):
     return cluster_type_info.class_descriptors[id_ - 1].get_size_in_bytes()
 
+def get_data_member_id_from_name(cluster_type_info, class_id, member_name):
+    class_descriptor = cluster_type_info.class_descriptors[class_id - 1]
+    for m in range(class_descriptor.class_data_member_count):
+        member_id = class_descriptor.member_offset + m
+        data_member = cluster_type_info.data_members[member_id]
+        if data_member.name == member_name:
+            return member_id
+    if class_descriptor.super_class_id > 0:
+        return get_data_member_id_from_name(cluster_type_info, class_descriptor.super_class_id, member_name)
+    return None
+
 def get_member_id_to_pointer_fixup_list(g, class_descriptor, cluster_type_info, cluster_list_fixup_info, pointer_fixup_count, class_element):
     member_id_to_pointer_fixup_list = {}
     for m in range(class_descriptor.class_data_member_count):
