@@ -1719,7 +1719,7 @@ class FixUpBuffer:
             self.decompressed[self.pointer_index].count = fixup.count
             self.decompressed[self.pointer_index].offset = fixup.offset
         elif fixup.fixup_type == 'Pointer':
-            if self.decompressed[self.pointer_index].destination_object == None:
+            if not self.decompressed[self.pointer_index].destination_object:
                 self.decompressed[self.pointer_index].destination_object = ClusterObjectID()
             self.decompressed[self.pointer_index].destination_object.object_id = fixup.destination_object.object_id
             self.decompressed[self.pointer_index].destination_object.object_list = fixup.destination_object.object_list
@@ -2092,7 +2092,7 @@ class BytesIOOnCloseHandler(io.BytesIO):
         super().__init__(*args, **kwargs)
 
     def close(self, *args, **kwargs):
-        if self.handler != None and (not self.closed):
+        if self.handler and (not self.closed):
             self.handler(self.getvalue())
         super().close(*args, **kwargs)
 
@@ -2148,7 +2148,7 @@ class TSpecialOverlayMedia(IStorageMedia):
     def open(self, name, flags='rb', **kwargs):
         if 'w' in flags:
             has_passthrough_extension = False
-            if self.allowed_write_extensions != None:
+            if self.allowed_write_extensions:
                 for ext in self.allowed_write_extensions:
                     if name.endswith(ext):
                         has_passthrough_extension = True
@@ -2282,7 +2282,7 @@ def create_texture(g, dict_data, cluster_mesh_info, cluster_header, is_cube_map)
                             total_offset = ii * base_offset + mipmap_offset
                             image_data_current = image_data[total_offset:total_offset + mipmap_size]
                             encoded_images.append(image_data_current)
-            if len(encoded_images) == 0:
+            if not encoded_images:
                 encoded_images.append(image_data)
             for encoded_image in encoded_images:
                 zfio = io.BytesIO()
@@ -2321,7 +2321,7 @@ def load_texture(dict_data, cluster_mesh_info):
             return True
     cluster_mesh_info.storage_media.get_list_at('.', list_callback)
     loaded_texture = False
-    if len(found_basename) > 0:
+    if found_basename:
         parse_cluster(found_basename[0], None, cluster_mesh_info.storage_media)
         loaded_texture = True
 
@@ -2521,7 +2521,7 @@ def derive_matrix_44(dic, mat):
 
 def hash_string(s, hash_seed):
     hash_ = hash_seed & 4294967295
-    if s != None:
+    if s:
         for c in s:
             hash_ = (hash_ * 33 & 4294967295) + (ord(c) & 31) & 4294967295
     return hash_
@@ -2548,9 +2548,8 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
             has_key = False
             if type(k) == int:
                 data_instances = cluster_mesh_info.data_instances_by_class[k]
-                if len(data_instances) > 0:
-                    if data_instances[0]['mu_memberClass'] == 'PParameterBuffer':
-                        has_key = True
+                if data_instances and data_instances[0]['mu_memberClass'] == 'PParameterBuffer':
+                    has_key = True
             if has_key == True:
                 for parameterBuffer in cluster_mesh_info.data_instances_by_class[k]:
                     load_shader_parameters(g, parameterBuffer, cluster_header)
@@ -2639,7 +2638,7 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
             boneSkelMap = {}
             boneSkelInverseMap = {}
             matrix_hierarchy_only_indices = []
-            if boneSkelBounds != None and len(boneSkelBounds) > 0 and (type(boneSkelBounds) != int) and ('m_els' not in boneSkelMat):
+            if boneSkelBounds and type(boneSkelBounds) != int and ('m_els' not in boneSkelMat):
                 bone_hierarchy_indices = []
                 for i in range(len(boneSkelBounds)):
                     hierarchy_matrix_index = boneSkelBounds[i]['m_hierarchyMatrixIndex']
@@ -2652,7 +2651,7 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
                 matrix_hierarchy_only_indices = [i for i in range(len(boneSkelMat)) if i not in bone_hierarchy_indices]
             hierarchy_additional_inverse_bind_matrices = []
             hierarchy_additional_names = []
-            if len(bonePosePtr) > 0 and 'm_els' not in bonePosePtr and (type(bonePosePtr[0]) != int):
+            if bonePosePtr and 'm_els' not in bonePosePtr and (type(bonePosePtr[0]) != int):
                 skinMat = [bonePosePtr[i]['m_elements'] for i in range(len(bonePosePtr))]
                 skinReducedMatrix = {}
                 skinRootName = None
@@ -2700,7 +2699,7 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
                     cluster_mesh_info.bone_names.append(bn)
                     if cur_reduced_matrix != None:
                         skinReducedMatrix[bn] = cur_reduced_matrix
-                    if sm in matrix_hierarchy_only_indices and bn != '':
+                    if sm in matrix_hierarchy_only_indices and bn:
                         hierarchy_additional_inverse_bind_matrices.append(invert_matrix_44(cur_matrix))
                         hierarchy_additional_names.append(bn)
                 mesh['mu_reduced_matrix'] = skinReducedMatrix
@@ -2711,7 +2710,7 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
                 for m in mesh['m_meshSegments']['m_els']:
                     boneRemapForHierarchy = cast_memoryview(memoryview(bytearray(len(m['m_skinBones']['m_els']) * 2)), 'H')
                     boneRemapForSkeleton = cast_memoryview(memoryview(bytearray(len(m['m_skinBones']['m_els']) * 2)), 'H')
-                    if len(bonePosePtr) > 0 and 'm_els' not in bonePosePtr and (len(m['m_skinBones']['m_els']) > 0) and (type(m['m_skinBones']['m_els'][0]) != int):
+                    if bonePosePtr and 'm_els' not in bonePosePtr and m['m_skinBones']['m_els'] and (type(m['m_skinBones']['m_els'][0]) != int):
                         for i in range(len(m['m_skinBones']['m_els'])):
                             sb = m['m_skinBones']['m_els'][i]
                             boneRemapForHierarchy[i] = sb['m_hierarchyMatrixIndex']
@@ -2742,14 +2741,14 @@ def render_mesh(g, cluster_mesh_info, cluster_header):
                                     bytearray_byteswap(blobdatabyteswap, singleelementsize)
                                     blobdata = blobdatabyteswap
                                 skinInd = cast_memoryview(memoryview(blobdata), datatypepython)
-                                if len(boneRemapForHierarchy) > 0:
+                                if boneRemapForHierarchy:
                                     remapIndForHierarchy = cast_memoryview(memoryview(bytearray(len(skinInd) * 2)), 'H')
                                     for i in range(len(skinInd)):
                                         mb = skinInd[i]
                                         if mb < len(boneRemapForHierarchy):
                                             remapIndForHierarchy[i] = boneRemapForHierarchy[mb]
                                     streamInfo['mu_remappedVertBufferHierarchy'] = bytes(cast_memoryview(remapIndForHierarchy, 'B'))
-                                if len(boneRemapForSkeleton) > 0:
+                                if boneRemapForSkeleton:
                                     remapIndForSkeleton = cast_memoryview(memoryview(bytearray(len(skinInd) * 2)), 'H')
                                     for i in range(len(skinInd)):
                                         mb = skinInd[i]
@@ -2919,7 +2918,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                 if 'm_skeletonMatrices' in mesh and type(mesh['m_skeletonMatrices']['m_els']) == list:
                     for skeletonMatrix in mesh['m_skeletonMatrices']['m_els']:
                         matrix_list.append(bytes(cast_memoryview(skeletonMatrix['m_elements'], 'B')))
-                if len(matrix_list) > 0:
+                if matrix_list:
                     blobdata = b''.join(matrix_list)
                     accessor = {}
                     accessor['bufferView'] = len(bufferviews)
@@ -3141,9 +3140,8 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                 has_key = False
                 if type(k) == int:
                     data_instances = cluster_mesh_info.data_instances_by_class[k]
-                    if len(data_instances) > 0:
-                        if data_instances[0]['mu_memberClass'] == 'PParameterBuffer':
-                            has_key = True
+                    if data_instances and data_instances[0]['mu_memberClass'] == 'PParameterBuffer':
+                        has_key = True
                 if has_key == True:
                     for parameter_buffer in cluster_mesh_info.data_instances_by_class[k]:
                         shaderparam = parameter_buffer['mu_shaderParameters']
@@ -3158,7 +3156,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                                     for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
                                         if assetReferenceImport['m_id']['m_buffer'] == parameter_buffer['mu_shaderParameters']['DiffuseMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
-                                            if samplerstate != None:
+                                            if samplerstate:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
                                             texture['source'] = assetReferenceImport['mu_gltfImageIndex']
                                             parameter_buffer['mu_gltfTextureDiffuseIndex'] = len(textures)
@@ -3175,7 +3173,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                                     for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
                                         if assetReferenceImport['m_id']['m_buffer'] == parameter_buffer['mu_shaderParameters']['NormalMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
-                                            if samplerstate != None:
+                                            if samplerstate:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
                                             texture['source'] = assetReferenceImport['mu_gltfImageIndex']
                                             parameter_buffer['mu_gltfTextureNormalIndex'] = len(textures)
@@ -3192,7 +3190,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                                     for assetReferenceImport in cluster_mesh_info.data_instances_by_class['PAssetReferenceImport']:
                                         if assetReferenceImport['m_id']['m_buffer'] == parameter_buffer['mu_shaderParameters']['SpecularMapSampler'] and 'mu_gltfImageIndex' in assetReferenceImport:
                                             texture = {}
-                                            if samplerstate != None:
+                                            if samplerstate:
                                                 texture['sampler'] = samplerstate['mu_gltfSamplerIndex']
                                             texture['source'] = assetReferenceImport['mu_gltfImageIndex']
                                             parameter_buffer['mu_gltfTextureSpecularIndex'] = len(textures)
@@ -3229,9 +3227,9 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
             for tt in range(len(curmesh['m_meshSegments']['m_els'])):
                 primitive = {}
                 m = curmesh['m_meshSegments']['m_els'][tt]
-                if curmesh['m_defaultMaterials']['m_materials']['m_u'] != None and len(curmesh['m_defaultMaterials']['m_materials']['m_u']) > m['m_materialIndex']:
+                if curmesh['m_defaultMaterials']['m_materials']['m_u'] and len(curmesh['m_defaultMaterials']['m_materials']['m_u']) > m['m_materialIndex']:
                     mat = curmesh['m_defaultMaterials']['m_materials']['m_u'][m['m_materialIndex']]
-                    if mat != None:
+                    if mat:
                         primitive['material'] = mat['mu_gltfMaterialIndex']
                 segmentcontext = meshInstance['m_segmentContext']['m_els'][tt]
                 attributes = {}
@@ -3290,7 +3288,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                                         while len(uvDataRemapped) <= uvIndex:
                                             uvDataRemapped.append(None)
                                         uvDataRemapped[uvIndex] = [vertexData, streamInfo]
-                if len(uvDataRemapped) > 0:
+                if uvDataRemapped:
                     while uvDataRemapped[-1] == None:
                         uvDataRemapped.pop()
                 for i in range(len(uvDataRemapped)):
@@ -3323,10 +3321,9 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                 if light['m_lightType'] in light_type_map:
                     light_obj = {}
                     name = ''
-                    if name == '':
-                        if 'mu_name' in light:
-                            name = light['mu_name']
-                    if name != '':
+                    if not name and 'mu_name' in light:
+                        name = light['mu_name']
+                    if name:
                         light_obj['name'] = name
                     color = light['m_color']['m_elements']
                     light_obj['color'] = [color[0], color[1], color[2]]
@@ -3341,12 +3338,12 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                         light_obj['range'] = light['m_outerRange']
                     light['mu_gltfLightIndex'] = len(lights)
                     lights.append(light_obj)
-        if len(lights) > 0:
+        if lights:
             KHR_lights_punctual = {}
             KHR_lights_punctual['lights'] = lights
             extensionsUsed.append('KHR_lights_punctual')
             extensions['KHR_lights_punctual'] = KHR_lights_punctual
-        if len(extensions) > 0:
+        if extensions:
             cluster_mesh_info.gltf_data['extensions'] = extensions
         nodes = []
         if 'PNode' in cluster_mesh_info.data_instances_by_class:
@@ -3357,16 +3354,16 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                 if True:
                     node_obj['matrix'] = node['mu_matrixToUse'].tolist()
                 name = node['m_name']['m_buffer']
-                if name == '':
+                if not name:
                     if 'mu_name' in node:
                         name = node['mu_name']
                 mesh_node_indices = None
                 if 'PMeshInstance' in cluster_mesh_info.data_instances_by_class:
                     for meshInstance in cluster_mesh_info.data_instances_by_class['PMeshInstance']:
                         if meshInstance['m_localToWorldMatrix'] is node['m_worldMatrix']:
-                            if name == '' and 'mu_name' in meshInstance:
+                            if not name and 'mu_name' in meshInstance:
                                 name = meshInstance['mu_name']
-                            if name == '' and 'mu_name' in meshInstance['m_mesh']:
+                            if not name and 'mu_name' in meshInstance['m_mesh']:
                                 name = meshInstance['m_mesh']['mu_name']
                             if 'mu_gltfMeshIndex' in meshInstance:
                                 node_obj['mesh'] = meshInstance['mu_gltfMeshIndex']
@@ -3378,26 +3375,26 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                     node_KHR_lights_punctual = {}
                     for light in cluster_mesh_info.data_instances_by_class['PLight']:
                         if light['m_localToWorldMatrix'] is node['m_worldMatrix'] and 'mu_gltfLightIndex' in light:
-                            if name == '' and 'mu_name' in light:
+                            if not name and 'mu_name' in light:
                                 name = light['mu_name']
                             node_KHR_lights_punctual['light'] = light['mu_gltfLightIndex']
                             light['mu_gltfNodeIndex'] = len(nodes)
                             break
-                    if len(node_KHR_lights_punctual) > 0:
+                    if node_KHR_lights_punctual:
                         node_extensions['KHR_lights_punctual'] = node_KHR_lights_punctual
-                if len(node_extensions) > 0:
+                if node_extensions:
                     node_obj['extensions'] = node_extensions
-                if name != '':
+                if name:
                     node_obj['name'] = name
                 children = [i for i in range(len(cluster_mesh_info.data_instances_by_class['PNode'])) if cluster_mesh_info.data_instances_by_class['PNode'][i]['m_parent'] is node]
-                if mesh_node_indices != None:
+                if mesh_node_indices:
                     for mesh_node_index in mesh_node_indices:
                         mesh_segment_node = {}
                         mesh_segment_node['name'] = meshes[mesh_node_index]['name'] + '_node'
                         mesh_segment_node['mesh'] = mesh_node_index
                         children.append(len(cluster_mesh_info.data_instances_by_class['PNode']) + len(mesh_segment_nodes))
                         mesh_segment_nodes.append(mesh_segment_node)
-                if len(children) > 0:
+                if children:
                     node_obj['children'] = children
                 node['mu_gltfNodeIndex'] = len(nodes)
                 node['mu_gltfNodeName'] = name
@@ -3422,7 +3419,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                         if joint != None:
                             skin['skeleton'] = joint
                     skin['inverseBindMatrices'] = mesh['mu_gltfAccessorForInverseBindMatrixIndex']
-                    if len(nodes) > 0 and type(mesh['m_matrixNames']['m_els']) == list and (type(mesh['m_matrixParents']['m_els']) == memoryview or type(mesh['m_matrixParents']['m_els']) == array.array) and (len(mesh['m_matrixNames']['m_els']) == len(mesh['m_matrixParents']['m_els'])):
+                    if nodes and type(mesh['m_matrixNames']['m_els']) == list and (type(mesh['m_matrixParents']['m_els']) == memoryview or type(mesh['m_matrixParents']['m_els']) == array.array) and (len(mesh['m_matrixNames']['m_els']) == len(mesh['m_matrixParents']['m_els'])):
                         joints = []
                         skeleton_matrix_names = []
                         matrix_index_to_node = {}
@@ -3449,7 +3446,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                                 matrix_index_to_node[hierarchy_matrix_index] = joint
                             else:
                                 joints.append(1)
-                        if len(joints) > 0:
+                        if joints:
                             skin['joints'] = joints
                             meshInstance['mu_gltfSkinMatrixIndexToNode'] = matrix_index_to_node
                     meshInstance['mu_gltfSkinIndex'] = len(skins)
@@ -3463,7 +3460,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
             skin = {}
             skin['skeleton'] = 0
             joints = [i for i in range(len(nodes)) if i != 0]
-            if len(joints) > 0:
+            if joints:
                 skin['joints'] = joints
             skins.append(skin)
         cluster_mesh_info.gltf_data['skins'] = skins
@@ -3491,7 +3488,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                         elif animationChannel['m_instanceObjectType'] == 'PMeshInstance':
                             if animationChannel['m_name']['m_buffer'] == 'm_currentPose':
                                 instance_obj = animationChannel['m_instanceObject']
-                                if instance_obj != None:
+                                if instance_obj:
                                     if 'mu_gltfSkinMatrixIndexToNode' in instance_obj:
                                         target['node'] = instance_obj['mu_gltfSkinMatrixIndexToNode'][animationChannel['m_index']]
                         channel['target'] = target
@@ -3540,7 +3537,7 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
         cluster_mesh_info.gltf_data['scenes'] = scenes
         cluster_mesh_info.gltf_data['bufferViews'] = bufferviews
         cluster_mesh_info.gltf_data['accessors'] = accessors
-        if len(nodes) > 0:
+        if nodes:
             import json
             import base64
             embedded_giant_buffer_joined = b''.join(embedded_giant_buffer)
@@ -3563,7 +3560,7 @@ def standalone_main():
     cluster_mesh_info_list = []
     if True:
         in_name = args[1]
-    if file_type == None:
+    if not file_type:
         is_pkg = file_is_ed8_pkg(in_name)
         if is_pkg:
             file_type = 'pkg'
@@ -3577,7 +3574,7 @@ def standalone_main():
             if item[-10:-6] == '.dae':
                 items.append(item)
         storage_media.get_list_at('.', list_callback)
-        if len(items) == 0:
+        if not items:
             allowed_write_extensions.append('.png')
 
             def list_callback2(item):
@@ -3586,7 +3583,7 @@ def standalone_main():
             storage_media.get_list_at('.', list_callback2)
         for item in items:
             cluster_mesh_info_list.append(parse_cluster(item, None, storage_media))
-    if len(cluster_mesh_info_list) == 0:
+    if not cluster_mesh_info_list:
         raise Exception('Passed in file is not compatible file')
 if __name__ == '__main__':
     standalone_main()
