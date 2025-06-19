@@ -3527,8 +3527,10 @@ def standalone_main():
     file_type = None
     storage_media = None
     in_name = None
+    args = sys.argv
+    cluster_mesh_info_list = []
     if True:
-        in_name = sys.argv[1]
+        in_name = args[1]
     if file_type == None:
         is_pkg = file_is_ed8_pkg(in_name)
         if is_pkg:
@@ -3551,8 +3553,8 @@ def standalone_main():
                     items.append(item)
             storage_media.get_list_at('.', list_callback2)
         for item in items:
-            parse_cluster(item, None, storage_media)
-        return
-    raise Exception('Passed in file is not compatible file')
+            cluster_mesh_info_list.append(parse_cluster(item, None, storage_media))
+    if len(cluster_mesh_info_list) == 0:
+        raise Exception('Passed in file is not compatible file')
 if __name__ == '__main__':
     standalone_main()
