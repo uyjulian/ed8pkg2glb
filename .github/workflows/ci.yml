@@ -1,68 +1,91 @@
-name: pyinstaller package for windows
-
-on:
-  push:
-    paths:
-      - "**.py"
-      - "**.yml"
-  pull_request:
-    paths:
-      - "**.py"
-      - "**.yml"
-
-env:
-  CMAKE_GENERATOR: Ninja
-  HOMEBREW_NO_ANALYTICS: 1
-  HOMEBREW_NO_AUTO_UPDATE: 1
-  HOMEBREW_NO_INSTALL_UPGRADE: 1
-  HOMEBREW_NO_INSTALL_CLEANUP: 1
-  DEBIAN_FRONTEND: noninteractive
-  TZ: Japan
-jobs:
-  build-win32:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    container:
-      image: ubuntu:20.04
-      options: "--user 0"
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: package app
-      uses: JackMcKew/pyinstaller-action-windows@main
-      with:
-        path: src
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: ${{ github.event.repository.name }}-win32
-        path: src/dist/windows
-
-  create-release:
-    needs: [build-win32]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    container:
-      image: ubuntu:20.04
-      options: "--user 0"
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-    - name: Download all artifact
-      uses: actions/download-artifact@v4
-
-    - name: Set up p7zip
-      run: "apt-get -y update && apt-get -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' install p7zip-full"
-
-    - name: Prepare artifacts for release
-      run: |
-        7z a -tzip ${{ github.event.repository.name }}-win32.zip ${{ github.event.repository.name }}-win32/*
-
-    - name: Create release
-      if: startsWith(github.ref, 'refs/tags/v')
-      uses: marvinpinto/action-automatic-releases@latest
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: "${{ contains(github.ref, '-rc') }}"
-        files: |
-          ${{ github.event.repository.name }}-win32.zip
-
+{
+  "name": "pyinstaller package for windows",
+  "on": {
+    "push": {
+      "paths": [
+        "**.py",
+        "**.yml"
+      ]
+    },
+    "pull_request": {
+      "paths": [
+        "**.py",
+        "**.yml"
+      ]
+    }
+  },
+  "env": {
+    "CMAKE_GENERATOR": "Ninja",
+    "HOMEBREW_NO_ANALYTICS": "1",
+    "HOMEBREW_NO_AUTO_UPDATE": "1",
+    "HOMEBREW_NO_INSTALL_UPGRADE": "1",
+    "HOMEBREW_NO_INSTALL_CLEANUP": "1",
+    "DEBIAN_FRONTEND": "noninteractive",
+    "TZ": "Japan"
+  },
+  "jobs": {
+    "build-win32": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 20,
+      "container": {
+        "image": "ubuntu:20.04",
+        "options": "--user 0"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4"
+        },
+        {
+          "name": "package app",
+          "uses": "JackMcKew/pyinstaller-action-windows@main",
+          "with": {
+            "path": "src"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "${{ github.event.repository.name }}-win32",
+            "path": "src/dist/windows"
+          }
+        }
+      ]
+    },
+    "create-release": {
+      "needs": [
+        "build-win32"
+      ],
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 20,
+      "container": {
+        "image": "ubuntu:20.04",
+        "options": "--user 0"
+      },
+      "if": "startsWith(github.ref, 'refs/tags/v')",
+      "steps": [
+        {
+          "name": "Download all artifact",
+          "uses": "actions/download-artifact@v4"
+        },
+        {
+          "name": "Set up p7zip",
+          "run": "apt-get -y update && apt-get -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' install p7zip-full"
+        },
+        {
+          "name": "Prepare artifacts for release",
+          "run": "7z a -tzip ${{ github.event.repository.name }}-win32.zip ${{ github.event.repository.name }}-win32/*\n"
+        },
+        {
+          "name": "Create release",
+          "if": "startsWith(github.ref, 'refs/tags/v')",
+          "uses": "marvinpinto/action-automatic-releases@latest",
+          "with": {
+            "repo_token": "${{ secrets.GITHUB_TOKEN }}",
+            "prerelease": "${{ contains(github.ref, '-rc') }}",
+            "files": "${{ github.event.repository.name }}-win32.zip\n"
+          }
+        }
+      ]
+    }
+  }
+}
