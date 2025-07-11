@@ -3306,10 +3306,13 @@ def gltf_export(g, cluster_mesh_info, cluster_header, pdatablock_list):
                     primitiveTypeForGltf = primitiveTypeMappingForGltf[m['m_primitiveType']]
                 primitive['mode'] = primitiveTypeForGltf
                 primitives.append(primitive)
+            mesh_name = 'UnknownMesh_%08x' % len(meshes)
+            if 'mu_name' in curmesh:
+                mesh_name = curmesh['mu_name']
             if True:
                 mesh = {}
                 mesh['primitives'] = primitives
-                mesh['name'] = curmesh['mu_name']
+                mesh['name'] = mesh_name
                 meshInstance['mu_gltfMeshIndex'] = len(meshes)
                 meshes.append(mesh)
         cluster_mesh_info.gltf_data['meshes'] = meshes
