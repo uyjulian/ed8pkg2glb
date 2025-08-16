@@ -42,15 +42,17 @@ Game support
 ~~~~~~~~~~~~
 
 | The following games are known to be compatible with this program:
-| \* 英雄伝説: 閃の軌跡 / Eiyuu Densetsu: Sen no Kiseki / The Legend of
-  Heroes: Trails of Cold Steel / ED81 \* 英雄伝説: 閃の軌跡 II / Eiyuu
-  Densetsu: Sen no Kiseki II / The Legend of Heroes: Trails of Cold
-  Steel II / ED82 \* 英雄伝説: 閃の軌跡 III / Eiyuu Densetsu: Sen no
-  Kiseki III / The Legend of Heroes: Trails of Cold Steel III / ED83 \*
-  英雄伝説: 閃の軌跡 IV / Eiyuu Densetsu: Sen no Kiseki IV / The Legend
-  of Heroes: Trails of Cold Steel IV / ED84 \* 英雄伝説: 創の軌跡 /
-  Eiyuu Densetsu: Hajimari no Kiseki / The Legend of Heroes: Trails into
-  Reverie / ED85 \* 東亰ザナドゥ / Tokyo Xanadu / TX
+* 英雄伝説: 閃の軌跡 / Eiyuu Densetsu: Sen no Kiseki / The
+  Legend of Heroes: Trails of Cold Steel / ED81
+* 英雄伝説: 閃の軌跡 II / Eiyuu Densetsu: Sen no Kiseki II / The
+  Legend of Heroes: Trails of Cold Steel II / ED82
+* 英雄伝説: 閃の軌跡 III / Eiyuu Densetsu: Sen no Kiseki III / The
+  Legend of Heroes: Trails of Cold Steel III / ED83
+* 英雄伝説: 閃の軌跡 IV / Eiyuu Densetsu: Sen no Kiseki IV / The
+  Legend of Heroes: Trails of Cold Steel IV / ED84
+* 英雄伝説: 創の軌跡 / Eiyuu Densetsu: Hajimari no Kiseki / The
+  Legend of Heroes: Trails into Reverie / ED85
+* 東亰ザナドゥ / Tokyo Xanadu / TX
 
 Platform support
 ~~~~~~~~~~~~~~~~
